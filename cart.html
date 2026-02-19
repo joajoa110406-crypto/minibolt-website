@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>장바구니 - MiniBolt</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans KR',sans-serif;color:#333;background:#f5f5f5}
+nav{background:#1a1a1a;color:#fff;padding:1rem 0;position:fixed;width:100%;top:0;z-index:999}
+nav .container{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:0 20px}
+nav .logo{font-size:1.8rem;font-weight:700;color:#ff6b35}
+nav ul{display:flex;list-style:none;gap:2rem}
+nav a{color:#fff;text-decoration:none}
+.header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:120px 20px 60px;text-align:center;margin-top:70px}
+.header h1{font-size:2.5rem}
+.main{max-width:1200px;margin:0 auto;padding:60px 20px}
+.cart-container{background:#fff;border-radius:15px;padding:2rem}
+.empty{text-align:center;padding:4rem;color:#666}
+.empty i{font-size:4rem;margin-bottom:1rem;color:#ddd}
+.cart-item{border:2px solid #e9ecef;border-radius:10px;padding:1.5rem;margin-bottom:1rem;display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:1.5rem;align-items:center}
+.item-info h3{font-size:1.1rem;margin-bottom:0.5rem}
+.item-info .specs{font-size:0.9rem;color:#666}
+.item-qty{display:flex;align-items:center;gap:0.5rem}
+.qty-btn{background:#f8f9fa;border:2px solid #e0e0e0;width:35px;height:35px;border-radius:6px;cursor:pointer;font-size:1.2rem;font-weight:600;transition:all .3s}
+.qty-btn:hover{background:#ff6b35;color:#fff;border-color:#ff6b35}
+.qty-input{width:80px;padding:0.5rem;border:2px solid #e0e0e0;border-radius:6px;text-align:center;font-weight:600}
+.item-price{text-align:right}
+.unit-price{font-size:0.9rem;color:#666;margin-bottom:0.3rem}
+.total-price{font-size:1.2rem;font-weight:700;color:#ff6b35}
+.btn-remove{background:#dc3545;color:#fff;border:none;padding:0.5rem 1rem;border-radius:6px;cursor:pointer;font-weight:600;transition:all .3s}
+.btn-remove:hover{background:#c82333}
+.summary{background:#f8f9fa;border-radius:10px;padding:2rem;margin-top:2rem}
+.summary-row{display:flex;justify-content:space-between;margin-bottom:1rem;font-size:1.1rem}
+.summary-row.total{font-size:1.5rem;font-weight:700;color:#ff6b35;border-top:2px solid #dee2e6;padding-top:1rem;margin-top:1rem}
+.actions{display:flex;gap:1rem;margin-top:2rem}
+.btn{padding:1rem 2rem;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:1rem;transition:all .3s}
+.btn-primary{background:#ff6b35;color:#fff;flex:1}
+.btn-primary:hover{background:#e55a28}
+.btn-secondary{background:#6c757d;color:#fff}
+.btn-secondary:hover{background:#5a6268}
+@media(max-width:768px){
+.cart-item{grid-template-columns:1fr;gap:1rem}
+.item-price,.item-qty{text-align:left}
+}
+</style>
+</head>
+<body>
+<nav>
+<div class="container">
+<div class="logo"><i class="fa-solid fa-screwdriver-wrench"></i> MINI BOLT</div>
+<ul>
+<li><a href="index.html"><i class="fa-solid fa-house"></i> 홈</a></li>
+<li><a href="products.html"><i class="fa-solid fa-box"></i> 제품</a></li>
+<li><a href="cart.html" style="position:relative"><i class="fa-solid fa-shopping-cart"></i> 장바구니 <span id="cart-count" style="background:#ff6b35;border-radius:50%;padding:2px 6px;font-size:0.8rem;margin-left:5px">0</span></a></li>
+<li><a href="orders.html"><i class="fa-solid fa-receipt"></i> 주문내역</a></li>
+<li id="user-menu"></li>
+</ul>
+</div>
+</nav>
+<div class="header"><h1><i class="fa-solid fa-shopping-cart"></i> 장바구니</h1></div>
+<div class="main">
+<div class="cart-container">
+<div id="cart-items"></div>
+<div id="cart-summary" style="display:none">
+<div class="summary">
+<div class="summary-row">
+<span>상품 개수:</span>
+<span id="total-items">0개</span>
+</div>
+<div class="summary-row">
+<span>상품 종류:</span>
+<span id="total-types">0종</span>
+</div>
+<div class="summary-row">
+<span>상품 금액:</span>
+<span id="product-amount">₩0</span>
+</div>
+<div class="summary-row">
+<span>배송비:</span>
+<span id="delivery-fee">₩0</span>
+</div>
+<div class="summary-row">
+<span>부가세 (10%):</span>
+<span id="vat-amount">₩0</span>
+</div>
+<div class="summary-row total">
+<span>총 결제금액:</span>
+<span id="total-price">₩0</span>
+</div>
+</div>
+<div class="actions">
+<button class="btn btn-primary" onclick="checkout()">주문하기</button>
+<button class="btn btn-secondary" onclick="clearCart()">장바구니 비우기</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+function load(){
+const cart=JSON.parse(localStorage.getItem('cart')||'[]');
+updateCartCount();
+if(cart.length===0){
+document.getElementById('cart-items').innerHTML='<div class="empty"><i class="fa-solid fa-cart-shopping"></i><h2>장바구니가 비어있습니다</h2><p style="margin:1rem 0">제품 페이지에서 상품을 담아보세요</p><a href="products.html" class="btn btn-primary" style="display:inline-block;text-decoration:none">제품 보러가기</a></div>';
+document.getElementById('cart-summary').style.display='none';
+return;
+}
+document.getElementById('cart-summary').style.display='block';
+let html='';
+cart.forEach((item,idx)=>{
+const unitPrice=item.qty>=1000?item.price_1000/1000:item.price_100/100;
+const totalPrice=Math.round(unitPrice*item.qty);
+html+=`<div class="cart-item">
+<div class="item-info">
+<h3>${item.name}</h3>
+<div class="specs">
+<div><b>ID:</b> ${item.id}</div>
+<div><b>규격:</b> M${item.diameter} × ${item.length}mm</div>
+<div><b>색상:</b> ${item.color}</div>
+</div>
+</div>
+<div class="item-qty">
+<button class="qty-btn" onclick="updateQty(${idx},-100)">-</button>
+<input type="number" class="qty-input" value="${item.qty}" onchange="setQty(${idx},this.value)" min="100" step="100">
+<button class="qty-btn" onclick="updateQty(${idx},100)">+</button>
+</div>
+<div class="item-price">
+<div class="unit-price">₩${unitPrice.toLocaleString()} / 1EA</div>
+<div class="total-price">₩${totalPrice.toLocaleString()}</div>
+</div>
+<button class="btn-remove" onclick="removeItem(${idx})"><i class="fa-solid fa-trash"></i></button>
+</div>`;
+});
+document.getElementById('cart-items').innerHTML=html;
+updateSummary();
+}
+function updateQty(idx,delta){
+let cart=JSON.parse(localStorage.getItem('cart')||'[]');
+cart[idx].qty+=delta;
+if(cart[idx].qty<100)cart[idx].qty=100;
+localStorage.setItem('cart',JSON.stringify(cart));
+load();
+}
+function setQty(idx,val){
+let cart=JSON.parse(localStorage.getItem('cart')||'[]');
+const qty=parseInt(val)||100;
+cart[idx].qty=qty<100?100:qty;
+localStorage.setItem('cart',JSON.stringify(cart));
+load();
+}
+function removeItem(idx){
+if(!confirm('이 상품을 장바구니에서 제거하시겠습니까?'))return;
+let cart=JSON.parse(localStorage.getItem('cart')||'[]');
+cart.splice(idx,1);
+localStorage.setItem('cart',JSON.stringify(cart));
+load();
+}
+function clearCart(){
+if(!confirm('장바구니를 비우시겠습니까?'))return;
+localStorage.removeItem('cart');
+load();
+}
+function updateSummary(){
+const cart=JSON.parse(localStorage.getItem('cart')||'[]');
+const totalItems=cart.reduce((sum,item)=>sum+item.qty,0);
+const totalTypes=cart.length;
+let productAmount=0;
+cart.forEach(item=>{
+const unitPrice=item.qty>=1000?item.price_1000/1000:item.price_100/100;
+productAmount+=Math.round(unitPrice*item.qty);
+});
+const deliveryFee=productAmount>=50000?0:3000;
+const subtotal=productAmount+deliveryFee;
+const vat=Math.round(subtotal*0.1);
+const totalPrice=subtotal+vat;
+document.getElementById('total-items').textContent=totalItems.toLocaleString()+'개';
+document.getElementById('total-types').textContent=totalTypes+'종';
+document.getElementById('product-amount').textContent='₩'+productAmount.toLocaleString();
+document.getElementById('delivery-fee').textContent=deliveryFee===0?'무료':'₩'+deliveryFee.toLocaleString();
+document.getElementById('vat-amount').textContent='₩'+vat.toLocaleString();
+document.getElementById('total-price').textContent='₩'+totalPrice.toLocaleString();
+}
+function updateCartCount(){
+const cart=JSON.parse(localStorage.getItem('cart')||'[]');
+const count=cart.reduce((sum,item)=>sum+item.qty,0);
+const el=document.getElementById('cart-count');
+if(el)el.textContent=count;
+}
+function checkout(){
+window.location.href='checkout.html';
+}
+function updateUserMenu(){
+const user=JSON.parse(localStorage.getItem('user')||'null');
+const userMenu=document.getElementById('user-menu');
+if(!userMenu)return;
+if(user){
+userMenu.innerHTML=`<a href="#" style="display:flex;align-items:center;gap:0.5rem">${user.profile_image?`<img src="${user.profile_image}" style="width:30px;height:30px;border-radius:50%">`:'👤'}${user.name}</a><a href="#" onclick="logout();return false" style="color:#ff6b35">로그아웃</a>`;
+userMenu.style.display='flex';
+userMenu.style.gap='1rem';
+}else{
+userMenu.innerHTML='<a href="login.html">로그인</a>';
+}
+}
+function logout(){
+if(confirm('로그아웃 하시겠습니까?')){
+localStorage.removeItem('user');
+alert('로그아웃되었습니다.');
+updateUserMenu();
+}
+}
+document.addEventListener('DOMContentLoaded',()=>{load();updateUserMenu();});
+</script>
+</body>
+</html>

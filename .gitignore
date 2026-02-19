@@ -1,0 +1,17 @@
+# 불필요한 파일 제외
+*.pptx
+*.bak
+*.backup
+fix-search.js
+add-debug.js
+단가표수정완.js
+products-bind.json
+products-pan.json
+products-flat.json
+products-camera.json
+products-backup.html
+index_optimized.html
+OPTIMIZATION_REPORT.md
+ABOUT_README.md
+사업자 템플릿.txt
+미니볼트 사업자등록증.jpg

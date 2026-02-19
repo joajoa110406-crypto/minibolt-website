@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문/결제 - MiniBolt</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans KR',sans-serif;color:#333;background:#f5f5f5}
+nav{background:#1a1a1a;color:#fff;padding:1rem 0;position:fixed;width:100%;top:0;z-index:999}
+nav .container{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:0 20px}
+nav .logo{font-size:1.8rem;font-weight:700;color:#ff6b35}
+nav ul{display:flex;list-style:none;gap:2rem}
+nav a{color:#fff;text-decoration:none}
+.header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:120px 20px 60px;text-align:center;margin-top:70px}
+.header h1{font-size:2.5rem}
+.main{max-width:1200px;margin:0 auto;padding:60px 20px}
+.checkout-grid{display:grid;grid-template-columns:2fr 1fr;gap:2rem}
+.section{background:#fff;border-radius:15px;padding:2rem;margin-bottom:2rem}
+.section h2{font-size:1.5rem;margin-bottom:1.5rem;color:#2c3e50;border-bottom:2px solid #ff6b35;padding-bottom:0.5rem}
+.form-group{margin-bottom:1.5rem}
+.form-group label{display:block;font-weight:600;margin-bottom:0.5rem;color:#333}
+.form-group input,.form-group textarea{width:100%;padding:0.8rem;border:2px solid #e0e0e0;border-radius:8px;font-size:1rem}
+.form-group input:focus,.form-group textarea:focus{outline:none;border-color:#ff6b35}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.order-item{border-bottom:1px solid #e9ecef;padding:1rem 0;display:flex;justify-content:space-between;align-items:center}
+.order-item:last-child{border-bottom:none}
+.item-info{flex:1}
+.item-info h4{font-size:1rem;margin-bottom:0.3rem}
+.item-info .specs{font-size:0.85rem;color:#666}
+.item-qty{text-align:right;color:#666;margin-right:1rem}
+.item-price{text-align:right;font-weight:600;color:#ff6b35}
+.summary-row{display:flex;justify-content:space-between;margin-bottom:1rem;font-size:1.1rem}
+.summary-row.total{font-size:1.5rem;font-weight:700;color:#ff6b35;border-top:2px solid #dee2e6;padding-top:1rem;margin-top:1rem}
+.btn-pay{background:#ff6b35;color:#fff;border:none;padding:1.2rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:1.2rem;width:100%;transition:all .3s;margin-top:1rem}
+.btn-pay:hover{background:#e55a28;transform:translateY(-2px)}
+.empty{text-align:center;padding:3rem;color:#666}
+.alert{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:1rem;border-radius:8px;margin-bottom:1rem}
+@media(max-width:768px){
+.checkout-grid{grid-template-columns:1fr}
+.form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<nav>
+<div class="container">
+<div class="logo"><i class="fa-solid fa-screwdriver-wrench"></i> MINI BOLT</div>
+<ul>
+<li><a href="index.html"><i class="fa-solid fa-house"></i> 홈</a></li>
+<li><a href="products.html"><i class="fa-solid fa-box"></i> 제품</a></li>
+<li><a href="cart.html"><i class="fa-solid fa-shopping-cart"></i> 장바구니</a></li>
+<li><a href="orders.html"><i class="fa-solid fa-receipt"></i> 주문내역</a></li>
+<li id="user-menu"></li>
+</ul>
+</div>
+</nav>
+<div class="header"><h1><i class="fa-solid fa-credit-card"></i> 주문/결제</h1></div>
+<div class="main" id="main-content">
+<div class="checkout-grid">
+<div>
+<div class="section">
+<h2><i class="fa-solid fa-user"></i> 주문자 정보</h2>
+<div class="form-group">
+<label>이름 *</label>
+<input type="text" id="buyer-name" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>이메일 *</label>
+<input type="email" id="buyer-email" required>
+</div>
+<div class="form-group">
+<label>연락처 *</label>
+<input type="tel" id="buyer-phone" placeholder="010-0000-0000" required>
+</div>
+</div>
+</div>
+<div class="section">
+<h2><i class="fa-solid fa-truck"></i> 배송 정보</h2>
+<div class="form-group">
+<label>받는 분 *</label>
+<input type="text" id="receiver-name" required>
+</div>
+<div class="form-group">
+<label>연락처 *</label>
+<input type="tel" id="receiver-phone" placeholder="010-0000-0000" required>
+</div>
+<div class="form-group">
+<label>배송 주소 *</label>
+<input type="text" id="address" placeholder="주소를 입력하세요" required>
+</div>
+<div class="form-group">
+<label>배송 요청사항</label>
+<textarea id="delivery-message" rows="3" placeholder="배송 시 요청사항을 입력하세요 (선택)"></textarea>
+</div>
+</div>
+</div>
+<div>
+<div class="section">
+<h2><i class="fa-solid fa-box-open"></i> 주문 상품</h2>
+<div id="order-items"></div>
+</div>
+<div class="section">
+<h2><i class="fa-solid fa-calculator"></i> 결제 금액</h2>
+<div class="summary-row">
+<span>상품 금액:</span>
+<span id="product-total">₩0</span>
+</div>
+<div class="summary-row">
+<span>배송비:</span>
+<span id="delivery-fee">₩0</span>
+</div>
+<div class="summary-row" style="border-top:1px solid #dee2e6;padding-top:0.5rem;margin-top:0.5rem">
+<span>소계:</span>
+<span id="subtotal">₩0</span>
+</div>
+<div class="summary-row">
+<span>부가세 (10%):</span>
+<span id="vat">₩0</span>
+</div>
+<div class="summary-row total">
+<span>총 결제 금액:</span>
+<span id="total-price">₩0</span>
+</div>
+<div class="alert">
+<i class="fa-solid fa-info-circle"></i> 테스트 결제입니다. 실제 결제가 진행되지 않습니다.
+</div>
+<button class="btn-pay" onclick="requestPayment()">
+<i class="fa-solid fa-credit-card"></i> 결제하기
+</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 토스페이먼츠 결제 SDK -->
+<script src="https://js.tosspayments.com/v1/payment"></script>
+<!-- EmailJS SDK -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<script>
+// 토스페이먼츠 테스트 클라이언트 키
+const CLIENT_KEY = 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
+const tossPayments = TossPayments(CLIENT_KEY);
+
+let cart = [];
+let totalAmount = 0;
+
+function init() {
+    cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+    if (cart.length === 0) {
+        document.getElementById('main-content').innerHTML = `
+            <div class="section">
+                <div class="empty">
+                    <i class="fa-solid fa-cart-shopping" style="font-size:4rem;margin-bottom:1rem;color:#ddd"></i>
+                    <h2>장바구니가 비어있습니다</h2>
+                    <p style="margin:1rem 0">먼저 상품을 담아주세요</p>
+                    <a href="products.html" class="btn-pay" style="display:inline-block;text-decoration:none;width:auto;padding:1rem 2rem">제품 보러가기</a>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    loadUserInfo();
+    displayOrderItems();
+    updateSummary();
+}
+
+function loadUserInfo() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (user) {
+        document.getElementById('buyer-name').value = user.name || '';
+        document.getElementById('buyer-email').value = user.email || '';
+        document.getElementById('receiver-name').value = user.name || '';
+    }
+}
+
+function displayOrderItems() {
+    let html = '';
+    cart.forEach(item => {
+        const unitPrice = item.qty >= 1000 ? item.price_1000 / 1000 : item.price_100 / 100;
+        const totalPrice = Math.round(unitPrice * item.qty);
+
+        html += `
+            <div class="order-item">
+                <div class="item-info">
+                    <h4>${item.name}</h4>
+                    <div class="specs">M${item.diameter} × ${item.length}mm | ${item.color}</div>
+                </div>
+                <div class="item-qty">${item.qty.toLocaleString()}개</div>
+                <div class="item-price">₩${totalPrice.toLocaleString()}</div>
+            </div>
+        `;
+    });
+    document.getElementById('order-items').innerHTML = html;
+}
+
+function updateSummary() {
+    totalAmount = 0;
+    cart.forEach(item => {
+        const unitPrice = item.qty >= 1000 ? item.price_1000 / 1000 : item.price_100 / 100;
+        totalAmount += Math.round(unitPrice * item.qty);
+    });
+
+    const deliveryFee = totalAmount >= 50000 ? 0 : 3000;
+    const subtotal = totalAmount + deliveryFee;
+    const vat = Math.round(subtotal * 0.1);
+    const finalAmount = subtotal + vat;
+
+    document.getElementById('product-total').textContent = '₩' + totalAmount.toLocaleString();
+    document.getElementById('delivery-fee').textContent = deliveryFee === 0 ? '무료' : '₩' + deliveryFee.toLocaleString();
+    document.getElementById('subtotal').textContent = '₩' + subtotal.toLocaleString();
+    document.getElementById('vat').textContent = '₩' + vat.toLocaleString();
+    document.getElementById('total-price').textContent = '₩' + finalAmount.toLocaleString();
+}
+
+function requestPayment() {
+    // 필수 입력값 검증
+    const buyerName = document.getElementById('buyer-name').value.trim();
+    const buyerEmail = document.getElementById('buyer-email').value.trim();
+    const buyerPhone = document.getElementById('buyer-phone').value.trim();
+    const receiverName = document.getElementById('receiver-name').value.trim();
+    const receiverPhone = document.getElementById('receiver-phone').value.trim();
+    const address = document.getElementById('address').value.trim();
+
+    if (!buyerName || !buyerEmail || !buyerPhone) {
+        alert('주문자 정보를 모두 입력해주세요.');
+        return;
+    }
+
+    if (!receiverName || !receiverPhone || !address) {
+        alert('배송 정보를 모두 입력해주세요.');
+        return;
+    }
+
+    const deliveryFee = totalAmount >= 50000 ? 0 : 3000;
+    const subtotal = totalAmount + deliveryFee;
+    const vat = Math.round(subtotal * 0.1);
+    const finalAmount = subtotal + vat;
+
+    // 주문 정보 저장
+    const orderInfo = {
+        orderId: 'ORDER_' + new Date().getTime(),
+        buyerName,
+        buyerEmail,
+        buyerPhone,
+        receiverName,
+        receiverPhone,
+        address,
+        deliveryMessage: document.getElementById('delivery-message').value,
+        items: cart,
+        productAmount: totalAmount,
+        deliveryFee: deliveryFee,
+        vat: vat,
+        amount: finalAmount,
+        createdAt: new Date().toISOString()
+    };
+
+    sessionStorage.setItem('orderInfo', JSON.stringify(orderInfo));
+
+    // 토스페이먼츠 결제창 호출
+    tossPayments.requestPayment('카드', {
+        amount: finalAmount,
+        orderId: orderInfo.orderId,
+        orderName: cart.length > 1
+            ? `${cart[0].name} 외 ${cart.length - 1}건`
+            : cart[0].name,
+        customerName: buyerName,
+        customerEmail: buyerEmail,
+        successUrl: window.location.origin + '/minibolt-website/payment-success.html',
+        failUrl: window.location.origin + '/minibolt-website/payment-fail.html',
+    }).catch(function (error) {
+        if (error.code === 'USER_CANCEL') {
+            alert('결제를 취소했습니다.');
+        } else {
+            alert('결제 중 오류가 발생했습니다.\n' + error.message);
+        }
+    });
+}
+
+function updateUserMenu(){
+const user=JSON.parse(localStorage.getItem('user')||'null');
+const userMenu=document.getElementById('user-menu');
+if(!userMenu)return;
+if(user){
+userMenu.innerHTML=`<a href="#" style="display:flex;align-items:center;gap:0.5rem">${user.profile_image?`<img src="${user.profile_image}" style="width:30px;height:30px;border-radius:50%">`:'👤'}${user.name}</a>`;
+}else{
+userMenu.innerHTML='<a href="login.html">로그인</a>';
+}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    updateUserMenu();
+});
+</script>
+</body>
+</html>

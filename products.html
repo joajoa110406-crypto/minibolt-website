@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>제품 - MiniBolt</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans KR',sans-serif;color:#333;background:#f5f5f5}
+nav{background:#1a1a1a;color:#fff;padding:1rem 0;position:fixed;width:100%;top:0;z-index:999}
+nav .container{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:0 20px}
+nav .logo{font-size:1.8rem;font-weight:700;color:#ff6b35}
+nav ul{display:flex;list-style:none;gap:2rem}
+nav a{color:#fff;text-decoration:none}
+.header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:120px 20px 60px;text-align:center;margin-top:70px}
+.header h1{font-size:2.5rem}
+.main{max-width:1400px;margin:0 auto;padding:60px 20px}
+.tabs{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;justify-content:center}
+.tab{background:#fff;border:2px solid #e0e0e0;padding:1rem 2rem;border-radius:10px;cursor:pointer;font-size:1.1rem;font-weight:600;transition:all .3s}
+.tab.active{background:#ff6b35;color:#fff;border-color:#ff6b35}
+.box{background:#fff;border-radius:15px;padding:2rem}
+.search{position:relative;max-width:600px;margin:0 auto 2rem}
+.search input{width:100%;padding:1rem 3rem;border:2px solid #e0e0e0;border-radius:8px;font-size:1rem}
+.search i{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:#666}
+.result{text-align:center;color:#666;margin-bottom:1rem;font-size:.9rem}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem;padding:1rem;background:#f8f9fa;border-radius:8px}
+.filter label{font-weight:600;display:block;margin-bottom:.5rem}
+.filter select{width:100%;padding:.5rem;border:2px solid #e0e0e0;border-radius:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.5rem}
+.card{border:2px solid #e9ecef;border-radius:10px;padding:1.5rem;position:relative;transition:all .3s}
+.card:hover{border-color:#ff6b35;transform:translateY(-5px)}
+.badge{position:absolute;top:10px;right:10px;padding:.3rem .8rem;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge.ok{background:#d4edda;color:#155724}
+.badge.low{background:#fff3cd;color:#856404}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem}
+.card-img{width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;flex-shrink:0}
+.card h3{font-size:1.1rem}
+.specs{margin:1rem 0;font-size:.9rem}
+.specs div{margin:.3rem 0}
+.prices{background:#f8f9fa;padding:1rem;border-radius:8px;margin:1rem 0}
+.prow{display:flex;justify-content:space-between;margin:.3rem 0;font-size:.9rem}
+.pval{font-weight:600}
+.none{text-align:center;padding:3rem;color:#666}
+.qty{display:flex;align-items:center;gap:0.5rem;margin:1rem 0}
+.qty input{width:80px;padding:0.5rem;border:2px solid #e0e0e0;border-radius:6px;text-align:center}
+.btn-cart{background:#ff6b35;color:#fff;border:none;padding:0.8rem 1.5rem;border-radius:6px;cursor:pointer;font-weight:600;width:100%;transition:all .3s}
+.btn-cart:hover{background:#e55a28;transform:translateY(-2px)}
+</style>
+</head>
+<body>
+<nav><div class="container"><div class="logo"><i class="fa-solid fa-screwdriver-wrench"></i> MINI BOLT</div><ul><li><a href="index.html"><i class="fa-solid fa-house"></i> 홈</a></li><li><a href="#"><i class="fa-solid fa-box"></i> 제품</a></li><li><a href="cart.html" style="position:relative"><i class="fa-solid fa-shopping-cart"></i> 장바구니 <span id="cart-count" style="background:#ff6b35;border-radius:50%;padding:2px 6px;font-size:0.8rem;margin-left:5px">0</span></a></li><li><a href="orders.html"><i class="fa-solid fa-receipt"></i> 주문내역</a></li><li id="user-menu"></li></ul></div></nav>
+<div class="header"><h1>마이크로스크류 선택</h1></div>
+<div class="main">
+<div class="tabs" id="tabs"></div>
+<div class="box">
+<div class="search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="s" placeholder="검색... (예: M2, 블랙, S20)" oninput="go()"></div>
+<div class="result" id="r"></div>
+<div class="filters" id="f"></div>
+<div id="c"></div>
+</div>
+</div>
+<script src="products.js"></script>
+<script>
+let A=[],C='';
+function init(){
+if(!productData||!productData.products){alert('로드 실패');return}
+A=productData.products;
+console.log('총',A.length,'개 로드');
+const cats=[...new Set(A.map(p=>p.category).filter(x=>x))];
+document.getElementById('tabs').innerHTML=cats.map((c,i)=>`<button class="tab${i===0?' active':''}" onclick="sel('${c}')">${c}</button>`).join('');
+const u=new URLSearchParams(location.search).get('category');
+sel(u&&cats.includes(u)?u:cats[0]);
+}
+function sel(c){
+C=c;
+console.log('카테고리:',c);
+document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.textContent===c));
+mkf();
+go();
+}
+function mkf(){
+const P=A.filter(p=>p.category===C);
+console.log('필터 생성, 제품:',P.length);
+const D=[...new Set(P.map(p=>p.diameter).filter(x=>x))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+const L=[...new Set(P.map(p=>p.length).filter(x=>x))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+const C2=[...new Set(P.map(p=>p.color).filter(x=>x))].sort();
+const T=[...new Set(P.map(p=>p.type).filter(x=>x))].sort();
+let h='';
+if(C==='마이크로스크류/평머리'&&T.length>0){
+h+='<div class="filter"><label>타입</label><select id="t" onchange="updateFilters()"><option value="">전체</option>';
+T.forEach(t=>h+=`<option value="${t}">${t==='M'?'M/C':t==='T'?'T/C':t}</option>`);
+h+='</select></div>';
+}
+h+='<div class="filter"><label>직경</label><select id="d" onchange="updateFilters()"><option value="">전체</option>';
+D.forEach(d=>h+=`<option value="${d}">M${d}</option>`);
+h+='</select></div>';
+h+='<div class="filter"><label>길이</label><select id="l" onchange="updateFilters()"><option value="">전체</option>';
+L.forEach(l=>h+=`<option value="${l}">${l}mm</option>`);
+h+='</select></div>';
+h+='<div class="filter"><label>색상</label><select id="col" onchange="go()"><option value="">전체</option>';
+C2.forEach(c=>h+=`<option value="${c}">${c}</option>`);
+h+='</select></div>';
+document.getElementById('f').innerHTML=h;
+}
+function updateFilters(){
+let P=A.filter(p=>p.category===C);
+const t=document.getElementById('t')?.value||'';
+const d=document.getElementById('d')?.value||'';
+const l=document.getElementById('l')?.value||'';
+const savedT=t,savedD=d,savedL=l;
+if(t)P=P.filter(p=>p.type===t);
+const D=[...new Set(P.map(p=>p.diameter).filter(x=>x))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+const dEl=document.getElementById('d');
+if(dEl){
+const dVal=dEl.value;
+dEl.innerHTML='<option value="">전체</option>'+D.map(dia=>`<option value="${dia}">${'M'+dia}</option>`).join('');
+if(D.includes(dVal))dEl.value=dVal;
+else dEl.value='';
+}
+let P2=P.slice();
+if(dEl&&dEl.value)P2=P2.filter(p=>p.diameter===dEl.value);
+const L=[...new Set(P2.map(p=>p.length).filter(x=>x))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+const lEl=document.getElementById('l');
+if(lEl){
+const lVal=lEl.value;
+lEl.innerHTML='<option value="">전체</option>'+L.map(len=>`<option value="${len}">${len+'mm'}</option>`).join('');
+if(L.includes(lVal))lEl.value=lVal;
+else lEl.value='';
+}
+let P3=P2.slice();
+if(lEl&&lEl.value)P3=P3.filter(p=>p.length===lEl.value);
+const C2=[...new Set(P3.map(p=>p.color).filter(x=>x))].sort();
+const cEl=document.getElementById('col');
+if(cEl){
+const cVal=cEl.value;
+cEl.innerHTML='<option value="">전체</option>'+C2.map(col=>`<option value="${col}">${col}</option>`).join('');
+if(C2.includes(cVal))cEl.value=cVal;
+else cEl.value='';
+}
+go();
+}
+function go(){
+let P=A.filter(p=>p.category===C);
+console.log('표시 시작:',P.length);
+const s=(document.getElementById('s')?.value||'').toLowerCase();
+if(s)P=P.filter(p=>[p.id,p.name,p.diameter,p.length,p.color,`M${p.diameter}`,`${p.length}mm`].filter(x=>x).join(' ').toLowerCase().includes(s));
+const t=document.getElementById('t')?.value||'';
+const d=document.getElementById('d')?.value||'';
+const l=document.getElementById('l')?.value||'';
+const col=document.getElementById('col')?.value||'';
+if(t)P=P.filter(p=>p.type===t);
+if(d){console.log('직경 필터:',d);P=P.filter(p=>p.diameter===d);}
+if(l)P=P.filter(p=>p.length===l);
+if(col)P=P.filter(p=>p.color===col);
+console.log('필터 후:',P.length);
+document.getElementById('r').textContent=s||t||d||l||col?`결과: ${P.length}개`:'';
+if(P.length===0){document.getElementById('c').innerHTML='<div class="none">제품이 없습니다</div>';return}
+document.getElementById('c').innerHTML='<div class="grid">'+P.map(mk).join('')+'</div>';
+}
+function getImg(p){
+const catMap={'마이크로스크류/평머리':'평','바인드헤드':'BH','팬헤드':'PH','플랫헤드':'FH','카메라':'CAMERA'};
+const colMap={'블랙':'BK','니켈':'NI'};
+const cat=catMap[p.category]||'';
+const typ=p.type||'M';
+const col=colMap[p.color]||'BK';
+if(!cat)return'';
+return`public/images/products/${cat}-${typ}_${col}.jpeg`;
+}
+function mk(p){
+const st=parseInt(p.stock)||0;
+const b=st===0?'품절':st<50000?'재고부족':'재고충분';
+const bc=st<50000?'low':'ok';
+const img=getImg(p);
+const imgTag=img?`<img src="${img}" alt="${p.name}" class="card-img" onerror="this.style.display='none'">`:'';
+return`<div class="card"><div class="badge ${bc}">${b}</div><div class="card-top"><h3>${p.name}</h3>${imgTag}</div><div class="specs"><div><b>ID:</b> ${p.id}</div><div><b>규격:</b> M${p.diameter} × ${p.length}mm</div><div><b>색상:</b> ${p.color}</div><div><b>재고:</b> ${st.toLocaleString()}개</div></div><div class="prices"><div class="prow"><span>100~999개</span><span class="pval">₩${(p.price_100/100).toLocaleString()} <small>(1EA)</small> <small style="color:#999">(총 ₩${p.price_100.toLocaleString()})</small></span></div><div class="prow" style="border-top:2px solid #ff6b35;padding-top:0.5rem;margin-top:0.5rem"><span>1,000개 이상</span><span class="pval" style="color:#ff6b35">₩${(p.price_1000/1000).toLocaleString()} <small>(1EA)</small> <small style="color:#999">(총 ₩${p.price_1000.toLocaleString()})</small></span></div></div><div class="qty"><label style="font-weight:600">수량:</label><input type="number" id="qty-${p.id}" value="100" min="100" step="100"></div><button class="btn-cart" onclick="addCart('${p.id}')" ${st===0?'disabled':''}>장바구니 담기</button></div>`;
+}
+function addCart(id){
+const p=A.find(x=>x.id===id);
+if(!p)return alert('제품을 찾을 수 없습니다');
+const qty=parseInt(document.getElementById('qty-'+id)?.value)||100;
+if(qty<100)return alert('최소 주문 수량은 100개입니다');
+let cart=JSON.parse(localStorage.getItem('cart')||'[]');
+const idx=cart.findIndex(x=>x.id===id);
+if(idx>=0)cart[idx].qty+=qty;
+else cart.push({id:p.id,name:p.name,diameter:p.diameter,length:p.length,color:p.color,category:p.category,type:p.type,price_100:p.price_100,price_1000:p.price_1000,qty:qty});
+localStorage.setItem('cart',JSON.stringify(cart));
+updateCartCount();
+alert(`${p.name} ${qty}개가 장바구니에 담겼습니다!`);
+}
+function updateCartCount(){
+const cart=JSON.parse(localStorage.getItem('cart')||'[]');
+const count=cart.reduce((sum,item)=>sum+item.qty,0);
+const el=document.getElementById('cart-count');
+if(el)el.textContent=count;
+}
+function updateUserMenu(){
+const user=JSON.parse(localStorage.getItem('user')||'null');
+const userMenu=document.getElementById('user-menu');
+if(!userMenu)return;
+if(user){
+userMenu.innerHTML=`<a href="#" style="display:flex;align-items:center;gap:0.5rem">${user.profile_image?`<img src="${user.profile_image}" style="width:30px;height:30px;border-radius:50%">`:'👤'}${user.name}</a><a href="#" onclick="logout();return false" style="color:#ff6b35">로그아웃</a>`;
+userMenu.style.display='flex';
+userMenu.style.gap='1rem';
+}else{
+userMenu.innerHTML='<a href="login.html">로그인</a>';
+}
+}
+function logout(){
+if(confirm('로그아웃 하시겠습니까?')){
+localStorage.removeItem('user');
+alert('로그아웃되었습니다.');
+updateUserMenu();
+}
+}
+document.addEventListener('DOMContentLoaded',()=>{init();updateCartCount();updateUserMenu();});
+</script>
+</body>
+</html>
