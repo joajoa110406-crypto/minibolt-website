@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>제품 선택 - Mini Bolt</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- AOS (Animate On Scroll) -->
+    <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        nav {
+            background: #1a1a1a;
+            color: white;
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        nav .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        nav .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ff6b35;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2.5rem;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            color: #ff6b35;
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff6b35;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 120px 20px 60px;
+            text-align: center;
+            margin-top: 70px;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .category-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab-button {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 200px;
+            max-width: 280px;
+        }
+
+        .tab-button:hover {
+            border-color: #ff6b35;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255,107,53,0.2);
+        }
+
+        .tab-button.active {
+            background: #ff6b35;
+            color: white;
+            border-color: #ff6b35;
+            box-shadow: 0 5px 20px rgba(255,107,53,0.3);
+        }
+
+        .product-container {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.1);
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .filter-group select {
+            padding: 0.6rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #ff6b35;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .product-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .product-card:hover {
+            border-color: #ff6b35;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(255,107,53,0.2);
+        }
+
+        .product-card .stock-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .stock-badge.in-stock {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .stock-badge.low-stock {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .stock-badge.out-of-stock {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .product-card h3 {
+            color: #2c3e50;
+            margin-bottom: 0.8rem;
+            font-size: 1.2rem;
+        }
+
+        .product-specs {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .spec-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .spec-value {
+            color: #333;
+        }
+
+        .price-section {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .price-row:last-child {
+            margin-bottom: 0;
+            padding-top: 0.5rem;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .price-label {
+            color: #666;
+        }
+
+        .price-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .quantity-input {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .quantity-input label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .quantity-input input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        .btn-add-cart {
+            width: 100%;
+            padding: 0.8rem;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .btn-add-cart:hover {
+            background: #e85a28;
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(255,107,53,0.3);
+        }
+
+        .btn-add-cart:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cart-notification {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 1001;
+        }
+
+        .cart-notification.show {
+            display: flex;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .no-products {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .loading i {
+            font-size: 3rem;
+            color: #ff6b35;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        .search-container {
+            grid-column: 1 / -1;
+            margin-bottom: 1rem;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 3rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: none;
+        }
+
+        .search-clear:hover {
+            color: #ff6b35;
+        }
+
+        .search-results-count {
+            margin-top: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <div class="logo"><i class="fa-solid fa-screwdriver-wrench"></i> MINI BOLT</div>
+            <ul>
+                <li><a href="index.html"><i class="fa-solid fa-house"></i> 홈</a></li>
+                <li><a href="#" class="active"><i class="fa-solid fa-box"></i> 제품</a></li>
+                <li><a href="#contact"><i class="fa-solid fa-envelope"></i> 문의</a></li>
+                <li><a href="#cart" style="position: relative;">
+                    <i class="fa-solid fa-shopping-cart"></i> 장바구니
+                    <span id="cart-count" class="cart-badge">0</span>
+                </a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1>마이크로스크류 선택</h1>
+        <p>최고 품질의 산업용 스크류를 선택하세요</p>
+    </div>
+
+    <div class="main-content">
+        <div class="category-tabs" id="categoryTabs">
+            <!-- 카테고리 탭이 동적으로 생성됩니다 -->
+        </div>
+
+        <div class="product-container">
+            <div class="filters" id="filters">
+                <!-- 필터가 동적으로 생성됩니다 -->
+            </div>
+
+            <div id="productsContainer">
+                <div class="loading">
+                    <i class="fa-solid fa-spinner"></i>
+                    <p>제품 정보를 불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="cart-notification" id="cartNotification">
+        <i class="fa-solid fa-check-circle"></i>
+        <span>장바구니에 추가되었습니다!</span>
+    </div>
+
+    <!-- AOS Script -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- 제품 데이터 -->
+    <script src="products.js"></script>
+
+    <script>
+        let allProducts = [];
+        let currentCategory = '';
+        let cartItems = [];
+        let cartCount = 0;
+
+        // 제품 데이터 로드
+        function loadProducts() {
+            try {
+                // products.js에서 로드된 데이터 사용
+                if (typeof productData !== 'undefined' && productData.products) {
+                    allProducts = productData.products;
+                    initializeCategories();
+                    
+                    // URL 파라미터에서 카테고리 읽기
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const categoryParam = urlParams.get('category');
+                    if (categoryParam) {
+                        selectCategory(decodeURIComponent(categoryParam));
+                    }
+                } else {
+                    throw new Error('제품 데이터를 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                console.error('제품 데이터 로드 실패:', error);
+                document.getElementById('productsContainer').innerHTML = `
+                    <div class="no-products">
+                        <i class="fa-solid fa-exclamation-triangle" style="font-size: 3rem; color: #ff6b35;"></i>
+                        <p>제품 정보를 불러올 수 없습니다.</p>
+                        <p style="font-size: 0.9rem; margin-top: 1rem;">products.js 파일이 같은 폴더에 있는지 확인하세요.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 카테고리 초기화
+        function initializeCategories() {
+            const categories = [...new Set(allProducts.map(p => p.category).filter(c => c))];
+            const categoryIcons = {
+                '마이크로스크류/평머리': 'fa-minus',
+                '바인드헤드': 'fa-circle',
+                '팬헤드': 'fa-bowl-food',
+                '플랫헤드': 'fa-play'
+            };
+
+            const tabsContainer = document.getElementById('categoryTabs');
+            tabsContainer.innerHTML = categories.map((cat, index) => `
+                <button class="tab-button ${index === 0 ? 'active' : ''}" onclick="selectCategory('${cat}')">
+                    <i class="fa-solid ${categoryIcons[cat] || 'fa-box'}"></i> ${cat}
+                </button>
+            `).join('');
+
+            if (categories.length > 0) {
+                selectCategory(categories[0]);
+            }
+        }
+
+        // 카테고리 선택
+        function selectCategory(category) {
+            // 카테고리가 존재하는지 확인
+            const categoryExists = allProducts.some(p => p.category === category);
+            if (!categoryExists) {
+                console.warn('카테고리를 찾을 수 없습니다:', category);
+                return;
+            }
+            
+            currentCategory = category;
+
+            // 탭 활성화
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.includes(category));
+            });
+
+            // 필터 생성
+            createFilters(category);
+
+            // 제품 표시
+            displayProducts(category);
+        }
+
+        // 필터 생성
+        function createFilters(category) {
+            const products = allProducts.filter(p => p.category === category);
+
+            const diameters = [...new Set(products.map(p => p.diameter).filter(d => d))].sort((a, b) => parseFloat(a) - parseFloat(b));
+            const lengths = [...new Set(products.map(p => p.length).filter(l => l))].sort((a, b) => parseFloat(a) - parseFloat(b));
+            const colors = [...new Set(products.map(p => p.color).filter(c => c))].sort();
+            const types = [...new Set(products.map(p => p.type).filter(t => t))].sort();
+
+            // 마이크로스크류/평머리 카테고리일 때 Type 필터 추가
+            let typeFilter = '';
+            if (category === '마이크로스크류/평머리' && types.length > 0) {
+                typeFilter = `
+                    <div class="filter-group">
+                        <label><i class="fa-solid fa-tag"></i> 타입</label>
+                        <select id="filterType" onchange="applyFilters()">
+                            <option value="">전체</option>
+                            ${types.map(t => `<option value="${t}">${t === 'M' ? 'M/C' : t === 'T' ? 'T/C' : t}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            document.getElementById('filters').innerHTML = `
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="예: M2, 블랙, S20-2200, 12mm 등으로 검색..."
+                            oninput="handleSearch()"
+                        >
+                        <button class="search-clear" id="searchClear" onclick="clearSearch()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="search-results-count" id="searchResults"></div>
+                </div>
+                ${typeFilter}
+                <div class="filter-group">
+                    <label><i class="fa-solid fa-ruler"></i> 직경 (mm)</label>
+                    <select id="filterDiameter" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        ${diameters.map(d => `<option value="${d}">M${d}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fa-solid fa-arrows-left-right"></i> 길이 (mm)</label>
+                    <select id="filterLength" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        ${lengths.map(l => `<option value="${l}">${l}mm</option>`).join('')}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fa-solid fa-palette"></i> 색상/코팅</label>
+                    <select id="filterColor" onchange="applyFilters()">
+                        <option value="">전체</option>
+                        ${colors.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            displayProducts(currentCategory);
+        }
+
+        // 제품 표시
+        function displayProducts(category) {
+            let products = allProducts.filter(p => p.category === category);
+
+            // 검색 필터 적용
+            const searchText = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            if (searchText) {
+                products = products.filter(p => {
+                    const searchableText = [
+                        p.id,
+                        p.name,
+                        p.diameter,
+                        p.length,
+                        p.color,
+                        p.type,
+                        'M' + p.diameter + 'x' + p.length,
+                        'M' + p.diameter + ' × ' + p.length
+                    ].filter(Boolean).join(' ').toLowerCase();
+
+                    return searchableText.includes(searchText);
+                });
+            }
+
+            // 필터 적용
+            const filterType = document.getElementById('filterType')?.value;
+            const filterDiameter = document.getElementById('filterDiameter')?.value;
+            const filterLength = document.getElementById('filterLength')?.value;
+            const filterColor = document.getElementById('filterColor')?.value;
+
+            if (filterType) products = products.filter(p => p.type === filterType);
+            if (filterDiameter) products = products.filter(p => p.diameter === filterDiameter);
+            if (filterLength) products = products.filter(p => p.length === filterLength);
+            if (filterColor) products = products.filter(p => p.color === filterColor);
+
+            // 검색 결과 개수 표시
+            const resultsCount = document.getElementById('searchResults');
+            if (resultsCount && searchText) {
+                resultsCount.textContent = `검색 결과: ${products.length}개 제품`;
+            } else if (resultsCount) {
+                resultsCount.textContent = '';
+            }
+
+            const container = document.getElementById('productsContainer');
+
+            if (products.length === 0) {
+                container.innerHTML = '<div class="no-products">해당 조건의 제품이 없습니다.</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="products-grid">
+                    ${products.map(product => createProductCard(product)).join('')}
+                </div>
+            `;
+        }
+
+        // 제품 카드 생성
+        function createProductCard(product) {
+            const stock = parseInt(product.stock) || 0;
+            let stockBadge = '';
+            let stockClass = '';
+
+            if (stock === 0) {
+                stockBadge = '품절';
+                stockClass = 'out-of-stock';
+            } else if (stock < 50000) {
+                stockBadge = '재고 부족';
+                stockClass = 'low-stock';
+            } else {
+                stockBadge = '재고 충분';
+                stockClass = 'in-stock';
+            }
+
+            const typeLabel = product.type ? ` (${product.type === 'M' ? 'M/C' : product.type === 'T' ? 'T/C' : product.type})` : '';
+            const spec = `M${product.diameter} × ${product.length}mm${typeLabel}`;
+
+            return `
+                <div class="product-card" data-aos="fade-up">
+                    <div class="stock-badge ${stockClass}">${stockBadge}</div>
+
+                    <h3>${product.name} - ${spec}</h3>
+
+                    <div class="product-specs">
+                        <span class="spec-label">제품 ID:</span>
+                        <span class="spec-value">${product.id}</span>
+
+                        <span class="spec-label">규격:</span>
+                        <span class="spec-value">${spec}</span>
+
+                        <span class="spec-label">색상/코팅:</span>
+                        <span class="spec-value">${product.color}</span>
+
+                        <span class="spec-label">재고:</span>
+                        <span class="spec-value">${stock.toLocaleString()}개</span>
+                    </div>
+
+                    <div class="price-section">
+                        <div class="price-row">
+                            <span class="price-label">단가:</span>
+                            <span class="price-value">₩${product.price_unit.toLocaleString()}</span>
+                        </div>
+                        <div class="price-row">
+                            <span class="price-label">100개:</span>
+                            <span class="price-value">₩${product.price_100.toLocaleString()}</span>
+                        </div>
+                        <div class="price-row">
+                            <span class="price-label">1,000개:</span>
+                            <span class="price-value">₩${product.price_1000.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <div class="quantity-input">
+                        <label>수량:</label>
+                        <input type="number" id="qty-${product.id}" value="100" min="1" max="${stock}" step="1">
+                    </div>
+
+                    <button class="btn-add-cart" onclick="addToCart('${product.id}')" ${stock === 0 ? 'disabled' : ''}>
+                        <i class="fa-solid fa-cart-plus"></i> 장바구니 담기
+                    </button>
+                </div>
+            `;
+        }
+
+        // 장바구니에 추가
+        function addToCart(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            const quantityInput = document.getElementById(`qty-${productId}`);
+            const quantity = parseInt(quantityInput.value);
+
+            if (!product || quantity <= 0) return;
+
+            cartItems.push({
+                ...product,
+                quantity: quantity
+            });
+
+            cartCount++;
+            const cartCountElement = document.getElementById('cart-count');
+            cartCountElement.textContent = cartCount;
+            cartCountElement.style.display = 'flex';
+
+            // 알림 표시
+            const notification = document.getElementById('cartNotification');
+            notification.innerHTML = `
+                <i class="fa-solid fa-check-circle"></i>
+                <span>장바구니에 추가되었습니다! (${cartCount}개 상품)</span>
+            `;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+
+            console.log('장바구니:', cartItems);
+        }
+
+
+        // 검색 처리
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+
+            if (searchInput.value) {
+                searchClear.style.display = 'block';
+            } else {
+                searchClear.style.display = 'none';
+            }
+
+            displayProducts(currentCategory);
+        }
+
+        // 검색 초기화
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+
+            searchInput.value = '';
+            searchClear.style.display = 'none';
+            displayProducts(currentCategory);
+        }
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+
+            // AOS 초기화
+            AOS.init({
+                duration: 600,
+                once: false,
+                offset: 50
+            });
+
+            // GSAP 애니메이션
+            gsap.from('.page-header h1', {
+                duration: 1,
+                y: -50,
+                opacity: 0,
+                ease: 'bounce.out'
+            });
+
+            gsap.from('.page-header p', {
+                duration: 1,
+                y: 20,
+                opacity: 0,
+                delay: 0.3
+            });
+        });
+    </script>
+</body>
+</html>

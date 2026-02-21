@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Bolt - 산업용 스크류 전문</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        nav {
+            background: #1a1a1a;
+            color: white;
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        nav .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        nav .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ff6b35;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2.5rem;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        nav a:hover {
+            color: #ff6b35;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 150px 20px 100px;
+            text-align: center;
+            margin-top: 70px;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .hero .subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.95;
+        }
+
+        .hero .tagline {
+            font-size: 1.2rem;
+            margin-bottom: 2.5rem;
+            color: #ff6b35;
+            font-weight: 600;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: #ff6b35;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            border: 2px solid #ff6b35;
+        }
+
+        .btn:hover {
+            background: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,107,53,0.4);
+        }
+
+        .categories {
+            padding: 80px 20px;
+            background: #f5f5f5;
+        }
+
+        .categories h2 {
+            text-align: center;
+            font-size: 2.8rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .categories .subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 4rem;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .category-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #ff6b35, #ff8c5a);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .category-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 30px rgba(255,107,53,0.2);
+        }
+
+        .category-card.featured {
+            border: 3px solid #ff6b35;
+        }
+
+        .featured-badge {
+            position: absolute;
+            top: 15px;
+            right: -35px;
+            background: #ff6b35;
+            color: white;
+            padding: 5px 50px;
+            transform: rotate(45deg);
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .category-image {
+            width: 280px;
+            height: 280px;
+            object-fit: contain;
+            margin: 0 auto 1.5rem;
+            display: block;
+        }
+
+        .category-card h3 {
+            font-size: 1.6rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .category-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .category-specs {
+            font-size: 0.9rem;
+            color: #999;
+            margin-top: 1rem;
+        }
+
+        /* About Section */
+        .about {
+            padding: 100px 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .about::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,107,53,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .about-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .about-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .about-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(255,107,53,0.2);
+            border: 1px solid rgba(255,107,53,0.5);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ff6b35;
+            letter-spacing: 1px;
+            margin-bottom: 1.5rem;
+        }
+
+        .about h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .about-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.8);
+            max-width: 850px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        .about-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+            padding: 3rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #ff6b35;
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 0.5px;
+        }
+
+        .about-strengths {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .strength-card {
+            background: rgba(255,255,255,0.08);
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .strength-card:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,107,53,0.5);
+            transform: translateY(-5px);
+        }
+
+        .strength-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .strength-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.8rem;
+            color: white;
+        }
+
+        .strength-card p {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.7;
+        }
+
+        .pricing {
+            padding: 80px 20px;
+            background: white;
+        }
+
+        .pricing h2 {
+            text-align: center;
+            font-size: 2.8rem;
+            margin-bottom: 3rem;
+            color: #2c3e50;
+        }
+
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .price-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s;
+        }
+
+        .price-card:hover {
+            border-color: #ff6b35;
+            transform: scale(1.05);
+        }
+
+        .price-card.popular {
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%);
+            color: white;
+            border: none;
+        }
+
+        .price-card h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .price-card .price {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .price-card .quantity {
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .features {
+            padding: 80px 20px;
+            background: #f5f5f5;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2.8rem;
+            margin-bottom: 3rem;
+            color: #2c3e50;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-icon {
+            color: #ff6b35;
+        }
+
+        .contact {
+            padding: 80px 20px;
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+        }
+
+        .contact h2 {
+            font-size: 2.8rem;
+            margin-bottom: 2rem;
+        }
+
+        .contact-info {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .contact-phone {
+            font-size: 2.5rem;
+            color: #ff6b35;
+            font-weight: bold;
+            margin: 1.5rem 0;
+        }
+
+        footer {
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        @media (max-width: 768px) {
+            nav .container {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            nav .logo {
+                font-size: 1.3rem;
+            }
+
+            nav ul {
+                gap: 0.5rem;
+                font-size: 0.75rem;
+                flex-wrap: wrap;
+                justify-content: center;
+                width: 100%;
+            }
+
+            nav li {
+                white-space: nowrap;
+            }
+
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+
+            .hero .subtitle {
+                font-size: 1.1rem;
+            }
+
+            .categories h2,
+            .pricing h2,
+            .features h2,
+            .contact h2 {
+                font-size: 2rem;
+            }
+
+            .category-grid,
+            .price-grid,
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <div class="logo">⚡ Mini Bolt</div>
+            <ul>
+                <li><a href="#home">홈</a></li>
+                <li><a href="#about">회사소개</a></li>
+                <li><a href="products.html">제품</a></li>
+                <li><a href="#pricing">가격</a></li>
+                <li><a href="#contact">문의</a></li>
+                <li><a href="cart.html" style="position:relative">🛒 장바구니 <span id="cart-count" style="background:#ff6b35;border-radius:50%;padding:2px 8px;font-size:0.8rem;margin-left:5px">0</span></a></li>
+                <li><a href="orders.html">📋 주문내역</a></li>
+                <li id="user-menu"></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section id="home" class="hero">
+        <h1>산업용 스크류 전문, Mini Bolt</h1>
+        <p class="subtitle">개발자와 기업을 위한 고품질 마이크로 스크류</p>
+        <p class="tagline">💰 합리적인 가격, 폭넓은 소형 스크류 라인업</p>
+        <a href="products.html" class="btn">제품 둘러보기</a>
+    </section>
+
+    <section id="categories" class="categories">
+        <h2>제품 카테고리</h2>
+        <p class="subtitle">다양한 헤드 타입과 규격을 준비했습니다</p>
+        <div class="category-grid">
+            <div class="category-card featured">
+                <div class="featured-badge">주력</div>
+                <img src="image-1.png" alt="마이크로스크류" class="category-image">
+                <h3>마이크로스크류 / 평머리</h3>
+                <p>정밀 전자기기와 소형 장비에 최적화된 미세 나사</p>
+                <div class="category-specs">
+                    <strong>헤드:</strong> Φ 다양한 사이즈 · <strong>색상:</strong> 블랙, 니켈
+                </div>
+            </div>
+
+            <div class="category-card">
+                <img src="image-2.png" alt="바인드헤드" class="category-image">
+                <h3>바인드 헤드</h3>
+                <p>둥근 머리 형태로 다양한 산업 분야에 사용</p>
+                <div class="category-specs">
+                    <strong>타입:</strong> M/T 규격 · <strong>도금:</strong> 블랙, 니켈
+                </div>
+            </div>
+
+            <div class="category-card">
+                <img src="image-3.png" alt="팬헤드" class="category-image">
+                <h3>팬 헤드</h3>
+                <p>넓은 머리로 안정적인 고정력 제공</p>
+                <div class="category-specs">
+                    <strong>용도:</strong> 플라스틱/목재 · <strong>도금:</strong> 블랙, 니켈
+                </div>
+            </div>
+
+            <div class="category-card">
+                <img src="image-4.png" alt="플랫헤드" class="category-image">
+                <h3>플랫 헤드</h3>
+                <p>매끈한 마감이 필요한 작업에 적합</p>
+                <div class="category-specs">
+                    <strong>특징:</strong> 매립형 · <strong>도금:</strong> 블랙, 니켈
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about">
+        <div class="about-container">
+            <div class="about-header">
+                <div class="about-badge">COMPANY PROFILE</div>
+                <h2>39년 경험의 제조사 직접 판매</h2>
+                <p class="about-subtitle">
+                    MINIBOLT는 1987년부터 소형 정밀 나사를 생산해온 <strong>성원특수금속</strong>의 온라인&nbsp;채널입니다.<br>
+                    제조사가 직접 운영하기 때문에 중간 유통 단계 없이 합리적인 가격으로 제공합니다.
+                </p>
+            </div>
+
+            <div class="about-stats">
+                <div class="stat-item">
+                    <div class="stat-value">39</div>
+                    <div class="stat-label">제조 업력 (1987~)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">833+</div>
+                    <div class="stat-label">취급 제품 수</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">1.2mm</div>
+                    <div class="stat-label">최소 규격</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">자체 생산</div>
+                </div>
+            </div>
+
+            <div class="about-strengths">
+                <div class="strength-card">
+                    <div class="strength-icon">🏭</div>
+                    <h3>39년 제조 공장 직접 운영</h3>
+                    <p>성원특수금속은 1987년부터 소형 정밀 나사를 직접 생산해온 제조 전문 공장입니다. MINIBOLT는 이 제조 역량을 온라인으로 확장한 채널입니다.</p>
+                </div>
+                <div class="strength-card">
+                    <div class="strength-icon">💰</div>
+                    <h3>제조사 직접 판매, 중간 마진 없음</h3>
+                    <p>유통 단계 없이 공장에서 직접 판매합니다. 기존에는 거래처를 통해서만 구매 가능했던 제품을, 소량이든 대량이든 누구나 주문할 수 있습니다.</p>
+                </div>
+                <div class="strength-card">
+                    <div class="strength-icon">🎯</div>
+                    <h3>맞춤 제작 · 규격 상담</h3>
+                    <p>제조사가 직접 운영하기 때문에 정확한 규격 상담과 도면 기반 맞춤 제작이 가능합니다. 와샤붙이, 특수 헤드 등 다양한 요구에 대응합니다.</p>
+                </div>
+                <div class="strength-card">
+                    <div class="strength-icon">♻️</div>
+                    <h3>ROHS 6종 환경규제 준수</h3>
+                    <p>유해물질 사용 제한 지침(ROHS)을 준수하며, 납, 수은, 카드뮴 등 6종 유해물질을 철저히 관리합니다. 친환경 제품 생산을 실천합니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="pricing">
+        <h2>합리적인 가격</h2>
+        <div class="price-grid">
+            <div class="price-card">
+                <h3>소량 구매</h3>
+                <div class="quantity">100개</div>
+                <div class="price">3,000원~</div>
+                <p>기본 단위</p>
+            </div>
+
+            <div class="price-card popular">
+                <h3>인기 🔥</h3>
+                <div class="quantity">1,000개</div>
+                <div class="price">6,000원</div>
+                <p>기본가 × 2</p>
+            </div>
+
+            <div class="price-card">
+                <h3>대량 구매</h3>
+                <div class="quantity">30,000개 이상</div>
+                <div class="price">견적 문의</div>
+                <p>특별 할인가 적용</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <h2>구매 혜택</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3><span class="feature-icon">📦</span> 833+ 제품 상시 재고</h3>
+                <p>다양한 규격의 소형 스크류를 상시 보유하여 즉시 출고 가능합니다</p>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="feature-icon">⚡</span> 빠른 배송 (1-2일)</h3>
+                <p>주문 후 1-2일 내 배송으로 프로젝트 일정에 차질 없습니다</p>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="feature-icon">✅</span> 품질 보증 · 불량 교환</h3>
+                <p>엄격한 품질 관리와 불량 발생 시 즉시 교환 보증</p>
+            </div>
+
+            <div class="feature-card">
+                <h3><span class="feature-icon">🔍</span> 소량 구매 가능</h3>
+                <p>100개부터 주문 가능, 개인 개발자도 부담 없이 구매</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact">
+        <h2>주문 및 견적 문의</h2>
+        <div class="contact-info">
+            <p>30,000개 이상 대량 구매 또는 맞춤 제작 상담</p>
+            <div class="contact-phone">📞 010-9006-5846</div>
+            <p>평일 09:00 - 18:00 (주말 및 공휴일 휴무)</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 MiniBolt (성원특수금속). All rights reserved.</p>
+        <p style="margin-top: 0.5rem; opacity: 0.7;">소형 정밀 나사 전문 제조 · 1987년 설립</p>
+    </footer>
+    <script>
+    // 카테고리 카드 클릭 시 제품 페이지로 이동
+    document.addEventListener('DOMContentLoaded', function() {
+        const categoryCards = document.querySelectorAll('.category-card');
+        const categoryNames = [
+            '마이크로스크류/평머리',
+            '바인드헤드', 
+            '팬헤드',
+            '플랫헤드'
+        ];
+        
+        categoryCards.forEach((card, index) => {
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', function() {
+                const category = encodeURIComponent(categoryNames[index]);
+                window.location.href = 'products.html?category=' + category;
+            });
+        });
+    });
+
+    // 장바구니 카운트 업데이트
+    function updateCartCount() {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const count = cart.reduce((sum, item) => sum + item.qty, 0);
+        const el = document.getElementById('cart-count');
+        if (el) el.textContent = count;
+    }
+    updateCartCount();
+
+    // 사용자 메뉴 업데이트
+    function updateUserMenu() {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        const userMenu = document.getElementById('user-menu');
+        if (!userMenu) return;
+
+        if (user) {
+            userMenu.innerHTML = `
+                <a href="#" style="display:flex;align-items:center;gap:0.5rem">
+                    ${user.profile_image ? `<img src="${user.profile_image}" style="width:30px;height:30px;border-radius:50%">` : '👤'}
+                    ${user.name}
+                </a>
+                <a href="#" onclick="logout();return false" style="color:#ff6b35">로그아웃</a>
+            `;
+            userMenu.style.display = 'flex';
+            userMenu.style.gap = '1rem';
+        } else {
+            userMenu.innerHTML = '<a href="login.html">로그인</a>';
+        }
+    }
+
+    function logout() {
+        if (confirm('로그아웃 하시겠습니까?')) {
+            localStorage.removeItem('user');
+            alert('로그아웃되었습니다.');
+            updateUserMenu();
+        }
+    }
+
+    updateUserMenu();
+    </script>
+
+<footer style="background:#2c3e50;color:#fff;padding:3rem 0;margin-top:4rem">
+<div style="max-width:1200px;margin:0 auto;padding:0 20px">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-bottom:2rem">
+<div>
+<h3 style="color:#ff6b35;margin-bottom:1rem">미니볼트</h3>
+<p style="line-height:1.8;color:#b0b0b0">산업용 마이크로 스크류 전문 공급업체</p>
+</div>
+<div>
+<h4 style="margin-bottom:1rem">고객지원</h4>
+<p style="line-height:1.8;color:#b0b0b0">
+전화: 010-9006-5846<br>
+이메일: contact@minibolt.co.kr<br>
+운영시간: 평일 09:00-18:00
+</p>
+</div>
+<div>
+<h4 style="margin-bottom:1rem">약관 및 정책</h4>
+<p style="line-height:2">
+<a href="terms.html" style="color:#b0b0b0;text-decoration:none">이용약관</a><br>
+<a href="privacy.html" style="color:#b0b0b0;text-decoration:none">개인정보처리방침</a><br>
+<a href="company.html" style="color:#b0b0b0;text-decoration:none">회사소개</a>
+</p>
+</div>
+</div>
+<div style="border-top:1px solid #34495e;padding-top:2rem;font-size:0.9rem;color:#b0b0b0;line-height:1.8">
+<p><strong style="color:#fff">미니볼트</strong> | 대표: 김민수 | 사업자등록번호: 279-52-00982</p>
+<p>통신판매업 신고번호: 2025-경기시흥-3264</p>
+<p>사업장 소재지: 경기도 시흥시 (상세주소는 고객센터 문의)</p>
+<p style="margin-top:1rem;font-size:0.85rem">© 2025 MiniBolt. All rights reserved.</p>
+</div>
+</div>
+</footer>
+</body>
+</html>
