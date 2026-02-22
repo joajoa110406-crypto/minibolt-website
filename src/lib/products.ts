@@ -29,7 +29,6 @@ export const CATEGORY_TABS = [
   { key: '바인드헤드', label: '바인드헤드' },
   { key: '팬헤드', label: '팬헤드' },
   { key: '플랫헤드', label: '플랫헤드' },
-  { key: '기타', label: '기타' },
 ];
 
 // 카테고리 × 타입 × 색상 → 제품 이미지 매핑
@@ -52,7 +51,6 @@ export function getCategoryImage(product: Product): string {
   } else if (sub === '평머리') {
     prefix = '평';
   } else {
-    // 기타: 카테고리 대표 이미지로 fallback
     return '/image-1.png';
   }
 
