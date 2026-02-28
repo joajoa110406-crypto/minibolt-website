@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
         length: item.length,
         color: item.color,
         quantity: item.qty,
-        unit_price: item.qty >= 1000 ? item.price_unit : item.price_100 / 100,
-        total_price: item.qty >= 1000 ? item.qty * item.price_unit : Math.ceil(item.qty / 100) * item.price_100,
+        unit_price: item.qty >= 1000 ? item.price_unit : item.price_100_block / 100,
+        total_price: item.qty >= 1000 ? item.qty * item.price_unit : Math.ceil(item.qty / 100) * item.price_100_block,
       }));
 
       await supabaseAdmin.from('order_items').insert(items);
