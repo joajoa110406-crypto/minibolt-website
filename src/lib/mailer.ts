@@ -35,7 +35,7 @@ function buildItemRows(items: CartItem[]): string {
       <td style="padding:8px;border-bottom:1px solid #eee">${generateProductName(item)}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.qty.toLocaleString()}개</td>
       <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">
-        ₩${(item.qty >= 1000 ? item.qty * item.price_unit : Math.ceil(item.qty / 100) * item.price_100).toLocaleString()}
+        ₩${(item.qty >= 1000 ? item.qty * item.price_unit : Math.ceil(item.qty / 100) * item.price_100_block).toLocaleString()}
       </td>
     </tr>`).join('');
 }

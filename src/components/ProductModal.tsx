@@ -86,11 +86,11 @@ export default function ProductModal({ product, onClose }: Props) {
         <div style={{ background: '#f8f9fa', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
             <span>100~999개 단가</span>
-            <strong>₩{(product.price_100 / 100).toFixed(0)}원/EA (100개 ₩{product.price_100.toLocaleString()})</strong>
+            <strong>₩{(product.price_100_block / 100).toFixed(0)}원/EA (100개 ₩{product.price_100_block.toLocaleString()})</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ff6b35' }}>
             <span>1,000개 이상</span>
-            <strong>₩{product.price_unit}원/EA (1,000개 ₩{product.price_1000.toLocaleString()})</strong>
+            <strong>₩{product.price_unit}원/EA (1,000개 ₩{product.price_1000_block.toLocaleString()})</strong>
           </div>
           <p style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.5rem' }}>VAT별도</p>
         </div>
