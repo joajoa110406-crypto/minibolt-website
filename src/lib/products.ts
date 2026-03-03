@@ -11,8 +11,10 @@ export function generateProductName(product: Product): string {
 
   const sub = product.sub_category;
   const cat = product.category;
+  const isWasher = cat === '팬헤드' && product.name?.includes('PH(W)');
   const abbr = sub === '마이크로스크류' ? 'M/C'
     : sub === '평머리' ? '평'
+    : isWasher ? 'PH(W)'
     : categoryAbbr[cat] || cat;
 
   const type = product.type ? ` ${product.type}` : '';
