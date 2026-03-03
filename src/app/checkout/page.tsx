@@ -10,7 +10,9 @@ import { generateProductName } from '@/lib/products';
 declare global {
   interface Window {
     TossPayments: (clientKey: string) => {
-      requestPayment: (method: string, options: Record<string, unknown>) => Promise<void>;
+      payment: (options: { customerKey: string }) => {
+        requestPayment: (options: Record<string, unknown>) => Promise<void>;
+      };
     };
     daum: {
       Postcode: new (options: { oncomplete: (data: PostcodeData) => void }) => { open: () => void };
@@ -26,13 +28,13 @@ interface PostcodeData {
   bname: string;
 }
 
-type PaymentMethod = '카드' | '계좌이체' | '가상계좌' | '간편결제';
+type PaymentMethod = 'CARD' | 'TRANSFER' | 'VIRTUAL_ACCOUNT' | 'EASY_PAY';
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
-  { value: '카드', label: '신용/체크카드', icon: '💳' },
-  { value: '간편결제', label: '간편결제 (토스/카카오/네이버)', icon: '⚡' },
-  { value: '계좌이체', label: '계좌이체', icon: '🏦' },
-  { value: '가상계좌', label: '가상계좌', icon: '🧾' },
+  { value: 'CARD', label: '신용/체크카드', icon: '💳' },
+  { value: 'EASY_PAY', label: '간편결제 (토스/카카오/네이버)', icon: '⚡' },
+  { value: 'TRANSFER', label: '계좌이체', icon: '🏦' },
+  { value: 'VIRTUAL_ACCOUNT', label: '가상계좌', icon: '🧾' },
 ];
 
 export default function CheckoutPage() {
@@ -53,7 +55,7 @@ export default function CheckoutPage() {
   const [shippingMemo, setShippingMemo] = useState('');
 
   // 결제 수단
-  const [payMethod, setPayMethod] = useState<PaymentMethod>('카드');
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('CARD');
 
   // 세금계산서
   const [needTaxInvoice, setNeedTaxInvoice] = useState(false);
@@ -64,7 +66,7 @@ export default function CheckoutPage() {
   const [cashReceiptType, setCashReceiptType] = useState<'personal' | 'business'>('personal');
   const [cashReceiptNumber, setCashReceiptNumber] = useState('');
 
-  const tossRef = useRef<ReturnType<typeof window.TossPayments> | null>(null);
+  const paymentRef = useRef<{ requestPayment: (options: Record<string, unknown>) => Promise<void> } | null>(null);
 
   useEffect(() => {
     const c = getCart();
@@ -91,7 +93,8 @@ export default function CheckoutPage() {
   const handleTossReady = () => {
     const key = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
     if (key && window.TossPayments) {
-      tossRef.current = window.TossPayments(key);
+      const tossPayments = window.TossPayments(key);
+      paymentRef.current = tossPayments.payment({ customerKey: 'ANONYMOUS' });
     }
   };
 
@@ -106,7 +109,7 @@ export default function CheckoutPage() {
 
   const requestPayment = async () => {
     if (!validate()) return;
-    if (!tossRef.current) { alert('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+    if (!paymentRef.current) { alert('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
 
     const { productAmount, shippingFee, vat, totalAmount } = calculateTotals(cart);
     const orderId = `MB${Date.now()}`;
@@ -134,12 +137,17 @@ export default function CheckoutPage() {
     const base = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
 
     try {
-      await tossRef.current.requestPayment(payMethod, {
-        amount: totalAmount,
+      await paymentRef.current.requestPayment({
+        method: payMethod,
+        amount: {
+          currency: 'KRW',
+          value: totalAmount,
+        },
         orderId,
         orderName,
         customerName: buyerName,
         customerEmail: buyerEmail,
+        customerMobilePhone: buyerPhone.replace(/-/g, ''),
         successUrl: `${base}/checkout/success`,
         failUrl: `${base}/checkout/fail`,
       });
@@ -155,11 +163,11 @@ export default function CheckoutPage() {
 
   if (!mounted) return null;
   const { productAmount, shippingFee, vat, totalAmount } = calculateTotals(cart);
-  const showCashReceipt = payMethod === '계좌이체' || payMethod === '가상계좌';
+  const showCashReceipt = payMethod === 'TRANSFER' || payMethod === 'VIRTUAL_ACCOUNT';
 
   return (
     <>
-      <Script src="https://js.tosspayments.com/v1/payment" strategy="lazyOnload" onLoad={handleTossReady} />
+      <Script src="https://js.tosspayments.com/v2/standard" strategy="lazyOnload" onLoad={handleTossReady} />
       <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
 
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>

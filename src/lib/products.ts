@@ -42,6 +42,8 @@ export function getCategoryImage(product: Product): string {
   let prefix: string;
   if (cat === '바인드헤드') {
     prefix = 'BH';
+  } else if (cat === '팬헤드' && product.name?.includes('PH(W)')) {
+    prefix = 'PH(W)';
   } else if (cat === '팬헤드') {
     prefix = 'PH';
   } else if (cat === '플랫헤드') {

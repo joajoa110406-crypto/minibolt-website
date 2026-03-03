@@ -3,9 +3,15 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCart, saveCart, calculateItemPrice, calculateTotals } from '@/lib/cart';
+import { getCart, saveCart, calculateItemPrice, calculateTotals, getItemDiscount } from '@/lib/cart';
 import type { CartItem } from '@/lib/cart';
 import { generateProductName } from '@/lib/products';
+
+const BLOCK_LABELS: Record<number, string> = {
+  100: '100개',
+  1000: '1,000개',
+  5000: '5,000개',
+};
 
 export default function CartPage() {
   const router = useRouter();
@@ -23,22 +29,28 @@ export default function CartPage() {
     window.dispatchEvent(new Event('cart-updated'));
   };
 
-  const updateQty = (id: string, delta: number) => {
+  const updateBlockCount = (id: string, blockSize: number, delta: number) => {
     const next = cart.map(item =>
-      item.id === id ? { ...item, qty: Math.max(100, Math.round((item.qty + delta) / 100) * 100) } : item
+      (item.id === id && item.blockSize === blockSize)
+        ? { ...item, blockCount: Math.max(1, item.blockCount + delta), qty: item.blockSize * Math.max(1, item.blockCount + delta) }
+        : item
     );
     refresh(next);
   };
 
-  const setQty = (id: string, val: number) => {
-    const qty = Math.max(100, Math.round(val / 100) * 100);
-    const next = cart.map(item => item.id === id ? { ...item, qty } : item);
+  const setBlockCount = (id: string, blockSize: number, val: number) => {
+    const count = Math.max(1, val);
+    const next = cart.map(item =>
+      (item.id === id && item.blockSize === blockSize)
+        ? { ...item, blockCount: count, qty: item.blockSize * count }
+        : item
+    );
     refresh(next);
   };
 
-  const remove = (id: string) => {
+  const remove = (id: string, blockSize: number) => {
     if (!confirm('이 상품을 장바구니에서 제거하시겠습니까?')) return;
-    refresh(cart.filter(item => item.id !== id));
+    refresh(cart.filter(item => !(item.id === id && item.blockSize === blockSize)));
   };
 
   const clearAll = () => {
@@ -83,9 +95,10 @@ export default function CartPage() {
           {/* 아이템 목록 */}
           {cart.map(item => {
             const itemPrice = calculateItemPrice(item);
-            const unitPrice = item.qty >= 1000 ? item.price_unit : item.price_100 / 100;
+            const discount = getItemDiscount(item);
+            const blockLabel = BLOCK_LABELS[item.blockSize] || `${item.blockSize}개`;
             return (
-              <div key={item.id} style={{
+              <div key={`${item.id}-${item.blockSize}`} style={{
                 border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem',
                 marginBottom: '1rem', display: 'grid',
                 gridTemplateColumns: '2fr 1fr 1fr auto', gap: '1rem', alignItems: 'center',
@@ -99,41 +112,54 @@ export default function CartPage() {
                     <div>ID: {item.id}</div>
                     <div>M{item.diameter} × {item.length}mm | {item.color}</div>
                   </div>
+                  <div style={{
+                    display: 'inline-block', marginTop: '0.4rem',
+                    background: '#fff5f0', color: '#ff6b35', border: '1px solid #ff6b35',
+                    padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
+                  }}>
+                    {blockLabel} 단위
+                  </div>
                 </div>
 
-                {/* 수량 조절 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <button onClick={() => updateQty(item.id, -100)}
-                    style={{ width: 34, height: 34, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 6, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    value={item.qty}
-                    min={100}
-                    step={100}
-                    onChange={e => setQty(item.id, parseInt(e.target.value) || 100)}
-                    style={{ width: 72, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 6, textAlign: 'center', fontWeight: 600, fontSize: '0.9rem' }}
-                  />
-                  <button onClick={() => updateQty(item.id, 100)}
-                    style={{ width: 34, height: 34, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 6, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
-                    +
-                  </button>
+                {/* 수량 조절: 블록 수량 */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <button onClick={() => updateBlockCount(item.id, item.blockSize, -1)}
+                      style={{ width: 34, height: 34, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 6, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      value={item.blockCount}
+                      min={1}
+                      onChange={e => setBlockCount(item.id, item.blockSize, parseInt(e.target.value) || 1)}
+                      style={{ width: 52, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 6, textAlign: 'center', fontWeight: 600, fontSize: '0.9rem' }}
+                    />
+                    <button onClick={() => updateBlockCount(item.id, item.blockSize, 1)}
+                      style={{ width: 34, height: 34, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 6, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
+                      +
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.3rem' }}>
+                    {blockLabel} × {item.blockCount} = {item.qty.toLocaleString()}개
+                  </div>
                 </div>
 
                 {/* 가격 */}
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: '0.2rem' }}>
-                    ₩{unitPrice.toFixed(0)}/EA
-                  </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ff6b35' }}>
                     ₩{itemPrice.toLocaleString()}
                   </div>
+                  {discount > 0 && (
+                    <div style={{ fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 }}>
+                      대량할인 -{discount}%
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.75rem', color: '#aaa' }}>VAT별도</div>
                 </div>
 
                 {/* 삭제 */}
-                <button onClick={() => remove(item.id)}
+                <button onClick={() => remove(item.id, item.blockSize)}
                   style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '0.5rem 0.8rem', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
                   삭제
                 </button>
@@ -144,7 +170,7 @@ export default function CartPage() {
           {/* 금액 요약 */}
           <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '1.5rem', marginTop: '1.5rem' }}>
             {[
-              { label: `상품 수량`, value: `${totalQty.toLocaleString()}개 (${cart.length}종)` },
+              { label: '상품 수량', value: `${totalQty.toLocaleString()}개 (${cart.length}종)` },
               { label: '상품 금액', value: `₩${productAmount.toLocaleString()}` },
               { label: '배송비', value: shippingFee === 0 ? '무료 (₩50,000 이상)' : `₩${shippingFee.toLocaleString()}` },
             ].map(row => (

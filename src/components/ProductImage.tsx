@@ -11,6 +11,7 @@ interface Props {
 // 카테고리 대표 fallback 이미지
 const FALLBACK: Record<string, string> = {
   'BH': '/image-2.png',
+  'PH(W)': '/image-3.png',
   'PH': '/image-3.png',
   'FH': '/image-4.png',
   'CAMERA': '/image-1.png',

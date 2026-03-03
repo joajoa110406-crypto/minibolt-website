@@ -89,16 +89,53 @@ function ProductsContent() {
     </div>
   );
 
-  const getQty = (id: string) => quantities[id] ?? 100;
-  const setQty = (id: string, val: number) => setQuantities(prev => ({ ...prev, [id]: Math.max(100, Math.round(val / 100) * 100) }));
+  // 블록 단위 수량 시스템: 100개 / 1,000개 / 5,000개
+  const BLOCKS = [
+    { size: 100, label: '100개' },
+    { size: 1000, label: '1,000개' },
+    { size: 5000, label: '5,000개' },
+  ] as const;
+
+  const getBlock = (id: string) => quantities[id] ?? 100;
+  const setBlock = (id: string, size: number) => setQuantities(prev => ({ ...prev, [id]: size }));
+  const getBlockCount = (id: string) => (quantities[`${id}_count`] ?? 1);
+  const setBlockCount = (id: string, count: number) => setQuantities(prev => ({ ...prev, [`${id}_count`]: Math.max(1, count) }));
+
+  // 5,000개 복수구매 할인율
+  const getBulkDiscount = (blockSize: number, count: number) => {
+    if (blockSize !== 5000) return 0;
+    if (count >= 4) return 10;
+    if (count >= 3) return 8;
+    if (count >= 2) return 5;
+    return 0;
+  };
+
+  // 블록별 가격 계산
+  const getBlockPrice = (product: Product, blockSize: number) => {
+    if (blockSize === 100) return product.price_100_block ?? 3000;
+    if (blockSize === 1000) return product.price_1000_block ?? 0;
+    if (blockSize === 5000) return product.price_5000_block ?? 0;
+    return 0;
+  };
+
+  // 총 가격 계산 (할인 포함)
+  const getTotalPrice = (product: Product, blockSize: number, count: number) => {
+    const basePrice = getBlockPrice(product, blockSize) * count;
+    const discount = getBulkDiscount(blockSize, count);
+    return Math.round(basePrice * (1 - discount / 100));
+  };
 
   const handleAddToCart = (product: Product) => {
     if (product.stock === 0) return;
-    const qty = getQty(product.id);
-    if (qty < 100) { alert('최소 주문 수량은 100개입니다'); return; }
-    addToCart(product, qty);
+    const blockSize = getBlock(product.id);
+    const count = getBlockCount(product.id);
+    const totalQty = blockSize * count;
+    const totalPrice = getTotalPrice(product, blockSize, count);
+    const discount = getBulkDiscount(blockSize, count);
+    addToCart(product, totalQty, blockSize, count);
     window.dispatchEvent(new Event('cart-updated'));
-    setToast(`${generateProductName(product)} ${qty.toLocaleString()}개 담겼습니다!`);
+    const discountText = discount > 0 ? ` (${discount}% 할인)` : '';
+    setToast(`${generateProductName(product)} ${totalQty.toLocaleString()}개 ₩${totalPrice.toLocaleString()}${discountText}`);
     setTimeout(() => setToast(''), 2500);
   };
 
@@ -197,7 +234,6 @@ function ProductsContent() {
               {filtered.map(product => {
                 const { label: stockLabel, ok } = getStockStatus(product.stock);
                 const displayName = generateProductName(product);
-                const qty = getQty(product.id);
                 return (
                   <div
                     key={product.id}
@@ -246,33 +282,70 @@ function ProductsContent() {
                     {/* 가격 */}
                     <div style={{ background: '#f8f9fa', padding: '0.75rem', borderRadius: 8, margin: '0.75rem 0', fontSize: '0.85rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                        <span>100~999개</span>
+                        <span>100개</span>
+                        <span style={{ fontWeight: 600 }}>₩{(product.price_100_block ?? 3000).toLocaleString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                        <span>1,000개</span>
                         <span style={{ fontWeight: 600 }}>
-                          ₩{(product.price_100 / 100).toFixed(0)}원/EA
-                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{product.price_100.toLocaleString()})</small>
+                          {product.price_1000_per}원/EA
+                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{(product.price_1000_block ?? 0).toLocaleString()})</small>
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #ff6b35', paddingTop: '0.3rem' }}>
-                        <span>1,000개 이상</span>
+                        <span>5,000개</span>
                         <span style={{ fontWeight: 600, color: '#ff6b35' }}>
-                          ₩{product.price_unit}원/EA
-                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{product.price_1000.toLocaleString()})</small>
+                          {product.price_5000_per}원/EA
+                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{(product.price_5000_block ?? 0).toLocaleString()})</small>
                         </span>
                       </div>
-                      <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.25rem' }}>VAT별도</div>
+                      <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.25rem' }}>
+                        5,000개 2묶음 5%↓ · 3묶음 8%↓ · 4+ 10%↓ | VAT별도
+                      </div>
                     </div>
 
-                    {/* 수량 + 담기 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.75rem 0' }}>
-                      <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>수량:</label>
-                      <input
-                        type="number"
-                        value={qty}
-                        min={100}
-                        step={100}
-                        onChange={e => setQty(product.id, parseInt(e.target.value) || 100)}
-                        style={{ width: 80, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 6, textAlign: 'center', fontSize: '0.9rem' }}
-                      />
+                    {/* 블록 선택 + 수량 */}
+                    <div style={{ margin: '0.75rem 0' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                        {BLOCKS.map(b => (
+                          <button
+                            key={b.size}
+                            onClick={() => { setBlock(product.id, b.size); setBlockCount(product.id, 1); }}
+                            style={{
+                              flex: 1, padding: '0.5rem', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                              border: `2px solid ${getBlock(product.id) === b.size ? '#ff6b35' : '#e0e0e0'}`,
+                              background: getBlock(product.id) === b.size ? '#fff5f0' : '#fff',
+                              color: getBlock(product.id) === b.size ? '#ff6b35' : '#666',
+                            }}
+                          >
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) - 1)}
+                          style={{ width: 32, height: 32, border: '2px solid #e0e0e0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>−</button>
+                        <input
+                          type="number"
+                          value={getBlockCount(product.id)}
+                          min={1}
+                          onChange={e => setBlockCount(product.id, parseInt(e.target.value) || 1)}
+                          style={{ width: 48, textAlign: 'center', fontWeight: 700, fontSize: '1rem', border: '2px solid #e0e0e0', borderRadius: 6, padding: '2px 0', MozAppearance: 'textfield' }}
+                        />
+                        <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) + 1)}
+                          style={{ width: 32, height: 32, border: '2px solid #e0e0e0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>+</button>
+                        <span style={{ fontSize: '0.85rem', color: '#666', marginLeft: 4 }}>
+                          = {(getBlock(product.id) * getBlockCount(product.id)).toLocaleString()}개
+                        </span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ff6b35', marginLeft: 'auto' }}>
+                          ₩{getTotalPrice(product, getBlock(product.id), getBlockCount(product.id)).toLocaleString()}
+                          {getBulkDiscount(getBlock(product.id), getBlockCount(product.id)) > 0 && (
+                            <small style={{ color: '#e74c3c', marginLeft: 4 }}>
+                              -{getBulkDiscount(getBlock(product.id), getBlockCount(product.id))}%
+                            </small>
+                          )}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={() => handleAddToCart(product)}
