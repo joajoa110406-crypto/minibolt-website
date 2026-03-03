@@ -29,7 +29,7 @@ export function generateProductName(product: Product): string {
 export const CATEGORY_TABS = [
   { key: '마이크로스크류/평머리', label: '마이크로스크류 / 평머리' },
   { key: '바인드헤드', label: '바인드헤드' },
-  { key: '팬헤드', label: '팬헤드' },
+  { key: '팬헤드', label: '팬헤드 / 와샤붙이' },
   { key: '플랫헤드', label: '플랫헤드' },
 ];
 
