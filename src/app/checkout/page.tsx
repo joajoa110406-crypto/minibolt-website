@@ -68,6 +68,17 @@ export default function CheckoutPage() {
   const [cashReceiptType, setCashReceiptType] = useState<'personal' | 'business'>('personal');
   const [cashReceiptNumber, setCashReceiptNumber] = useState('');
 
+  // 약관 동의
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreePayment, setAgreePayment] = useState(false);
+  const agreeAll = agreeTerms && agreePrivacy && agreePayment;
+  const handleAgreeAll = (checked: boolean) => {
+    setAgreeTerms(checked);
+    setAgreePrivacy(checked);
+    setAgreePayment(checked);
+  };
+
   const paymentRef = useRef<{ requestPayment: (options: Record<string, unknown>) => Promise<void> } | null>(null);
 
   useEffect(() => {
@@ -106,6 +117,7 @@ export default function CheckoutPage() {
     if (!buyerPhone.trim()) { alert('연락처를 입력해주세요.'); return false; }
     if (!address.trim()) { alert('배송 주소를 입력해주세요.'); return false; }
     if (needTaxInvoice && !businessNumber.trim()) { alert('사업자등록번호를 입력해주세요.'); return false; }
+    if (!agreeTerms || !agreePrivacy || !agreePayment) { alert('필수 약관에 모두 동의해주세요.'); return false; }
     return true;
   };
 
@@ -175,6 +187,7 @@ export default function CheckoutPage() {
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
         <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>주문 / 결제</h1>
+          <p style={{ fontSize: '0.9rem', color: '#ccc', marginTop: '0.5rem' }}>비회원 주문 - 회원가입 없이 결제 가능합니다</p>
         </div>
 
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '2rem 20px' }}>
@@ -309,20 +322,43 @@ export default function CheckoutPage() {
                   <span>총 결제금액</span><span>₩{totalAmount.toLocaleString()}</span>
                 </div>
                 <p style={{ fontSize: '0.78rem', color: '#aaa', textAlign: 'right', marginTop: '0.25rem' }}>VAT 포함</p>
+              </Section>
+
+              {/* 약관 동의 */}
+              <Section title="약관 동의">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #eee' }}>
+                  <input type="checkbox" checked={agreeAll} onChange={e => handleAgreeAll(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#ff6b35' }} />
+                  전체 동의
+                </label>
+                {[
+                  { checked: agreeTerms, onChange: setAgreeTerms, label: '[필수] 이용약관 동의', href: '/terms' },
+                  { checked: agreePrivacy, onChange: setAgreePrivacy, label: '[필수] 개인정보 수집 및 이용 동의', href: '/privacy' },
+                  { checked: agreePayment, onChange: setAgreePayment, label: '[필수] 결제대행서비스 이용약관 동의', href: null },
+                ].map(item => (
+                  <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '0.5rem', color: '#555' }}>
+                    <input type="checkbox" checked={item.checked} onChange={e => item.onChange(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#ff6b35' }} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.href && (
+                      <a href={item.href} target="_blank" rel="noopener noreferrer" style={{ color: '#999', fontSize: '0.78rem', textDecoration: 'underline', whiteSpace: 'nowrap' }}>보기</a>
+                    )}
+                  </label>
+                ))}
 
                 <button
                   onClick={requestPayment}
-                  disabled={loading}
+                  disabled={loading || !agreeAll}
                   style={{
-                    width: '100%', marginTop: '1.2rem', padding: '1rem', background: loading ? '#ccc' : '#ff6b35',
-                    color: '#fff', border: 'none', borderRadius: 8, cursor: loading ? 'not-allowed' : 'pointer',
+                    width: '100%', marginTop: '1.2rem', padding: '1rem',
+                    background: loading || !agreeAll ? '#ccc' : '#ff6b35',
+                    color: '#fff', border: 'none', borderRadius: 8,
+                    cursor: loading || !agreeAll ? 'not-allowed' : 'pointer',
                     fontWeight: 700, fontSize: '1.1rem',
                   }}
                 >
-                  {loading ? '처리 중...' : `💳 결제하기 ₩${totalAmount.toLocaleString()}`}
+                  {loading ? '처리 중...' : `결제하기 ₩${totalAmount.toLocaleString()}`}
                 </button>
                 <p style={{ fontSize: '0.78rem', color: '#888', textAlign: 'center', marginTop: '0.5rem' }}>
-                  주문 시 이용약관 및 개인정보처리방침에 동의합니다
+                  비회원 주문 | 회원가입 없이 바로 결제 가능합니다
                 </p>
               </Section>
             </div>
