@@ -25,6 +25,7 @@ export default function Footer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <Link href="/terms" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>이용약관</Link>
               <Link href="/privacy" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>개인정보처리방침</Link>
+              <Link href="/refund" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>교환/환불 정책</Link>
               <Link href="/company" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>회사소개</Link>
             </div>
           </div>

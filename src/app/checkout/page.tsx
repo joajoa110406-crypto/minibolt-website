@@ -344,6 +344,11 @@ export default function CheckoutPage() {
                   </label>
                 ))}
 
+                <p style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.75rem', lineHeight: 1.6 }}>
+                  주문 취소는 발송 전까지 가능하며, 교환/반품은 수령 후 7일 이내 신청 가능합니다.{' '}
+                  <a href="/refund" target="_blank" rel="noopener noreferrer" style={{ color: '#ff6b35', textDecoration: 'underline' }}>교환/환불 정책 보기</a>
+                </p>
+
                 <button
                   onClick={requestPayment}
                   disabled={loading || !agreeAll}
