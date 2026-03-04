@@ -9,7 +9,8 @@ function LoginContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/orders';
+  const rawCallback = searchParams.get('callbackUrl') || '/orders';
+  const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/orders';
   const error = searchParams.get('error');
 
   useEffect(() => {

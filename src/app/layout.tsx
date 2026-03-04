@@ -31,7 +31,7 @@ const jsonLd = {
       url: 'https://minibolt.co.kr',
       logo: 'https://minibolt.co.kr/image-1.png',
       foundingDate: '1987-12-14',
-      description: '1987년 설립, 39년 역사의 정밀 마이크로 스크류(M1.2~M4) 전문 제조기업. 833개 규격 보유. 공장 직판.',
+      description: '1987년 설립, 39년 역사의 정밀 마이크로 스크류(M1.2~M4) 전문 제조기업. 762개 규격 보유. 공장 직판.',
       address: {
         '@type': 'PostalAddress',
         addressLocality: '시흥시',
@@ -64,7 +64,7 @@ const jsonLd = {
       name: '미니볼트 쇼핑몰',
       url: 'https://minibolt.co.kr',
       image: 'https://minibolt.co.kr/image-1.png',
-      description: 'M1.2~M4 정밀 마이크로 스크류 833종 — 제조사 직접판매',
+      description: 'M1.2~M4 정밀 마이크로 스크류 762종 — 제조사 직접판매',
       address: {
         '@type': 'PostalAddress',
         addressLocality: '시흥시',
@@ -74,8 +74,8 @@ const jsonLd = {
       hasOfferCatalog: {
         '@type': 'OfferCatalog',
         name: '마이크로 스크류 카탈로그',
-        description: 'M1.2~M4 소형 정밀 나사 833종 (바인드헤드, 팬헤드, 카메라용 등)',
-        numberOfItems: 833,
+        description: 'M1.2~M4 소형 정밀 나사 762종 (바인드헤드, 팬헤드, 카메라용 등)',
+        numberOfItems: 762,
       },
       priceRange: '₩₩',
       paymentAccepted: '신용카드, 계좌이체',

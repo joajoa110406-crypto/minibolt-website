@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { CartItem } from '@/lib/cart';
+import { calculateItemPrice, calculateTotals } from '@/lib/cart';
 
 interface OrderInfo {
   orderId: string;
@@ -29,6 +30,13 @@ export async function POST(req: NextRequest) {
       amount: number;
       orderInfo: OrderInfo;
     };
+
+    // 0. 서버사이드 금액 검증 (클라이언트 조작 방지)
+    const serverTotals = calculateTotals(orderInfo.items);
+    if (amount !== serverTotals.totalAmount || amount !== orderInfo.totalAmount) {
+      console.error('[payment/confirm] 금액 불일치:', { client: amount, server: serverTotals.totalAmount, orderInfo: orderInfo.totalAmount });
+      return NextResponse.json({ error: '결제 금액이 일치하지 않습니다. 다시 시도해주세요.' }, { status: 400 });
+    }
 
     // 1. Toss Payments 결제 승인
     const secretKey = process.env.TOSS_SECRET_KEY;

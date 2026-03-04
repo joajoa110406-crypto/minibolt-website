@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /checkout/
+Disallow: /login
+
+Sitemap: https://minibolt.co.kr/sitemap.xml
