@@ -3,13 +3,13 @@
  * 미니볼트 택배 자동 접수 스크립트
  *
  * 사용법:
- *   node index.js                    # .env의 ORDER_EXCEL_PATH 파일 사용
+ *   node index.js                    # 구글드라이브 미니볼트_주문 폴더에서 최신 엑셀 자동 찾기
  *   node index.js ./주문목록.xlsx      # 직접 파일 지정
  *   node index.js --dry-run           # 실제 제출 없이 테스트
  *   node index.js --debug             # 폼 필드 분석 모드
  *
  * 흐름:
- *   1. 스마트스토어에서 다운받은 주문 엑셀 읽기
+ *   1. 구글 드라이브 > 미니볼트_주문 폴더에서 가장 최근 엑셀 찾기
  *   2. CVSnet 로그인
  *   3. 각 주문별 택배 예약 등록
  *   4. 결과 리포트 출력
@@ -20,12 +20,43 @@ const fs = require('fs');
 const { parseOrders } = require('./parse-orders');
 const { CvsnetAutomation } = require('./cvsnet-register');
 
+// ─── 구글 드라이브 폴더에서 가장 최근 엑셀 파일 찾기 ───
+function findLatestExcel(dir) {
+  if (!fs.existsSync(dir)) {
+    return null;
+  }
+
+  const files = fs.readdirSync(dir)
+    .filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'))
+    .map(f => ({
+      name: f,
+      path: path.join(dir, f),
+      time: fs.statSync(path.join(dir, f)).mtime.getTime(),
+    }))
+    .sort((a, b) => b.time - a.time); // 최신순
+
+  if (files.length === 0) return null;
+
+  console.log(`📂 구글 드라이브 미니볼트_주문 폴더에서 엑셀 ${files.length}개 발견`);
+  console.log(`📄 최신 파일 사용: ${files[0].name}\n`);
+  return files[0].path;
+}
+
 // ─── 설정 로드 ───
 function loadConfig() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run') || process.env.DRY_RUN === 'true';
   const debug = args.includes('--debug');
   const excelArg = args.find(a => !a.startsWith('--'));
+
+  // 엑셀 파일 경로 결정: 직접 지정 > 구글드라이브 폴더에서 최신 파일
+  let excelPath = excelArg || null;
+  if (!excelPath && process.env.ORDER_EXCEL_DIR) {
+    excelPath = findLatestExcel(process.env.ORDER_EXCEL_DIR);
+  }
+  if (!excelPath) {
+    excelPath = './orders.xlsx'; // 최후 fallback
+  }
 
   const config = {
     // CVSnet 로그인
@@ -47,7 +78,7 @@ function loadConfig() {
     productWeight: process.env.PRODUCT_WEIGHT || '1',
 
     // 엑셀 파일
-    excelPath: excelArg || process.env.ORDER_EXCEL_PATH || './orders.xlsx',
+    excelPath,
 
     // 옵션
     headless: process.env.HEADLESS !== 'false',
@@ -74,6 +105,7 @@ function validateConfig(config) {
 
   if (!fs.existsSync(path.resolve(config.excelPath))) {
     errors.push(`엑셀 파일을 찾을 수 없습니다: ${config.excelPath}`);
+    errors.push('구글 드라이브 > 미니볼트_주문 폴더에 엑셀 파일을 넣어주세요.');
   }
 
   if (errors.length > 0) {
@@ -148,7 +180,6 @@ async function main() {
       await cvs.page.goto('https://www.cvsnet.co.kr/reservation-inquiry/domestic/index.do', {
         waitUntil: 'networkidle2',
       });
-      const { wait } = require('./cvsnet-register');
       await new Promise(r => setTimeout(r, 2000));
       await cvs.debugFormFields();
       await cvs.screenshot('debug-form');
