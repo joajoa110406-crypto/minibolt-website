@@ -1,0 +1,14 @@
+{
+  "name": "minibolt-auto-delivery",
+  "version": "1.0.0",
+  "description": "스마트스토어 주문 엑셀 → CVSnet GS편의점 택배 자동 접수",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js --dry-run"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0",
+    "xlsx": "^0.18.5",
+    "dotenv": "^16.4.0"
+  }
+}
