@@ -84,8 +84,33 @@ function ProductsContent() {
 
   // 모든 Hooks 선언 완료 후 조기 반환
   if (!mounted) return (
-    <div style={{ background: '#f5f5f5', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#666' }}>로딩 중...</p>
+    <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
+      <div style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>마이크로스크류 선택</h1>
+      </div>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ width: 120, height: 44, background: '#e9ecef', borderRadius: 10, animation: 'pulse 1.5s ease-in-out infinite' }} />
+          ))}
+        </div>
+        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem', height: 320 }}>
+                <div style={{ width: '60%', height: 20, background: '#e9ecef', borderRadius: 4, marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '40%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '50%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '1.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '100%', height: 80, background: '#f8f9fa', borderRadius: 8, marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '100%', height: 44, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
     </div>
   );
 
@@ -110,15 +135,16 @@ function ProductsContent() {
     return 0;
   };
 
-  // 블록별 가격 계산
+  // 블록별 가격 계산 (VAT 포함)
   const getBlockPrice = (product: Product, blockSize: number) => {
-    if (blockSize === 100) return product.price_100_block ?? 3000;
-    if (blockSize === 1000) return product.price_1000_block ?? 0;
-    if (blockSize === 5000) return product.price_5000_block ?? 0;
-    return 0;
+    const supply = blockSize === 100 ? (product.price_100_block ?? 3000)
+      : blockSize === 1000 ? (product.price_1000_block ?? 0)
+      : blockSize === 5000 ? (product.price_5000_block ?? 0)
+      : 0;
+    return Math.round(supply * 1.1);
   };
 
-  // 총 가격 계산 (할인 포함)
+  // 총 가격 계산 (할인 포함, VAT 포함)
   const getTotalPrice = (product: Product, blockSize: number, count: number) => {
     const basePrice = getBlockPrice(product, blockSize) * count;
     const discount = getBulkDiscount(blockSize, count);
@@ -136,7 +162,7 @@ function ProductsContent() {
     window.dispatchEvent(new Event('cart-updated'));
     const discountText = discount > 0 ? ` (${discount}% 할인)` : '';
     setToast(`${generateProductName(product)} ${totalQty.toLocaleString()}개 ₩${totalPrice.toLocaleString()}${discountText}`);
-    setTimeout(() => setToast(''), 2500);
+    setTimeout(() => setToast(''), 3500);
   };
 
   return (
@@ -183,38 +209,38 @@ function ProductsContent() {
           </div>
 
           {/* 필터 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
             {/* 타입 필터 (마이크로스크류/평머리만) */}
             {activeCategory === '마이크로스크류/평머리' && filterOptions.types.length > 0 && (
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.9rem' }}>타입</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>타입</label>
                 <select value={filterType} onChange={e => { setFilterType(e.target.value); setFilterDiameter(''); setFilterLength(''); }}
-                  style={{ width: '100%', padding: '0.5rem', border: '2px solid #e0e0e0', borderRadius: 6, fontSize: '0.9rem' }}>
+                  style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
                   <option value="">전체</option>
                   {filterOptions.types.map(t => <option key={t} value={t}>{t === 'M' ? 'M/C (머신)' : t === 'T' ? 'T/C (태핑)' : t}</option>)}
                 </select>
               </div>
             )}
             <div>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.9rem' }}>직경</label>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>직경</label>
               <select value={filterDiameter} onChange={e => { setFilterDiameter(e.target.value); setFilterLength(''); }}
-                style={{ width: '100%', padding: '0.5rem', border: '2px solid #e0e0e0', borderRadius: 6, fontSize: '0.9rem' }}>
+                style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
                 <option value="">전체</option>
                 {filterOptions.diameters.map(d => <option key={d} value={d}>M{d}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.9rem' }}>길이</label>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>길이</label>
               <select value={filterLength} onChange={e => setFilterLength(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '2px solid #e0e0e0', borderRadius: 6, fontSize: '0.9rem' }}>
+                style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
                 <option value="">전체</option>
                 {filterOptions.lengths.map(l => <option key={l} value={l}>{l}mm</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.9rem' }}>색상</label>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>색상</label>
               <select value={filterColor} onChange={e => setFilterColor(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '2px solid #e0e0e0', borderRadius: 6, fontSize: '0.9rem' }}>
+                style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
                 <option value="">전체</option>
                 {filterOptions.colors.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -230,7 +256,7 @@ function ProductsContent() {
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>검색 결과가 없습니다</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            <div className="product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
               {filtered.map(product => {
                 const { label: stockLabel, ok } = getStockStatus(product.stock);
                 const displayName = generateProductName(product);
@@ -279,28 +305,28 @@ function ProductsContent() {
                       <div><b>재고:</b> {(product.stock || 0).toLocaleString()}개</div>
                     </div>
 
-                    {/* 가격 */}
+                    {/* 가격 (VAT 포함) */}
                     <div style={{ background: '#f8f9fa', padding: '0.75rem', borderRadius: 8, margin: '0.75rem 0', fontSize: '0.85rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
                         <span>100개</span>
-                        <span style={{ fontWeight: 600 }}>₩{(product.price_100_block ?? 3000).toLocaleString()}</span>
+                        <span style={{ fontWeight: 600 }}>₩{Math.round((product.price_100_block ?? 3000) * 1.1).toLocaleString()}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
                         <span>1,000개</span>
                         <span style={{ fontWeight: 600 }}>
-                          {product.price_1000_per}원/EA
-                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{(product.price_1000_block ?? 0).toLocaleString()})</small>
+                          {Math.round(product.price_1000_per * 1.1)}원/EA
+                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{Math.round((product.price_1000_block ?? 0) * 1.1).toLocaleString()})</small>
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #ff6b35', paddingTop: '0.3rem' }}>
                         <span>5,000개</span>
                         <span style={{ fontWeight: 600, color: '#ff6b35' }}>
-                          {product.price_5000_per}원/EA
-                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{(product.price_5000_block ?? 0).toLocaleString()})</small>
+                          {Math.round(product.price_5000_per * 1.1)}원/EA
+                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{Math.round((product.price_5000_block ?? 0) * 1.1).toLocaleString()})</small>
                         </span>
                       </div>
                       <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.25rem' }}>
-                        5,000개 2묶음 5%↓ · 3묶음 8%↓ · 4+ 10%↓ | VAT별도
+                        5,000개 2묶음 5%↓ · 3묶음 8%↓ · 4+ 10%↓
                       </div>
                     </div>
 
@@ -322,21 +348,24 @@ function ProductsContent() {
                           </button>
                         ))}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) - 1)}
-                          style={{ width: 32, height: 32, border: '2px solid #e0e0e0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>−</button>
-                        <input
-                          type="number"
-                          value={getBlockCount(product.id)}
-                          min={1}
-                          onChange={e => setBlockCount(product.id, parseInt(e.target.value) || 1)}
-                          style={{ width: 48, textAlign: 'center', fontWeight: 700, fontSize: '1rem', border: '2px solid #e0e0e0', borderRadius: 6, padding: '2px 0', MozAppearance: 'textfield' }}
-                        />
-                        <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) + 1)}
-                          style={{ width: 32, height: 32, border: '2px solid #e0e0e0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>+</button>
-                        <span style={{ fontSize: '0.85rem', color: '#666', marginLeft: 4 }}>
-                          = {(getBlock(product.id) * getBlockCount(product.id)).toLocaleString()}개
-                        </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) - 1)}
+                            style={{ width: 36, height: 36, border: '2px solid #e0e0e0', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>−</button>
+                          <input
+                            type="number"
+                            value={getBlockCount(product.id)}
+                            min={1}
+                            onChange={e => setBlockCount(product.id, parseInt(e.target.value) || 1)}
+                            className="qty-input"
+                            style={{ width: 48, textAlign: 'center', fontWeight: 700, fontSize: '1rem', border: '2px solid #e0e0e0', borderRadius: 8, padding: '4px 0', height: 36 }}
+                          />
+                          <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) + 1)}
+                            style={{ width: 36, height: 36, border: '2px solid #e0e0e0', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>+</button>
+                          <span style={{ fontSize: '0.85rem', color: '#666', marginLeft: 2 }}>
+                            = {(getBlock(product.id) * getBlockCount(product.id)).toLocaleString()}개
+                          </span>
+                        </div>
                         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ff6b35', marginLeft: 'auto' }}>
                           ₩{getTotalPrice(product, getBlock(product.id), getBlockCount(product.id)).toLocaleString()}
                           {getBulkDiscount(getBlock(product.id), getBlockCount(product.id)) > 0 && (
@@ -352,9 +381,9 @@ function ProductsContent() {
                       disabled={product.stock === 0}
                       style={{
                         background: product.stock === 0 ? '#ccc' : '#ff6b35',
-                        color: '#fff', border: 'none', padding: '0.75rem', borderRadius: 6,
+                        color: '#fff', border: 'none', padding: '0.85rem', borderRadius: 8,
                         cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
-                        fontWeight: 600, width: '100%', fontSize: '0.95rem',
+                        fontWeight: 600, width: '100%', fontSize: '0.95rem', minHeight: 44,
                       }}
                     >
                       {product.stock === 0 ? '품절' : '장바구니 담기'}
@@ -376,13 +405,23 @@ function ProductsContent() {
       {toast && (
         <div style={{
           position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
-          background: '#1a1a1a', color: '#fff', padding: '0.75rem 1.5rem',
-          borderRadius: 8, fontSize: '0.9rem', zIndex: 2000, whiteSpace: 'nowrap',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          background: '#1a1a1a', color: '#fff', padding: '0.85rem 1.5rem',
+          borderRadius: 10, fontSize: '0.9rem', zIndex: 2000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 40px)',
+          textAlign: 'center',
         }}>
           ✅ {toast}
         </div>
       )}
+
+      <style>{`
+        .qty-input::-webkit-inner-spin-button,
+        .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .qty-input { -moz-appearance: textfield; }
+        @media (max-width: 640px) {
+          .product-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+        }
+      `}</style>
     </div>
   );
 }

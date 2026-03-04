@@ -272,8 +272,8 @@ function requestPayment() {
             : cart[0].name,
         customerName: buyerName,
         customerEmail: buyerEmail,
-        successUrl: window.location.origin + '/minibolt-website/payment-success.html',
-        failUrl: window.location.origin + '/minibolt-website/payment-fail.html',
+        successUrl: window.location.origin + '/payment-success.html',
+        failUrl: window.location.origin + '/payment-fail.html',
     }).catch(function (error) {
         if (error.code === 'USER_CANCEL') {
             alert('결제를 취소했습니다.');

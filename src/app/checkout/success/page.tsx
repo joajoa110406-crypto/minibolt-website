@@ -11,7 +11,6 @@ interface OrderResult {
   totalAmount: number;
   productAmount: number;
   shippingFee: number;
-  vat: number;
   payMethod: string;
   shippingAddress: string;
   itemCount: number;
@@ -100,10 +99,9 @@ function SuccessContent() {
             { label: '주문자', value: result.buyerName },
             { label: '결제 수단', value: result.payMethod },
             { label: '배송지', value: result.shippingAddress },
-            { label: '상품 금액', value: `₩${result.productAmount.toLocaleString()} (VAT별도)` },
+            { label: '상품 금액', value: `₩${result.productAmount.toLocaleString()}` },
             { label: '배송비', value: result.shippingFee === 0 ? '무료' : `₩${result.shippingFee.toLocaleString()}` },
-            { label: '부가세', value: `₩${result.vat.toLocaleString()}` },
-            { label: '총 결제금액', value: `₩${result.totalAmount.toLocaleString()}` },
+            { label: '총 결제금액', value: `₩${result.totalAmount.toLocaleString()} (VAT포함)` },
           ].map(row => (
             <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
               <span style={{ color: '#666' }}>{row.label}</span>

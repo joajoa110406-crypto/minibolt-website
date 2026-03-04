@@ -17,6 +17,7 @@ export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; blockSize: number } | 'all' | null>(null);
 
   useEffect(() => {
     setCart(getCart());
@@ -48,14 +49,14 @@ export default function CartPage() {
     refresh(next);
   };
 
-  const remove = (id: string, blockSize: number) => {
-    if (!confirm('이 상품을 장바구니에서 제거하시겠습니까?')) return;
-    refresh(cart.filter(item => !(item.id === id && item.blockSize === blockSize)));
-  };
-
-  const clearAll = () => {
-    if (!confirm('장바구니를 비우시겠습니까?')) return;
-    refresh([]);
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    if (pendingDelete === 'all') {
+      refresh([]);
+    } else {
+      refresh(cart.filter(item => !(item.id === pendingDelete.id && item.blockSize === pendingDelete.blockSize)));
+    }
+    setPendingDelete(null);
   };
 
   if (!mounted) return null;
@@ -64,7 +65,7 @@ export default function CartPage() {
     return (
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
         <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>🛒 장바구니</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>장바구니</h1>
         </div>
         <div style={{ maxWidth: 800, margin: '3rem auto', padding: '0 20px', textAlign: 'center' }}>
           <div style={{ background: '#fff', borderRadius: 15, padding: '4rem 2rem' }}>
@@ -80,17 +81,17 @@ export default function CartPage() {
     );
   }
 
-  const { productAmount, shippingFee, vat, totalAmount } = calculateTotals(cart);
+  const { productAmount, shippingFee, totalAmount } = calculateTotals(cart);
   const totalQty = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
       <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>🛒 장바구니</h1>
+        <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>장바구니</h1>
       </div>
 
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem 20px' }}>
-        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
+        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }} className="cart-container">
 
           {/* 아이템 목록 */}
           {cart.map(item => {
@@ -98,34 +99,41 @@ export default function CartPage() {
             const discount = getItemDiscount(item);
             const blockLabel = BLOCK_LABELS[item.blockSize] || `${item.blockSize}개`;
             return (
-              <div key={`${item.id}-${item.blockSize}`} style={{
+              <div key={`${item.id}-${item.blockSize}`} className="cart-item" style={{
                 border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem',
-                marginBottom: '1rem', display: 'grid',
-                gridTemplateColumns: '2fr 1fr 1fr auto', gap: '1rem', alignItems: 'center',
+                marginBottom: '1rem',
               }}>
-                {/* 제품 정보 */}
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    {generateProductName(item)}
-                  </h3>
-                  <div style={{ fontSize: '0.85rem', color: '#666' }}>
-                    <div>ID: {item.id}</div>
-                    <div>M{item.diameter} × {item.length}mm | {item.color}</div>
+                {/* 제품 정보 + 삭제 버튼 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                      {generateProductName(item)}
+                    </h3>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                      M{item.diameter} × {item.length}mm | {item.color}
+                    </div>
+                    <div style={{
+                      display: 'inline-block', marginTop: '0.4rem',
+                      background: '#fff5f0', color: '#ff6b35', border: '1px solid #ff6b35',
+                      padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
+                    }}>
+                      {blockLabel} 단위
+                    </div>
                   </div>
-                  <div style={{
-                    display: 'inline-block', marginTop: '0.4rem',
-                    background: '#fff5f0', color: '#ff6b35', border: '1px solid #ff6b35',
-                    padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
-                  }}>
-                    {blockLabel} 단위
-                  </div>
+                  <button
+                    onClick={() => setPendingDelete({ id: item.id, blockSize: item.blockSize })}
+                    aria-label="삭제"
+                    style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem', flexShrink: 0 }}
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                {/* 수량 조절: 블록 수량 */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {/* 수량 + 가격 (한 줄) */}
+                <div className="cart-item-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <button onClick={() => updateBlockCount(item.id, item.blockSize, -1)}
-                      style={{ width: 34, height: 34, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 6, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
+                      style={{ width: 36, height: 36, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
                       −
                     </button>
                     <input
@@ -133,36 +141,29 @@ export default function CartPage() {
                       value={item.blockCount}
                       min={1}
                       onChange={e => setBlockCount(item.id, item.blockSize, parseInt(e.target.value) || 1)}
-                      style={{ width: 52, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 6, textAlign: 'center', fontWeight: 600, fontSize: '0.9rem' }}
+                      className="qty-input"
+                      style={{ width: 52, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: '0.95rem' }}
                     />
                     <button onClick={() => updateBlockCount(item.id, item.blockSize, 1)}
-                      style={{ width: 34, height: 34, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 6, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
+                      style={{ width: 36, height: 36, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
                       +
                     </button>
+                    <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: '0.25rem' }}>
+                      = {item.qty.toLocaleString()}개
+                    </span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.3rem' }}>
-                    {blockLabel} × {item.blockCount} = {item.qty.toLocaleString()}개
-                  </div>
-                </div>
-
-                {/* 가격 */}
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ff6b35' }}>
-                    ₩{itemPrice.toLocaleString()}
-                  </div>
-                  {discount > 0 && (
-                    <div style={{ fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 }}>
-                      대량할인 -{discount}%
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ff6b35' }}>
+                      ₩{itemPrice.toLocaleString()}
                     </div>
-                  )}
-                  <div style={{ fontSize: '0.75rem', color: '#aaa' }}>VAT별도</div>
+                    {discount > 0 && (
+                      <div style={{ fontSize: '0.8rem', color: '#e74c3c', fontWeight: 600 }}>
+                        대량할인 -{discount}%
+                      </div>
+                    )}
+                    <div style={{ fontSize: '0.75rem', color: '#aaa' }}>VAT포함</div>
+                  </div>
                 </div>
-
-                {/* 삭제 */}
-                <button onClick={() => remove(item.id, item.blockSize)}
-                  style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '0.5rem 0.8rem', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
-                  삭제
-                </button>
               </div>
             );
           })}
@@ -179,15 +180,7 @@ export default function CartPage() {
                 <span>{row.value}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem', borderTop: '1px solid #dee2e6', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-              <span style={{ color: '#555' }}>소계</span>
-              <span>₩{(productAmount + shippingFee).toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem' }}>
-              <span style={{ color: '#555' }}>부가세 (10%)</span>
-              <span>₩{vat.toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', fontWeight: 700, color: '#ff6b35', borderTop: '2px solid #dee2e6', paddingTop: '1rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', fontWeight: 700, color: '#ff6b35', borderTop: '2px solid #dee2e6', paddingTop: '1rem', marginTop: '0.75rem' }}>
               <span>총 결제금액</span>
               <span>₩{totalAmount.toLocaleString()}</span>
             </div>
@@ -195,7 +188,7 @@ export default function CartPage() {
           </div>
 
           {/* 버튼 */}
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+          <div className="cart-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
             <button
               onClick={() => router.push('/checkout')}
               style={{ flex: 1, background: '#ff6b35', color: '#fff', border: 'none', padding: '1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '1.1rem' }}
@@ -203,18 +196,50 @@ export default function CartPage() {
               주문하기
             </button>
             <button
-              onClick={clearAll}
+              onClick={() => setPendingDelete('all')}
               style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '1rem 1.5rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
             >
-              장바구니 비우기
+              비우기
             </button>
           </div>
         </div>
       </div>
 
+      {/* 삭제 확인 모달 */}
+      {pendingDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setPendingDelete(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 380, width: '100%', textAlign: 'center' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#333', marginBottom: '0.5rem' }}>
+              {pendingDelete === 'all' ? '장바구니를 비우시겠습니까?' : '이 상품을 삭제하시겠습니까?'}
+            </p>
+            <p style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1.5rem' }}>
+              {pendingDelete === 'all' ? '모든 상품이 장바구니에서 제거됩니다.' : '장바구니에서 해당 상품이 제거됩니다.'}
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setPendingDelete(null)}
+                style={{ flex: 1, padding: '0.75rem', border: '2px solid #e0e0e0', background: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+                취소
+              </button>
+              <button onClick={confirmDelete}
+                style={{ flex: 1, padding: '0.75rem', border: 'none', background: '#dc3545', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
+        .qty-input::-webkit-inner-spin-button,
+        .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .qty-input { -moz-appearance: textfield; }
         @media (max-width: 640px) {
-          .cart-item-grid { grid-template-columns: 1fr !important; }
+          .cart-container { padding: 1rem !important; }
+          .cart-item { padding: 1rem !important; }
+          .cart-item-row { flex-direction: column; align-items: stretch !important; }
+          .cart-item-row > div:last-child { text-align: left !important; display: flex; gap: 0.5rem; align-items: baseline; }
+          .cart-actions { flex-direction: column; }
         }
       `}</style>
     </div>

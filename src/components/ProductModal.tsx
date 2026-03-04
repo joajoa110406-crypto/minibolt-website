@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Product } from '@/types/product';
 import ScrewSVG from './ScrewSVG';
 import { generateProductName } from '@/lib/products';
@@ -18,10 +18,13 @@ const categoryDesc: Record<string, string> = {
 };
 
 export default function ProductModal({ product, onClose }: Props) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', handler);
       document.body.style.overflow = '';
@@ -34,6 +37,9 @@ export default function ProductModal({ product, onClose }: Props) {
   return (
     <div
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${displayName} 상세 정보`}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
     >
       <div
@@ -42,8 +48,10 @@ export default function ProductModal({ product, onClose }: Props) {
       >
         {/* 닫기 */}
         <button
+          ref={closeRef}
           onClick={onClose}
-          style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666' }}
+          aria-label="닫기"
+          style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}
         >
           ✕
         </button>
@@ -82,17 +90,17 @@ export default function ProductModal({ product, onClose }: Props) {
           </tbody>
         </table>
 
-        {/* 가격 */}
+        {/* 가격 (VAT 포함) */}
         <div style={{ background: '#f8f9fa', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
             <span>100~999개 단가</span>
-            <strong>₩{(product.price_100_block / 100).toFixed(0)}원/EA (100개 ₩{product.price_100_block.toLocaleString()})</strong>
+            <strong>₩{Math.round(product.price_100_block / 100 * 1.1)}원/EA (100개 ₩{Math.round(product.price_100_block * 1.1).toLocaleString()})</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ff6b35' }}>
             <span>1,000개 이상</span>
-            <strong>₩{product.price_unit}원/EA (1,000개 ₩{product.price_1000_block.toLocaleString()})</strong>
+            <strong>₩{Math.round(product.price_unit * 1.1)}원/EA (1,000개 ₩{Math.round(product.price_1000_block * 1.1).toLocaleString()})</strong>
           </div>
-          <p style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.5rem' }}>VAT별도</p>
+          <p style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.5rem' }}>VAT포함</p>
         </div>
 
         {/* 카테고리 설명 */}

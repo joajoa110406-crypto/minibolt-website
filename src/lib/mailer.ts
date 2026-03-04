@@ -13,7 +13,6 @@ interface OrderEmailData {
   items: CartItem[];
   productAmount: number;
   shippingFee: number;
-  vat: number;
   totalAmount: number;
 }
 
@@ -77,11 +76,10 @@ export async function sendOrderNotification(data: OrderEmailData) {
       <tbody>${buildItemRows(data.items)}</tbody>
     </table>
     <div style="background:#f8f9fa;padding:16px;border-radius:8px;margin-top:16px;font-size:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#666">상품 금액</span><span>₩${data.productAmount.toLocaleString()} (VAT별도)</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#666">상품 금액</span><span>₩${data.productAmount.toLocaleString()}</span></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#666">배송비</span><span>${data.shippingFee === 0 ? '무료' : '₩' + data.shippingFee.toLocaleString()}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#666">부가세 (10%)</span><span>₩${data.vat.toLocaleString()}</span></div>
       <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#ff6b35;border-top:2px solid #dee2e6;padding-top:10px;margin-top:8px">
-        <span>총 결제금액</span><span>₩${data.totalAmount.toLocaleString()}</span>
+        <span>총 결제금액</span><span>₩${data.totalAmount.toLocaleString()} (VAT포함)</span>
       </div>
     </div>
   </div>

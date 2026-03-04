@@ -18,7 +18,6 @@ interface OrderInfo {
   items: CartItem[];
   productAmount: number;
   shippingFee: number;
-  vat: number;
   totalAmount: number;
 }
 
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
           shipping_memo: orderInfo.shippingMemo,
           product_amount: orderInfo.productAmount,
           shipping_fee: orderInfo.shippingFee,
-          vat: orderInfo.vat,
+          vat: Math.round(orderInfo.totalAmount / 11),
           total_amount: orderInfo.totalAmount,
           payment_key: paymentKey,
           payment_method: payment.method || orderInfo.payMethod,
@@ -132,7 +131,6 @@ export async function POST(req: NextRequest) {
         items: orderInfo.items,
         productAmount: orderInfo.productAmount,
         shippingFee: orderInfo.shippingFee,
-        vat: orderInfo.vat,
         totalAmount: orderInfo.totalAmount,
       });
     } catch (mailErr) {
@@ -145,7 +143,6 @@ export async function POST(req: NextRequest) {
       totalAmount: orderInfo.totalAmount,
       productAmount: orderInfo.productAmount,
       shippingFee: orderInfo.shippingFee,
-      vat: orderInfo.vat,
       payMethod: payment.method || orderInfo.payMethod,
       shippingAddress: orderInfo.shippingAddress,
       itemCount: orderInfo.items.length,

@@ -45,7 +45,7 @@ function getBulkDiscount(blockSize: number, blockCount: number): number {
   return 0;
 }
 
-// 블록 단가
+// 블록 단가 (공급가)
 function getBlockPrice(item: CartItem): number {
   if (item.blockSize === 100) return item.price_100_block ?? 3000;
   if (item.blockSize === 1000) return item.price_1000_block ?? 0;
@@ -53,21 +53,22 @@ function getBlockPrice(item: CartItem): number {
   return 0;
 }
 
+// 아이템 가격 (VAT 포함)
 export function calculateItemPrice(item: CartItem): number {
   const basePrice = getBlockPrice(item) * item.blockCount;
   const discount = getBulkDiscount(item.blockSize, item.blockCount);
-  return Math.round(basePrice * (1 - discount / 100));
+  const supplyPrice = Math.round(basePrice * (1 - discount / 100));
+  return Math.round(supplyPrice * 1.1);
 }
 
 export function getItemDiscount(item: CartItem): number {
   return getBulkDiscount(item.blockSize, item.blockCount);
 }
 
+// 모든 금액 VAT 포함
 export function calculateTotals(cart: CartItem[]) {
   const productAmount = cart.reduce((sum, item) => sum + calculateItemPrice(item), 0);
   const shippingFee = productAmount >= 50000 ? 0 : 3000;
-  const subtotal = productAmount + shippingFee;
-  const vat = Math.round(subtotal * 0.1);
-  const totalAmount = subtotal + vat;
-  return { productAmount, shippingFee, vat, totalAmount };
+  const totalAmount = productAmount + shippingFee;
+  return { productAmount, shippingFee, totalAmount };
 }

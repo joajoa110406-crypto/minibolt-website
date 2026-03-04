@@ -181,11 +181,11 @@ export default function HomePage() {
       <section style={{ padding: '4rem 20px', background: '#f5f5f5' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '0.5rem' }}>합리적인 가격</h2>
-          <p style={{ textAlign: 'center', color: '#888', fontSize: '0.9rem', marginBottom: '2rem' }}>* 모든 가격은 VAT 별도</p>
+          <p style={{ textAlign: 'center', color: '#888', fontSize: '0.9rem', marginBottom: '2rem' }}>* 모든 가격은 VAT 포함</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
             {[
-              { title: '소량 구매', qty: '100개', price: '₩3,000~', desc: '기본 단위 (VAT별도)', popular: false },
-              { title: '인기 🔥', qty: '1,000개', price: '₩6,000~', desc: '개당 6~18원 (VAT별도)', popular: true },
+              { title: '소량 구매', qty: '100개', price: '₩3,300~', desc: '기본 단위', popular: false },
+              { title: '인기', qty: '1,000개', price: '₩6,600~', desc: '개당 7~20원', popular: true },
               { title: '대량 구매', qty: '30,000개 이상', price: '견적 문의', desc: '특별 할인가 적용', popular: false },
             ].map(p => (
               <div key={p.title} style={{

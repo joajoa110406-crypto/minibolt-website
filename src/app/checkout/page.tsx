@@ -52,7 +52,9 @@ export default function CheckoutPage() {
   const [zipcode, setZipcode] = useState('');
   const [address, setAddress] = useState('');
   const [addressDetail, setAddressDetail] = useState('');
-  const [shippingMemo, setShippingMemo] = useState('');
+  const [shippingMemoSelect, setShippingMemoSelect] = useState('');
+  const [shippingMemoCustom, setShippingMemoCustom] = useState('');
+  const shippingMemo = shippingMemoSelect === '직접입력' ? shippingMemoCustom : shippingMemoSelect;
 
   // 결제 수단
   const [payMethod, setPayMethod] = useState<PaymentMethod>('CARD');
@@ -111,7 +113,7 @@ export default function CheckoutPage() {
     if (!validate()) return;
     if (!paymentRef.current) { alert('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
 
-    const { productAmount, shippingFee, vat, totalAmount } = calculateTotals(cart);
+    const { productAmount, shippingFee, totalAmount } = calculateTotals(cart);
     const orderId = `MB${Date.now()}`;
     const orderName = cart.length > 1
       ? `${generateProductName(cart[0])} 외 ${cart.length - 1}건`
@@ -129,7 +131,7 @@ export default function CheckoutPage() {
       needTaxInvoice, businessNumber,
       needCashReceipt, cashReceiptType, cashReceiptNumber,
       items: cart,
-      productAmount, shippingFee, vat, totalAmount,
+      productAmount, shippingFee, totalAmount,
     };
     sessionStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
 
@@ -162,7 +164,7 @@ export default function CheckoutPage() {
   };
 
   if (!mounted) return null;
-  const { productAmount, shippingFee, vat, totalAmount } = calculateTotals(cart);
+  const { productAmount, shippingFee, totalAmount } = calculateTotals(cart);
   const showCashReceipt = payMethod === 'TRANSFER' || payMethod === 'VIRTUAL_ACCOUNT';
 
   return (
@@ -176,7 +178,7 @@ export default function CheckoutPage() {
         </div>
 
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '2rem 20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: '1.5rem' }}>
+          <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: '1.5rem' }}>
 
             {/* 왼쪽: 주문자 + 배송지 + 결제수단 */}
             <div>
@@ -185,7 +187,7 @@ export default function CheckoutPage() {
                 <FormGroup label="이름 *">
                   <input value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="홍길동" style={inputStyle} />
                 </FormGroup>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="checkout-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <FormGroup label="이메일 *">
                     <input type="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" style={inputStyle} />
                   </FormGroup>
@@ -209,15 +211,17 @@ export default function CheckoutPage() {
                   <input id="address-detail" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} placeholder="상세 주소 입력" style={inputStyle} />
                 </FormGroup>
                 <FormGroup label="배송 요청사항">
-                  <select value={shippingMemo} onChange={e => setShippingMemo(e.target.value)} style={inputStyle}>
+                  <select value={shippingMemoSelect} onChange={e => setShippingMemoSelect(e.target.value)} style={inputStyle}>
                     <option value="">선택해주세요</option>
                     <option>문 앞에 놓아주세요</option>
                     <option>경비실에 맡겨주세요</option>
                     <option>배송 전 연락 바랍니다</option>
                     <option value="직접입력">직접 입력</option>
                   </select>
-                  {shippingMemo === '직접입력' && (
+                  {shippingMemoSelect === '직접입력' && (
                     <textarea rows={2} placeholder="요청사항을 직접 입력하세요"
+                      value={shippingMemoCustom}
+                      onChange={e => setShippingMemoCustom(e.target.value)}
                       style={{ ...inputStyle, marginTop: '0.5rem', resize: 'vertical' }} />
                   )}
                 </FormGroup>
@@ -225,7 +229,7 @@ export default function CheckoutPage() {
 
               {/* 결제 수단 */}
               <Section title="결제 수단">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+                <div className="checkout-pay-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
                   {PAYMENT_METHODS.map(m => (
                     <button key={m.value} onClick={() => setPayMethod(m.value)}
                       style={{
@@ -301,12 +305,6 @@ export default function CheckoutPage() {
                     <span style={{ color: '#555' }}>{r.label}</span><span>{r.value}</span>
                   </div>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem', borderTop: '1px solid #eee', paddingTop: '0.75rem' }}>
-                  <span style={{ color: '#555' }}>소계</span><span>₩{(productAmount + shippingFee).toLocaleString()}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-                  <span style={{ color: '#555' }}>부가세 (10%)</span><span>₩{vat.toLocaleString()}</span>
-                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.3rem', fontWeight: 700, color: '#ff6b35', borderTop: '2px solid #eee', paddingTop: '1rem', marginTop: '0.5rem' }}>
                   <span>총 결제금액</span><span>₩{totalAmount.toLocaleString()}</span>
                 </div>
@@ -335,6 +333,10 @@ export default function CheckoutPage() {
       <style>{`
         @media (max-width: 768px) {
           .checkout-grid { grid-template-columns: 1fr !important; }
+          .checkout-pay-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 480px) {
+          .checkout-form-row { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </>

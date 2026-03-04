@@ -249,15 +249,11 @@ function OrderDetail({ order }: { order: Order }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.875rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
             <span>상품금액</span>
-            <span>₩{order.product_amount.toLocaleString()} (VAT별도)</span>
+            <span>₩{order.product_amount.toLocaleString()}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
             <span>배송비</span>
             <span>{order.shipping_fee === 0 ? '무료' : `₩${order.shipping_fee.toLocaleString()}`}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
-            <span>부가세 (10%)</span>
-            <span>₩{order.vat.toLocaleString()}</span>
           </div>
           <div style={{
             display: 'flex',
@@ -270,7 +266,7 @@ function OrderDetail({ order }: { order: Order }) {
             marginTop: '0.25rem',
           }}>
             <span>총 결제금액</span>
-            <span>₩{order.total_amount.toLocaleString()}</span>
+            <span>₩{order.total_amount.toLocaleString()} <small style={{ fontWeight: 400, color: '#aaa' }}>(VAT포함)</small></span>
           </div>
         </div>
       </div>
