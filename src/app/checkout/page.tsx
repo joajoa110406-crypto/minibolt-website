@@ -28,11 +28,10 @@ interface PostcodeData {
   bname: string;
 }
 
-type PaymentMethod = 'CARD' | 'TRANSFER' | 'VIRTUAL_ACCOUNT' | 'EASY_PAY';
+type PaymentMethod = 'CARD' | 'TRANSFER' | 'VIRTUAL_ACCOUNT';
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
-  { value: 'CARD', label: '신용/체크카드', icon: '💳' },
-  { value: 'EASY_PAY', label: '간편결제 (토스/카카오/네이버)', icon: '⚡' },
+  { value: 'CARD', label: '신용/체크카드 · 간편결제', icon: '💳' },
   { value: 'TRANSFER', label: '계좌이체', icon: '🏦' },
   { value: 'VIRTUAL_ACCOUNT', label: '가상계좌', icon: '🧾' },
 ];
