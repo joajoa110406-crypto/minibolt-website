@@ -39,7 +39,7 @@ const categories = [
 
 const stats = [
   { value: '39', label: '제조 업력 (1987~)' },
-  { value: '762+', label: '취급 제품 수' },
+  { value: '833+', label: '취급 제품 수' },
   { value: '1.2mm', label: '최소 규격' },
   { value: '100%', label: '자체 생산' },
 ];
@@ -68,7 +68,7 @@ const strengths = [
 ];
 
 const features = [
-  { icon: '📦', title: '762+ 제품 상시 재고', desc: '다양한 규격의 소형 스크류를 상시 보유하여 즉시 출고 가능합니다' },
+  { icon: '📦', title: '833+ 제품 상시 재고', desc: '다양한 규격의 소형 스크류를 상시 보유하여 즉시 출고 가능합니다' },
   { icon: '⚡', title: '빠른 배송 (1-2일)', desc: '주문 후 1-2일 내 배송으로 프로젝트 일정에 차질 없습니다' },
   { icon: '✅', title: '품질 보증 · 불량 교환', desc: '엄격한 품질 관리와 불량 발생 시 즉시 교환 보증' },
   { icon: '🔍', title: '소량 구매 가능', desc: '100개부터 주문 가능, 개인 개발자도 부담 없이 구매' },
@@ -80,7 +80,7 @@ export default function HomePage() {
       {/* 히어로 */}
       <section style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '100px 20px 80px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 700, marginBottom: '1rem' }}>
-          산업용 스크류 전문, Mini Bolt
+          마이크로 스크류 전문, Mini Bolt
         </h1>
         <p style={{ fontSize: '1.2rem', color: '#ccc', marginBottom: '0.5rem' }}>
           개발자와 기업을 위한 고품질 마이크로 스크류
