@@ -165,9 +165,12 @@ export default function CheckoutPage() {
         failUrl: `${base}/checkout/fail`,
       });
     } catch (err: unknown) {
+      console.error('[결제 오류]', err);
       if (err && typeof err === 'object' && 'code' in err) {
         const e = err as { code: string; message: string };
-        if (e.code !== 'USER_CANCEL') alert('결제 오류: ' + e.message);
+        if (e.code !== 'USER_CANCEL') alert('결제 오류: ' + e.message + ' (코드: ' + e.code + ')');
+      } else {
+        alert('결제 오류: 알 수 없는 에러가 발생했습니다.');
       }
     } finally {
       setLoading(false);
