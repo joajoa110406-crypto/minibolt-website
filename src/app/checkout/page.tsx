@@ -104,9 +104,18 @@ export default function CheckoutPage() {
 
   const handleTossReady = () => {
     const key = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+    console.log('[Toss] SDK 초기화 시도, key:', key ? key.substring(0, 10) + '...' : 'MISSING');
     if (key && window.TossPayments) {
-      const tossPayments = window.TossPayments(key);
-      paymentRef.current = tossPayments.payment({ customerKey: 'ANONYMOUS' });
+      try {
+        const tossPayments = window.TossPayments(key);
+        paymentRef.current = tossPayments.payment({ customerKey: 'ANONYMOUS' });
+        console.log('[Toss] SDK 초기화 성공');
+      } catch (e) {
+        console.error('[Toss] SDK 초기화 실패:', e);
+      }
+    } else {
+      console.warn('[Toss] SDK 미로드, 1초 후 재시도');
+      setTimeout(handleTossReady, 1000);
     }
   };
 
@@ -183,8 +192,8 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <Script src="https://js.tosspayments.com/v2/standard" strategy="lazyOnload" onLoad={handleTossReady} />
-      <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
+      <Script src="https://js.tosspayments.com/v2/standard" strategy="afterInteractive" onReady={handleTossReady} />
+      <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="afterInteractive" />
 
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
         <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
