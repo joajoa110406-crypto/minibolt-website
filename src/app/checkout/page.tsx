@@ -122,7 +122,8 @@ export default function CheckoutPage() {
   const validate = () => {
     if (!buyerName.trim()) { alert('이름을 입력해주세요.'); return false; }
     if (!buyerEmail.trim() || !buyerEmail.includes('@')) { alert('올바른 이메일을 입력해주세요.'); return false; }
-    if (!buyerPhone.trim()) { alert('연락처를 입력해주세요.'); return false; }
+    const phoneDigits = buyerPhone.replace(/\D/g, '');
+    if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { alert('연락처를 정확히 입력해주세요. (10~11자리)'); return false; }
     if (!address.trim()) { alert('배송 주소를 입력해주세요.'); return false; }
     if (needTaxInvoice && !businessNumber.trim()) { alert('사업자등록번호를 입력해주세요.'); return false; }
     if (!agreeTerms || !agreePrivacy || !agreePayment) { alert('필수 약관에 모두 동의해주세요.'); return false; }
@@ -169,7 +170,7 @@ export default function CheckoutPage() {
         orderName,
         customerName: buyerName,
         customerEmail: buyerEmail,
-        customerMobilePhone: buyerPhone.replace(/-/g, ''),
+        customerMobilePhone: buyerPhone.replace(/\D/g, ''),
         successUrl: `${base}/checkout/success`,
         failUrl: `${base}/checkout/fail`,
       });
