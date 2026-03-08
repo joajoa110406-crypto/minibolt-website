@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { CartItem } from '@/lib/cart';
-import { calculateItemPrice, calculateTotals } from '@/lib/cart';
+import { calculateTotals } from '@/lib/cart';
+import { verifyItemPrices } from '@/lib/price-verification.server';
+
+function logPayment(level: 'info' | 'warn' | 'error', step: string, data: Record<string, unknown>) {
+  const log = JSON.stringify({ timestamp: new Date().toISOString(), level, step, ...data });
+  if (level === 'error') console.error(log);
+  else if (level === 'warn') console.warn(log);
+  else console.log(log);
+}
 
 interface OrderInfo {
   orderId: string;
@@ -31,16 +39,28 @@ export async function POST(req: NextRequest) {
       orderInfo: OrderInfo;
     };
 
-    // 0. 서버사이드 금액 검증 (클라이언트 조작 방지)
+    logPayment('info', 'payment_start', { orderId, amount, itemCount: orderInfo.items.length });
+
+    // 0-1. 개별 제품 가격 검증 (클라이언트 가격 조작 방지)
+    const priceCheck = verifyItemPrices(orderInfo.items);
+    if (!priceCheck.valid) {
+      logPayment('error', 'price_tamper_detected', { orderId, errors: priceCheck.errors });
+      return NextResponse.json({ error: '상품 가격 정보가 변경되었습니다. 장바구니를 새로고침 후 다시 시도해주세요.' }, { status: 400 });
+    }
+
+    // 0-2. 서버사이드 금액 검증 (합계 조작 방지)
     const serverTotals = calculateTotals(orderInfo.items);
     if (amount !== serverTotals.totalAmount || amount !== orderInfo.totalAmount) {
-      console.error('[payment/confirm] 금액 불일치:', { client: amount, server: serverTotals.totalAmount, orderInfo: orderInfo.totalAmount });
+      logPayment('error', 'amount_mismatch', { orderId, client: amount, server: serverTotals.totalAmount, orderInfo: orderInfo.totalAmount });
       return NextResponse.json({ error: '결제 금액이 일치하지 않습니다. 다시 시도해주세요.' }, { status: 400 });
     }
+
+    logPayment('info', 'price_verified', { orderId, amount });
 
     // 1. Toss Payments 결제 승인
     const secretKey = process.env.TOSS_SECRET_KEY;
     if (!secretKey) {
+      logPayment('error', 'missing_secret_key', { orderId });
       return NextResponse.json({ error: '결제 설정이 올바르지 않습니다.' }, { status: 500 });
     }
 
@@ -55,10 +75,12 @@ export async function POST(req: NextRequest) {
 
     if (!tossRes.ok) {
       const err = await tossRes.json();
+      logPayment('error', 'toss_confirm_failed', { orderId, tossError: err.message || err.code });
       return NextResponse.json({ error: err.message || '결제 승인 실패' }, { status: 400 });
     }
 
     const payment = await tossRes.json();
+    logPayment('info', 'toss_confirmed', { orderId, paymentKey, method: payment.method });
 
     // 2. 주문번호 생성 (MB + 날짜 + 순번)
     let orderNumber: string;
@@ -120,8 +142,9 @@ export async function POST(req: NextRequest) {
       }));
 
       await supabaseAdmin.from('order_items').insert(items);
+      logPayment('info', 'order_saved', { orderId, orderNumber, dbOrderId: order.id });
     } catch (dbErr) {
-      console.error('[DB] 주문 저장 실패:', dbErr);
+      logPayment('error', 'db_save_failed', { orderId, orderNumber, error: String(dbErr) });
       // DB 저장 실패해도 결제는 완료됐으므로 계속 진행
     }
 
@@ -141,9 +164,12 @@ export async function POST(req: NextRequest) {
         shippingFee: orderInfo.shippingFee,
         totalAmount: orderInfo.totalAmount,
       });
+      logPayment('info', 'email_sent', { orderId, orderNumber, email: orderInfo.buyerEmail });
     } catch (mailErr) {
-      console.error('[Mail] 이메일 발송 실패:', mailErr);
+      logPayment('warn', 'email_failed', { orderId, orderNumber, error: String(mailErr) });
     }
+
+    logPayment('info', 'payment_complete', { orderId, orderNumber, amount });
 
     return NextResponse.json({
       orderNumber,
@@ -156,7 +182,7 @@ export async function POST(req: NextRequest) {
       itemCount: orderInfo.items.length,
     });
   } catch (err) {
-    console.error('[payment/confirm]', err);
+    logPayment('error', 'unexpected_error', { error: String(err) });
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

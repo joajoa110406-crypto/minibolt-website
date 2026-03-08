@@ -41,9 +41,11 @@ export default function ProductModal({ product, onClose }: Props) {
       aria-modal="true"
       aria-label={`${displayName} 상세 정보`}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      className="modal-backdrop"
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="modal-content"
         style={{ background: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}
       >
         {/* 닫기 */}
@@ -111,6 +113,13 @@ export default function ProductModal({ product, onClose }: Props) {
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+          .modal-content { border-radius: 16px 16px 0 0 !important; max-height: 85vh !important; padding: 1.5rem !important; }
+        }
+      `}</style>
     </div>
   );
 }

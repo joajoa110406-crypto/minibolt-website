@@ -22,11 +22,11 @@ export default function Footer() {
           </div>
           <div>
             <h4 style={{ marginBottom: '1rem' }}>약관 및 정책</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <Link href="/terms" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>이용약관</Link>
-              <Link href="/privacy" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>개인정보처리방침</Link>
-              <Link href="/refund" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>교환/환불 정책</Link>
-              <Link href="/company" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem' }}>회사소개</Link>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <Link href="/terms" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem', padding: '0.35rem 0', display: 'block' }}>이용약관</Link>
+              <Link href="/privacy" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem', padding: '0.35rem 0', display: 'block' }}>개인정보처리방침</Link>
+              <Link href="/refund" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem', padding: '0.35rem 0', display: 'block' }}>교환/환불 정책</Link>
+              <Link href="/company" style={{ color: '#b0b0b0', textDecoration: 'none', fontSize: '0.9rem', padding: '0.35rem 0', display: 'block' }}>회사소개</Link>
             </div>
           </div>
         </div>

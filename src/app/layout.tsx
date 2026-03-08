@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
+import { Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import NextAuthSessionProvider from '@/components/SessionProvider';
+
+const notoSansKR = Noto_Sans_KR({
+  subsets: ['latin'],
+  weight: ['400', '600', '700'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://minibolt.co.kr'),
@@ -150,10 +157,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body>
+      <body className={notoSansKR.className}>
         <NextAuthSessionProvider>
+          <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
           <Header />
-          <main style={{ paddingTop: 70 }}>
+          <main id="main-content" style={{ paddingTop: 70 }}>
             {children}
           </main>
           <Footer />

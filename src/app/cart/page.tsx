@@ -68,11 +68,13 @@ export default function CartPage() {
           <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>장바구니</h1>
         </div>
         <div style={{ maxWidth: 800, margin: '3rem auto', padding: '0 20px', textAlign: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 15, padding: '4rem 2rem' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛒</div>
-            <h2 style={{ marginBottom: '1rem', color: '#333' }}>장바구니가 비어있습니다</h2>
-            <p style={{ color: '#666', marginBottom: '2rem' }}>제품 페이지에서 상품을 담아보세요</p>
-            <Link href="/products" style={{ background: '#ff6b35', color: '#fff', padding: '0.9rem 2rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+          <div style={{ background: '#fff', borderRadius: 15, padding: '4rem 2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2.5rem' }}>
+              🛒
+            </div>
+            <h2 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1.3rem' }}>장바구니가 비어있습니다</h2>
+            <p style={{ color: '#666', marginBottom: '2rem', fontSize: '0.95rem' }}>제품 페이지에서 상품을 담아보세요</p>
+            <Link href="/products" style={{ background: '#ff6b35', color: '#fff', padding: '0.9rem 2rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600, display: 'inline-block', minHeight: 48 }}>
               제품 보러가기
             </Link>
           </div>
@@ -91,7 +93,7 @@ export default function CartPage() {
       </div>
 
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem 20px' }}>
-        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }} className="cart-container">
+        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} className="cart-container">
 
           {/* 아이템 목록 */}
           {cart.map(item => {
@@ -122,8 +124,8 @@ export default function CartPage() {
                   </div>
                   <button
                     onClick={() => setPendingDelete({ id: item.id, blockSize: item.blockSize })}
-                    aria-label="삭제"
-                    style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem', flexShrink: 0 }}
+                    aria-label={`${generateProductName(item)} 삭제`}
+                    style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem', flexShrink: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     ✕
                   </button>
@@ -133,7 +135,8 @@ export default function CartPage() {
                 <div className="cart-item-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <button onClick={() => updateBlockCount(item.id, item.blockSize, -1)}
-                      style={{ width: 36, height: 36, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
+                      aria-label="수량 감소"
+                      style={{ width: 44, height: 44, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
                       −
                     </button>
                     <input
@@ -141,11 +144,13 @@ export default function CartPage() {
                       value={item.blockCount}
                       min={1}
                       onChange={e => setBlockCount(item.id, item.blockSize, parseInt(e.target.value) || 1)}
+                      aria-label="묶음 수량"
                       className="qty-input"
-                      style={{ width: 52, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: '0.95rem' }}
+                      style={{ width: 52, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: '0.95rem', height: 44 }}
                     />
                     <button onClick={() => updateBlockCount(item.id, item.blockSize, 1)}
-                      style={{ width: 36, height: 36, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
+                      aria-label="수량 증가"
+                      style={{ width: 44, height: 44, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>
                       +
                     </button>
                     <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: '0.25rem' }}>
@@ -168,12 +173,27 @@ export default function CartPage() {
             );
           })}
 
+          {/* 무료배송 안내 */}
+          {shippingFee > 0 && (
+            <div style={{ background: '#fff8f5', border: '1px solid #ffd4c2', borderRadius: 10, padding: '1rem 1.25rem', marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>🚚</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#333' }}>
+                  ₩{(50000 - productAmount).toLocaleString()} 더 담으면 무료배송!
+                </div>
+                <div style={{ background: '#e9ecef', borderRadius: 4, height: 6, marginTop: '0.5rem', overflow: 'hidden' }}>
+                  <div style={{ background: '#ff6b35', height: '100%', borderRadius: 4, width: `${Math.min(100, (productAmount / 50000) * 100)}%`, transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 금액 요약 */}
-          <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '1.5rem', marginTop: '1.5rem' }}>
+          <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '1.5rem', marginTop: '1rem' }}>
             {[
               { label: '상품 수량', value: `${totalQty.toLocaleString()}개 (${cart.length}종)` },
               { label: '상품 금액', value: `₩${productAmount.toLocaleString()}` },
-              { label: '배송비', value: shippingFee === 0 ? '무료 (₩50,000 이상)' : `₩${shippingFee.toLocaleString()}` },
+              { label: '배송비', value: shippingFee === 0 ? '무료' : `₩${shippingFee.toLocaleString()}` },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem' }}>
                 <span style={{ color: '#555' }}>{row.label}</span>
@@ -191,13 +211,13 @@ export default function CartPage() {
           <div className="cart-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
             <button
               onClick={() => router.push('/checkout')}
-              style={{ flex: 1, background: '#ff6b35', color: '#fff', border: 'none', padding: '1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '1.1rem' }}
+              style={{ flex: 1, background: '#ff6b35', color: '#fff', border: 'none', padding: '1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '1.1rem', minHeight: 48 }}
             >
               주문하기
             </button>
             <button
               onClick={() => setPendingDelete('all')}
-              style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '1rem 1.5rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+              style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '1rem 1.5rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, minHeight: 48 }}
             >
               비우기
             </button>
@@ -218,11 +238,11 @@ export default function CartPage() {
             </p>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button onClick={() => setPendingDelete(null)}
-                style={{ flex: 1, padding: '0.75rem', border: '2px solid #e0e0e0', background: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+                style={{ flex: 1, padding: '0.75rem', border: '2px solid #e0e0e0', background: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem', minHeight: 44 }}>
                 취소
               </button>
               <button onClick={confirmDelete}
-                style={{ flex: 1, padding: '0.75rem', border: 'none', background: '#dc3545', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+                style={{ flex: 1, padding: '0.75rem', border: 'none', background: '#dc3545', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem', minHeight: 44 }}>
                 삭제
               </button>
             </div>

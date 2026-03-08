@@ -79,6 +79,8 @@ export default function CheckoutPage() {
   };
 
   const paymentRef = useRef<{ requestPayment: (options: Record<string, unknown>) => Promise<void> } | null>(null);
+  const tossRetryCount = useRef(0);
+  const MAX_TOSS_RETRY = 10;
 
   useEffect(() => {
     const c = getCart();
@@ -109,13 +111,17 @@ export default function CheckoutPage() {
       try {
         const tossPayments = window.TossPayments(key);
         paymentRef.current = tossPayments.payment({ customerKey: 'ANONYMOUS' });
+        tossRetryCount.current = 0;
         console.log('[Toss] SDK 초기화 성공');
       } catch (e) {
         console.error('[Toss] SDK 초기화 실패:', e);
       }
-    } else {
-      console.warn('[Toss] SDK 미로드, 1초 후 재시도');
+    } else if (tossRetryCount.current < MAX_TOSS_RETRY) {
+      tossRetryCount.current++;
+      console.warn(`[Toss] SDK 미로드, 재시도 (${tossRetryCount.current}/${MAX_TOSS_RETRY})`);
       setTimeout(handleTossReady, 1000);
+    } else {
+      console.error('[Toss] SDK 로드 실패: 최대 재시도 초과');
     }
   };
 
@@ -125,7 +131,15 @@ export default function CheckoutPage() {
     const phoneDigits = buyerPhone.replace(/\D/g, '');
     if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { alert('연락처를 정확히 입력해주세요. (10~11자리)'); return false; }
     if (!address.trim()) { alert('배송 주소를 입력해주세요.'); return false; }
-    if (needTaxInvoice && !businessNumber.trim()) { alert('사업자등록번호를 입력해주세요.'); return false; }
+    if (needTaxInvoice) {
+      const bizNum = businessNumber.replace(/\D/g, '');
+      if (bizNum.length !== 10) { alert('사업자등록번호 10자리를 정확히 입력해주세요.'); return false; }
+    }
+    const isCashPayment = payMethod === 'TRANSFER' || payMethod === 'VIRTUAL_ACCOUNT';
+    if (isCashPayment && needCashReceipt && !cashReceiptNumber.trim()) {
+      alert(cashReceiptType === 'personal' ? '휴대폰 번호를 입력해주세요.' : '사업자 번호를 입력해주세요.');
+      return false;
+    }
     if (!agreeTerms || !agreePrivacy || !agreePayment) { alert('필수 약관에 모두 동의해주세요.'); return false; }
     return true;
   };
@@ -197,46 +211,74 @@ export default function CheckoutPage() {
       <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="afterInteractive" />
 
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
-        <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
+        <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 30px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>주문 / 결제</h1>
           <p style={{ fontSize: '0.9rem', color: '#ccc', marginTop: '0.5rem' }}>비회원 주문 - 회원가입 없이 결제 가능합니다</p>
         </div>
 
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '2rem 20px' }}>
+        {/* 진행 단계 */}
+        <div style={{ maxWidth: 500, margin: '-1rem auto 0', padding: '0 20px' }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            {[
+              { label: '장바구니', done: true },
+              { label: '주문/결제', done: false, active: true },
+              { label: '완료', done: false },
+            ].map((step, i) => (
+              <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {i > 0 && <div style={{ width: 24, height: 2, background: step.done ? '#ff6b35' : '#e0e0e0' }} />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.75rem', fontWeight: 700,
+                    background: step.done ? '#ff6b35' : step.active ? '#ff6b35' : '#e0e0e0',
+                    color: step.done || step.active ? '#fff' : '#999',
+                  }}>
+                    {step.done ? '✓' : i + 1}
+                  </div>
+                  <span style={{ fontSize: '0.85rem', fontWeight: step.active ? 700 : 400, color: step.active ? '#ff6b35' : step.done ? '#333' : '#999' }}>
+                    {step.label}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem 20px' }}>
           <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: '1.5rem' }}>
 
             {/* 왼쪽: 주문자 + 배송지 + 결제수단 */}
             <div>
               {/* 주문자 정보 */}
               <Section title="주문자 정보">
-                <FormGroup label="이름 *">
-                  <input value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="홍길동" style={inputStyle} />
+                <FormGroup label="이름 *" htmlFor="buyer-name">
+                  <input id="buyer-name" value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="홍길동" style={inputStyle} />
                 </FormGroup>
                 <div className="checkout-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <FormGroup label="이메일 *">
-                    <input type="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" style={inputStyle} />
+                  <FormGroup label="이메일 *" htmlFor="buyer-email">
+                    <input id="buyer-email" type="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" style={inputStyle} />
                   </FormGroup>
-                  <FormGroup label="연락처 *">
-                    <input type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
+                  <FormGroup label="연락처 *" htmlFor="buyer-phone">
+                    <input id="buyer-phone" type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
                   </FormGroup>
                 </div>
               </Section>
 
               {/* 배송 정보 */}
               <Section title="배송 정보">
-                <FormGroup label="배송 주소 *">
+                <FormGroup label="배송 주소 *" htmlFor="address-detail">
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <input value={zipcode} readOnly placeholder="우편번호" style={{ ...inputStyle, width: 120, background: '#f8f9fa' }} />
                     <button onClick={openPostcode}
-                      style={{ background: '#2c3e50', color: '#fff', border: 'none', padding: '0 1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      style={{ background: '#2c3e50', color: '#fff', border: 'none', padding: '0 1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', minHeight: 44 }}>
                       주소 검색
                     </button>
                   </div>
                   <input value={address} readOnly placeholder="기본 주소" style={{ ...inputStyle, background: '#f8f9fa', marginBottom: '0.5rem' }} />
                   <input id="address-detail" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} placeholder="상세 주소 입력" style={inputStyle} />
                 </FormGroup>
-                <FormGroup label="배송 요청사항">
-                  <select value={shippingMemoSelect} onChange={e => setShippingMemoSelect(e.target.value)} style={inputStyle}>
+                <FormGroup label="배송 요청사항" htmlFor="shipping-memo">
+                  <select id="shipping-memo" value={shippingMemoSelect} onChange={e => setShippingMemoSelect(e.target.value)} style={inputStyle}>
                     <option value="">선택해주세요</option>
                     <option>문 앞에 놓아주세요</option>
                     <option>경비실에 맡겨주세요</option>
@@ -258,7 +300,7 @@ export default function CheckoutPage() {
                   {PAYMENT_METHODS.map(m => (
                     <button key={m.value} onClick={() => setPayMethod(m.value)}
                       style={{
-                        padding: '0.9rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600,
+                        padding: '0.9rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, minHeight: 48,
                         border: `2px solid ${payMethod === m.value ? '#ff6b35' : '#e0e0e0'}`,
                         background: payMethod === m.value ? '#fff8f5' : '#fff',
                         color: payMethod === m.value ? '#ff6b35' : '#333',
@@ -369,12 +411,16 @@ export default function CheckoutPage() {
                     background: loading || !agreeAll ? '#ccc' : '#ff6b35',
                     color: '#fff', border: 'none', borderRadius: 8,
                     cursor: loading || !agreeAll ? 'not-allowed' : 'pointer',
-                    fontWeight: 700, fontSize: '1.1rem',
+                    fontWeight: 700, fontSize: '1.1rem', minHeight: 48,
                   }}
                 >
                   {loading ? '처리 중...' : `결제하기 ₩${totalAmount.toLocaleString()}`}
                 </button>
-                <p style={{ fontSize: '0.78rem', color: '#888', textAlign: 'center', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '0.75rem', fontSize: '0.78rem', color: '#888' }}>
+                  <span>🔒 SSL 보안결제</span>
+                  <span>🛡️ 토스페이먼츠</span>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#888', textAlign: 'center', marginTop: '0.35rem' }}>
                   비회원 주문 | 회원가입 없이 바로 결제 가능합니다
                 </p>
               </Section>
@@ -398,12 +444,12 @@ export default function CheckoutPage() {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0',
-  borderRadius: 8, fontSize: '0.95rem', outline: 'none', fontFamily: 'inherit',
+  borderRadius: 8, fontSize: '1rem', outline: 'none', fontFamily: 'inherit', minHeight: 44,
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem' }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2c3e50', borderBottom: '2px solid #ff6b35', paddingBottom: '0.5rem', marginBottom: '1.2rem' }}>
         {title}
       </h2>
@@ -412,10 +458,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function FormGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function FormGroup({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '1rem' }}>
-      <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.9rem' }}>{label}</label>
+      <label htmlFor={htmlFor} style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.9rem' }}>{label}</label>
       {children}
     </div>
   );

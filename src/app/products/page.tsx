@@ -1,20 +1,46 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { Product } from '@/types/product';
 import { addToCart } from '@/lib/cart';
 import { generateProductName, getCategoryImage, getStockStatus, CATEGORY_TABS } from '@/lib/products';
 import ProductModal from '@/components/ProductModal';
-import ProductImage from '@/components/ProductImage';
+import ProductCard from '@/components/ProductCard';
 
 import productsData from '@/data/products.json';
 
 const allProducts = productsData as Product[];
 
+// 5,000개 복수구매 할인율
+function getBulkDiscount(blockSize: number, count: number) {
+  if (blockSize !== 5000) return 0;
+  if (count >= 4) return 10;
+  if (count >= 3) return 8;
+  if (count >= 2) return 5;
+  return 0;
+}
+
+// 블록별 가격 계산 (VAT 포함)
+function getBlockPrice(product: Product, blockSize: number) {
+  const supply = blockSize === 100 ? (product.price_100_block ?? 3000)
+    : blockSize === 1000 ? (product.price_1000_block ?? 0)
+    : blockSize === 5000 ? (product.price_5000_block ?? 0)
+    : 0;
+  return Math.round(supply * 1.1);
+}
+
+// 총 가격 계산 (할인 포함, VAT 포함)
+function getTotalPrice(product: Product, blockSize: number, count: number) {
+  const basePrice = getBlockPrice(product, blockSize) * count;
+  const discount = getBulkDiscount(blockSize, count);
+  return Math.round(basePrice * (1 - discount / 100));
+}
+
 function ProductsContent() {
   const [mounted, setMounted] = useState(false);
   const [activeCategory, setActiveCategory] = useState(CATEGORY_TABS[0].key);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filterDiameter, setFilterDiameter] = useState('');
   const [filterLength, setFilterLength] = useState('');
@@ -23,6 +49,12 @@ function ProductsContent() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [toast, setToast] = useState('');
+
+  // 검색 debounce (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // 클라이언트 마운트 후에만 렌더링 (한글 데이터 SSR → ByteString 이슈 방지)
   useEffect(() => {
@@ -33,7 +65,7 @@ function ProductsContent() {
     setMounted(true);
   }, []);
 
-  // 현재 카테고리 제품 — Hooks는 조기 반환 이전에 모두 선언
+  // 현재 카테고리 제품
   const categoryProducts = useMemo(() => {
     return allProducts.filter(p => {
       if (activeCategory === '마이크로스크류/평머리') {
@@ -43,7 +75,7 @@ function ProductsContent() {
     });
   }, [activeCategory]);
 
-  // 필터 옵션 (종속 필터링)
+  // 필터 적용
   const filtered = useMemo(() => {
     let P = categoryProducts;
     if (search) {
@@ -79,8 +111,34 @@ function ProductsContent() {
     setFilterLength('');
     setFilterColor('');
     setFilterType('');
+    setSearchInput('');
     setSearch('');
   }, [activeCategory]);
+
+  const getBlock = useCallback((id: string) => quantities[id] ?? 100, [quantities]);
+  const getBlockCount = useCallback((id: string) => (quantities[`${id}_count`] ?? 1), [quantities]);
+
+  const setBlock = useCallback((id: string, size: number) => {
+    setQuantities(prev => ({ ...prev, [id]: size, [`${id}_count`]: 1 }));
+  }, []);
+
+  const setBlockCount = useCallback((id: string, count: number) => {
+    setQuantities(prev => ({ ...prev, [`${id}_count`]: Math.max(1, count) }));
+  }, []);
+
+  const handleAddToCart = useCallback((product: Product) => {
+    if (product.stock === 0) return;
+    const blockSize = quantities[product.id] ?? 100;
+    const count = quantities[`${product.id}_count`] ?? 1;
+    const totalQty = blockSize * count;
+    const totalPrice = getTotalPrice(product, blockSize, count);
+    const discount = getBulkDiscount(blockSize, count);
+    addToCart(product, totalQty, blockSize, count);
+    window.dispatchEvent(new Event('cart-updated'));
+    const discountText = discount > 0 ? ` (${discount}% 할인)` : '';
+    setToast(`${generateProductName(product)} ${totalQty.toLocaleString()}개 ₩${totalPrice.toLocaleString()}${discountText}`);
+    setTimeout(() => setToast(''), 3500);
+  }, [quantities]);
 
   // 모든 Hooks 선언 완료 후 조기 반환
   if (!mounted) return (
@@ -114,57 +172,6 @@ function ProductsContent() {
     </div>
   );
 
-  // 블록 단위 수량 시스템: 100개 / 1,000개 / 5,000개
-  const BLOCKS = [
-    { size: 100, label: '100개' },
-    { size: 1000, label: '1,000개' },
-    { size: 5000, label: '5,000개' },
-  ] as const;
-
-  const getBlock = (id: string) => quantities[id] ?? 100;
-  const setBlock = (id: string, size: number) => setQuantities(prev => ({ ...prev, [id]: size }));
-  const getBlockCount = (id: string) => (quantities[`${id}_count`] ?? 1);
-  const setBlockCount = (id: string, count: number) => setQuantities(prev => ({ ...prev, [`${id}_count`]: Math.max(1, count) }));
-
-  // 5,000개 복수구매 할인율
-  const getBulkDiscount = (blockSize: number, count: number) => {
-    if (blockSize !== 5000) return 0;
-    if (count >= 4) return 10;
-    if (count >= 3) return 8;
-    if (count >= 2) return 5;
-    return 0;
-  };
-
-  // 블록별 가격 계산 (VAT 포함)
-  const getBlockPrice = (product: Product, blockSize: number) => {
-    const supply = blockSize === 100 ? (product.price_100_block ?? 3000)
-      : blockSize === 1000 ? (product.price_1000_block ?? 0)
-      : blockSize === 5000 ? (product.price_5000_block ?? 0)
-      : 0;
-    return Math.round(supply * 1.1);
-  };
-
-  // 총 가격 계산 (할인 포함, VAT 포함)
-  const getTotalPrice = (product: Product, blockSize: number, count: number) => {
-    const basePrice = getBlockPrice(product, blockSize) * count;
-    const discount = getBulkDiscount(blockSize, count);
-    return Math.round(basePrice * (1 - discount / 100));
-  };
-
-  const handleAddToCart = (product: Product) => {
-    if (product.stock === 0) return;
-    const blockSize = getBlock(product.id);
-    const count = getBlockCount(product.id);
-    const totalQty = blockSize * count;
-    const totalPrice = getTotalPrice(product, blockSize, count);
-    const discount = getBulkDiscount(blockSize, count);
-    addToCart(product, totalQty, blockSize, count);
-    window.dispatchEvent(new Event('cart-updated'));
-    const discountText = discount > 0 ? ` (${discount}% 할인)` : '';
-    setToast(`${generateProductName(product)} ${totalQty.toLocaleString()}개 ₩${totalPrice.toLocaleString()}${discountText}`);
-    setTimeout(() => setToast(''), 3500);
-  };
-
   return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
       {/* 페이지 헤더 */}
@@ -174,7 +181,7 @@ function ProductsContent() {
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
         {/* 카테고리 탭 */}
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+        <div className="category-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
           {CATEGORY_TABS.map(tab => (
             <button
               key={tab.key}
@@ -196,20 +203,20 @@ function ProductsContent() {
           ))}
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
+        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           {/* 검색 */}
           <div style={{ maxWidth: 500, margin: '0 auto 1.5rem', position: 'relative' }}>
             <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#999', fontSize: '1.1rem' }}>🔍</span>
             <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               placeholder="검색... (예: M2, 블랙, S20)"
               style={{ width: '100%', padding: '0.9rem 1rem 0.9rem 2.8rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '1rem', outline: 'none' }}
             />
           </div>
 
           {/* 필터 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
+          <div className="filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
             {/* 타입 필터 (마이크로스크류/평머리만) */}
             {activeCategory === '마이크로스크류/평머리' && filterOptions.types.length > 0 && (
               <div>
@@ -257,140 +264,18 @@ function ProductsContent() {
             <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>검색 결과가 없습니다</div>
           ) : (
             <div className="product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-              {filtered.map(product => {
-                const { label: stockLabel, ok } = getStockStatus(product.stock);
-                const displayName = generateProductName(product);
-                return (
-                  <div
-                    key={product.id}
-                    style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem', position: 'relative', background: '#fff', transition: 'border-color 0.2s, transform 0.2s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#ff6b35'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#e9ecef'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; }}
-                  >
-                    {/* 재고 뱃지 */}
-                    <span style={{
-                      position: 'absolute', top: 10, right: 10,
-                      background: ok ? '#d4edda' : '#fff3cd',
-                      color: ok ? '#155724' : '#856404',
-                      padding: '2px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600,
-                    }}>
-                      {stockLabel}
-                    </span>
-
-                    {/* 상단: 제품명 + 이미지 + 상세보기 버튼 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 700, paddingRight: '4rem', lineHeight: 1.4 }}>{displayName}</h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                        <ProductImage
-                          src={getCategoryImage(product)}
-                          alt={product.category}
-                          size={80}
-                        />
-                        <button
-                          onClick={() => setModalProduct(product)}
-                          title="상세 보기"
-                          style={{ background: '#ff6b35', color: '#fff', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: '1rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 스팩 */}
-                    <div style={{ fontSize: '0.85rem', margin: '0.75rem 0', color: '#555' }}>
-                      <div><b>ID:</b> {product.id}</div>
-                      <div><b>규격:</b> M{product.diameter} × {product.length}mm</div>
-                      {product.head_width && <div><b>헤드:</b> Φ{product.head_width} / {product.head_height}t</div>}
-                      <div><b>색상:</b> {product.color}</div>
-                      <div><b>재고:</b> {(product.stock || 0).toLocaleString()}개</div>
-                    </div>
-
-                    {/* 가격 (VAT 포함) */}
-                    <div style={{ background: '#f8f9fa', padding: '0.75rem', borderRadius: 8, margin: '0.75rem 0', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                        <span>100개</span>
-                        <span style={{ fontWeight: 600 }}>₩{Math.round((product.price_100_block ?? 3000) * 1.1).toLocaleString()}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                        <span>1,000개</span>
-                        <span style={{ fontWeight: 600 }}>
-                          {Math.round(product.price_1000_per * 1.1)}원/EA
-                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{Math.round((product.price_1000_block ?? 0) * 1.1).toLocaleString()})</small>
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #ff6b35', paddingTop: '0.3rem' }}>
-                        <span>5,000개</span>
-                        <span style={{ fontWeight: 600, color: '#ff6b35' }}>
-                          {Math.round(product.price_5000_per * 1.1)}원/EA
-                          <small style={{ color: '#999', marginLeft: 4 }}>(₩{Math.round((product.price_5000_block ?? 0) * 1.1).toLocaleString()})</small>
-                        </span>
-                      </div>
-                      <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#aaa', marginTop: '0.25rem' }}>
-                        5,000개 2묶음 5%↓ · 3묶음 8%↓ · 4+ 10%↓
-                      </div>
-                    </div>
-
-                    {/* 블록 선택 + 수량 */}
-                    <div style={{ margin: '0.75rem 0' }}>
-                      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
-                        {BLOCKS.map(b => (
-                          <button
-                            key={b.size}
-                            onClick={() => { setBlock(product.id, b.size); setBlockCount(product.id, 1); }}
-                            style={{
-                              flex: 1, padding: '0.5rem', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-                              border: `2px solid ${getBlock(product.id) === b.size ? '#ff6b35' : '#e0e0e0'}`,
-                              background: getBlock(product.id) === b.size ? '#fff5f0' : '#fff',
-                              color: getBlock(product.id) === b.size ? '#ff6b35' : '#666',
-                            }}
-                          >
-                            {b.label}
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) - 1)}
-                            style={{ width: 36, height: 36, border: '2px solid #e0e0e0', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>−</button>
-                          <input
-                            type="number"
-                            value={getBlockCount(product.id)}
-                            min={1}
-                            onChange={e => setBlockCount(product.id, parseInt(e.target.value) || 1)}
-                            className="qty-input"
-                            style={{ width: 48, textAlign: 'center', fontWeight: 700, fontSize: '1rem', border: '2px solid #e0e0e0', borderRadius: 8, padding: '4px 0', height: 36 }}
-                          />
-                          <button onClick={() => setBlockCount(product.id, getBlockCount(product.id) + 1)}
-                            style={{ width: 36, height: 36, border: '2px solid #e0e0e0', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}>+</button>
-                          <span style={{ fontSize: '0.85rem', color: '#666', marginLeft: 2 }}>
-                            = {(getBlock(product.id) * getBlockCount(product.id)).toLocaleString()}개
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ff6b35', marginLeft: 'auto' }}>
-                          ₩{getTotalPrice(product, getBlock(product.id), getBlockCount(product.id)).toLocaleString()}
-                          {getBulkDiscount(getBlock(product.id), getBlockCount(product.id)) > 0 && (
-                            <small style={{ color: '#e74c3c', marginLeft: 4 }}>
-                              -{getBulkDiscount(getBlock(product.id), getBlockCount(product.id))}%
-                            </small>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleAddToCart(product)}
-                      disabled={product.stock === 0}
-                      style={{
-                        background: product.stock === 0 ? '#ccc' : '#ff6b35',
-                        color: '#fff', border: 'none', padding: '0.85rem', borderRadius: 8,
-                        cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
-                        fontWeight: 600, width: '100%', fontSize: '0.95rem', minHeight: 44,
-                      }}
-                    >
-                      {product.stock === 0 ? '품절' : '장바구니 담기'}
-                    </button>
-                  </div>
-                );
-              })}
+              {filtered.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  blockSize={getBlock(product.id)}
+                  blockCount={getBlockCount(product.id)}
+                  onBlockChange={(size) => setBlock(product.id, size)}
+                  onBlockCountChange={(count) => setBlockCount(product.id, count)}
+                  onAddToCart={() => handleAddToCart(product)}
+                  onShowDetail={() => setModalProduct(product)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -420,6 +305,11 @@ function ProductsContent() {
         .qty-input { -moz-appearance: textfield; }
         @media (max-width: 640px) {
           .product-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+        }
+        @media (max-width: 480px) {
+          .category-tabs { gap: 0.5rem !important; }
+          .category-tabs button { padding: 0.6rem 1rem !important; font-size: 0.9rem !important; }
+          .filter-grid { grid-template-columns: 1fr 1fr !important; }
         }
       `}</style>
     </div>

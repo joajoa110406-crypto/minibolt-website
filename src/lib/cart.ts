@@ -24,6 +24,10 @@ export function getCartCount(): number {
 }
 
 export function addToCart(product: Product, qty: number, blockSize: number = 100, blockCount: number = 1) {
+  // 방어적 검증: 최소 1 보장
+  if (blockCount < 1) blockCount = 1;
+  if (blockSize < 100) blockSize = 100;
+
   const cart = getCart();
   // 같은 제품 + 같은 블록사이즈면 수량 합산
   const idx = cart.findIndex(x => x.id === product.id && x.blockSize === blockSize);
@@ -31,7 +35,7 @@ export function addToCart(product: Product, qty: number, blockSize: number = 100
     cart[idx].blockCount += blockCount;
     cart[idx].qty = cart[idx].blockSize * cart[idx].blockCount;
   } else {
-    cart.push({ ...product, qty, blockSize, blockCount });
+    cart.push({ ...product, qty: blockSize * blockCount, blockSize, blockCount });
   }
   saveCart(cart);
 }
@@ -55,6 +59,7 @@ function getBlockPrice(item: CartItem): number {
 
 // 아이템 가격 (VAT 포함)
 export function calculateItemPrice(item: CartItem): number {
+  if (item.blockCount < 1 || item.qty < 1) return 0;
   const basePrice = getBlockPrice(item) * item.blockCount;
   const discount = getBulkDiscount(item.blockSize, item.blockCount);
   const supplyPrice = Math.round(basePrice * (1 - discount / 100));

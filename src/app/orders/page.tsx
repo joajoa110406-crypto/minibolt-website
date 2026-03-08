@@ -91,10 +91,11 @@ function GuestLookup() {
       <form onSubmit={handleLookup} style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', color: '#555', marginBottom: '0.4rem', fontWeight: 600 }}>
+            <label htmlFor="order-number" style={{ display: 'block', fontSize: '0.875rem', color: '#555', marginBottom: '0.4rem', fontWeight: 600 }}>
               주문번호
             </label>
             <input
+              id="order-number"
               type="text"
               value={orderNumber}
               onChange={e => setOrderNumber(e.target.value)}
@@ -107,16 +108,18 @@ function GuestLookup() {
                 fontSize: '1rem',
                 boxSizing: 'border-box',
                 outline: 'none',
+                minHeight: 44,
               }}
               onFocus={e => (e.target.style.borderColor = '#ff6b35')}
               onBlur={e => (e.target.style.borderColor = '#ddd')}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', color: '#555', marginBottom: '0.4rem', fontWeight: 600 }}>
+            <label htmlFor="order-phone" style={{ display: 'block', fontSize: '0.875rem', color: '#555', marginBottom: '0.4rem', fontWeight: 600 }}>
               주문 시 입력한 연락처
             </label>
             <input
+              id="order-phone"
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
@@ -129,6 +132,7 @@ function GuestLookup() {
                 fontSize: '1rem',
                 boxSizing: 'border-box',
                 outline: 'none',
+                minHeight: 44,
               }}
               onFocus={e => (e.target.style.borderColor = '#ff6b35')}
               onBlur={e => (e.target.style.borderColor = '#ddd')}
@@ -146,6 +150,7 @@ function GuestLookup() {
               fontSize: '1rem',
               fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',
+              minHeight: 48,
             }}
           >
             {loading ? '조회 중...' : '주문 조회'}
@@ -322,10 +327,11 @@ function MemberOrders() {
               background: 'none',
               border: '1px solid #ddd',
               borderRadius: 6,
-              padding: '0.3rem 0.75rem',
+              padding: '0.4rem 0.8rem',
               fontSize: '0.85rem',
               color: '#666',
               cursor: 'pointer',
+              minHeight: 36,
             }}
           >
             로그아웃
@@ -377,8 +383,9 @@ function OrdersContent() {
 
   if (status === 'loading') {
     return (
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#666' }}>로딩 중...</p>
+      <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+        <div className="spinner spinner-lg" />
+        <p style={{ color: '#666', fontSize: '0.9rem' }}>로딩 중...</p>
       </div>
     );
   }
@@ -405,6 +412,7 @@ function OrdersContent() {
                   fontSize: '0.9rem',
                   fontWeight: 600,
                   cursor: 'pointer',
+                  minHeight: 44,
                 }}
               >
                 내 주문
@@ -420,6 +428,7 @@ function OrdersContent() {
                   fontSize: '0.9rem',
                   fontWeight: 600,
                   cursor: 'pointer',
+                  minHeight: 44,
                 }}
               >
                 주문번호 조회

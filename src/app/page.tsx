@@ -90,7 +90,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/products"
-          style={{ background: '#ff6b35', color: '#fff', padding: '1rem 2.5rem', borderRadius: 8, textDecoration: 'none', fontSize: '1.1rem', fontWeight: 600 }}
+          style={{ background: '#ff6b35', color: '#fff', padding: '1rem 2.5rem', borderRadius: 8, textDecoration: 'none', fontSize: '1.1rem', fontWeight: 600, display: 'inline-block', minHeight: 48 }}
         >
           제품 둘러보기
         </Link>

@@ -60,7 +60,7 @@ export default function Header() {
                 <span style={{ color: '#aaa', fontSize: '0.85rem' }}>{session.user?.name}</span>
                 <button
                   onClick={() => signOut({ callbackUrl: '/' })}
-                  style={{ background: 'none', border: '1px solid #555', borderRadius: 6, color: '#aaa', padding: '0.2rem 0.6rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                  style={{ background: 'none', border: '1px solid #555', borderRadius: 6, color: '#aaa', padding: '0.4rem 0.8rem', fontSize: '0.85rem', cursor: 'pointer', minHeight: 36 }}
                 >
                   로그아웃
                 </button>
@@ -75,8 +75,9 @@ export default function Header() {
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="hamburger"
-          style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
-          aria-label="메뉴"
+          style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          aria-label={menuOpen ? '메뉴 닫기' : '메뉴 열기'}
+          aria-expanded={menuOpen}
         >
           {menuOpen ? '✕' : '☰'}
         </button>
@@ -96,7 +97,7 @@ export default function Header() {
               key={href}
               href={href}
               onClick={() => setMenuOpen(false)}
-              style={{ display: 'block', color: '#fff', textDecoration: 'none', padding: '0.75rem 0', borderBottom: '1px solid #333', fontSize: '1rem' }}
+              style={{ display: 'flex', alignItems: 'center', color: '#fff', textDecoration: 'none', padding: '0.75rem 0', borderBottom: '1px solid #333', fontSize: '1rem', minHeight: 44 }}
             >
               {label}
             </Link>

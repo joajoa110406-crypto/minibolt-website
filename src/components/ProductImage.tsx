@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface Props {
   src: string;
@@ -30,12 +31,13 @@ export default function ProductImage({ src, alt, size = 80 }: Props) {
   const [imgSrc, setImgSrc] = useState(src);
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={imgSrc}
       alt={alt}
       width={size}
       height={size}
+      loading="lazy"
+      quality={75}
       onError={() => setImgSrc(getFallback(src))}
       style={{ borderRadius: 8, border: '1px solid #e0e0e0', objectFit: 'cover', width: size, height: size }}
     />

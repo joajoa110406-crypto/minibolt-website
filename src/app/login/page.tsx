@@ -21,8 +21,9 @@ function LoginContent() {
 
   if (status === 'loading') {
     return (
-      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#666' }}>로딩 중...</p>
+      <div style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+        <div className="spinner spinner-lg" />
+        <p style={{ color: '#666', fontSize: '0.9rem' }}>로딩 중...</p>
       </div>
     );
   }
