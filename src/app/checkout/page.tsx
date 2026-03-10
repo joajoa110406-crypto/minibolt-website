@@ -17,7 +17,7 @@ declare global {
       };
     };
     daum: {
-      Postcode: new (options: { oncomplete: (data: PostcodeData) => void }) => { open: () => void };
+      Postcode: new (options: { oncomplete: (data: PostcodeData) => void; width?: string; height?: string }) => { open: () => void; embed: (element: HTMLElement) => void };
     };
   }
 }
@@ -60,6 +60,8 @@ export default function CheckoutPage() {
   const [isIsland, setIsIsland] = useState(false);
   const [address, setAddress] = useState('');
   const [addressDetail, setAddressDetail] = useState('');
+  const [showPostcode, setShowPostcode] = useState(false);
+  const postcodeRef = useRef<HTMLDivElement>(null);
   const [shippingMemoSelect, setShippingMemoSelect] = useState('');
   const [shippingMemoCustom, setShippingMemoCustom] = useState('');
   const shippingMemo = shippingMemoSelect === '직접입력' ? shippingMemoCustom : shippingMemoSelect;
@@ -114,6 +116,12 @@ export default function CheckoutPage() {
       setFormError('주소 검색 기능을 불러올 수 없습니다. 페이지를 새로고침 해주세요.');
       return;
     }
+    setShowPostcode(true);
+  };
+
+  useEffect(() => {
+    if (!showPostcode || !postcodeRef.current || !window.daum?.Postcode) return;
+    postcodeRef.current.innerHTML = '';
     new window.daum.Postcode({
       oncomplete: (data: PostcodeData) => {
         let addr = data.address;
@@ -123,10 +131,13 @@ export default function CheckoutPage() {
         setZipcode(data.zonecode);
         setIsIsland(isIslandAddress(data.zonecode));
         setAddress(addr);
-        document.getElementById('address-detail')?.focus();
+        setShowPostcode(false);
+        setTimeout(() => document.getElementById('address-detail')?.focus(), 100);
       },
-    }).open();
-  };
+      width: '100%',
+      height: '100%',
+    }).embed(postcodeRef.current);
+  }, [showPostcode]);
 
   const handleTossReady = () => {
     const key = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
@@ -248,7 +259,7 @@ export default function CheckoutPage() {
   return (
     <>
       <Script src="https://js.tosspayments.com/v2/standard" strategy="afterInteractive" onReady={handleTossReady} />
-      <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="afterInteractive" />
+      <Script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="afterInteractive" />
 
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
         <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 30px', textAlign: 'center' }}>
@@ -309,11 +320,20 @@ export default function CheckoutPage() {
                 <FormGroup label="배송 주소 *" htmlFor="address-detail">
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <input value={zipcode} readOnly placeholder="우편번호" style={{ ...inputStyle, width: 120, background: '#f8f9fa' }} />
-                    <button onClick={openPostcode}
+                    <button onClick={openPostcode} type="button"
                       style={{ background: '#2c3e50', color: '#fff', border: 'none', padding: '0 1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', minHeight: 44 }}>
                       주소 검색
                     </button>
                   </div>
+                  {showPostcode && (
+                    <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+                      <div ref={postcodeRef} style={{ border: '1px solid #ddd', borderRadius: 8, height: 400, overflow: 'hidden' }} />
+                      <button type="button" onClick={() => setShowPostcode(false)}
+                        style={{ position: 'absolute', top: 8, right: 8, background: '#333', color: '#fff', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, lineHeight: '28px', textAlign: 'center' }}>
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   <input value={address} readOnly placeholder="기본 주소" style={{ ...inputStyle, background: '#f8f9fa', marginBottom: '0.5rem' }} />
                   <input id="address-detail" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} placeholder="상세 주소 입력" autoComplete="address-line2" style={inputStyle} />
                 </FormGroup>
