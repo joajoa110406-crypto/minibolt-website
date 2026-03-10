@@ -2,24 +2,12 @@
   "version": 2,
   "crons": [
     {
-      "path": "/api/cron/order-tasks",
+      "path": "/api/cron/daily-all",
       "schedule": "0 15 * * *"
     },
     {
-      "path": "/api/cron/daily-report",
-      "schedule": "0 21 * * *"
-    },
-    {
-      "path": "/api/cron/shipping-tracker",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/backup-data",
-      "schedule": "30 1 * * 0"
-    },
-    {
-      "path": "/api/cron/weekly-report",
-      "schedule": "0 0 * * 1"
+      "path": "/api/cron/weekly-all",
+      "schedule": "0 1 * * 0"
     }
   ]
 }
