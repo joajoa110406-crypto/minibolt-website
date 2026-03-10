@@ -184,7 +184,7 @@ describe('POST /api/payment/confirm', () => {
 
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toBe('카드 한도 초과');
+    expect(json.error).toBe('결제 승인에 실패했습니다. 다시 시도해주세요.');
   });
 
   it('DB 저장 실패해도 결제 결과 반환 → 200', async () => {

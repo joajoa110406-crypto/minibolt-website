@@ -38,27 +38,5 @@ export interface ProductData {
   [category: string]: Product[];
 }
 
-export interface CartItem extends Product {
-  qty: number;
-}
-
-export function calculatePrice(item: CartItem): number {
-  const qty = item.qty;
-
-  // 블록 단위 판별
-  if (qty >= 5000) {
-    const blocks = Math.floor(qty / 5000);
-    let discount = 0;
-    if (blocks >= 4) discount = item.bulk_discount.x4_plus;
-    else if (blocks >= 3) discount = item.bulk_discount.x3;
-    else if (blocks >= 2) discount = item.bulk_discount.x2;
-    const base = item.price_5000_block * blocks;
-    return Math.round(base * (1 - discount / 100));
-  } else if (qty >= 1000) {
-    const blocks = Math.floor(qty / 1000);
-    return item.price_1000_block * blocks;
-  } else {
-    const blocks = Math.max(1, Math.ceil(qty / 100));
-    return item.price_100_block * blocks;
-  }
-}
+// CartItem은 src/lib/cart.ts에서 정의 (blockSize, blockCount 포함)
+// import type { CartItem } from '@/lib/cart' 사용

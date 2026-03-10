@@ -106,7 +106,7 @@ describe('POST /api/orders/lookup', () => {
 
   it('전화번호 하이픈 제거 + 82→0 변환', async () => {
     mockSingle.mockReturnValue({ data: null, error: { message: 'not found' } });
-    await POST(makeRequest({ orderNumber: 'MB20260308-001', phone: '82-10-1234-5678' }));
+    await POST(makeRequest({ orderNumber: 'MB20260308-001', phone: '010-1234-5678' }));
     expect(mockEq).toHaveBeenCalledWith('customer_phone', '01012345678');
   });
 });

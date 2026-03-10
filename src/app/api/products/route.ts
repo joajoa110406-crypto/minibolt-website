@@ -1,8 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import productsData from '@/data/products.json';
 import type { Product } from '@/types/product';
 
-const allProducts = productsData as Product[];
+// JSON 폴백용
+import productsData from '@/data/products.json';
+const jsonProducts = productsData as Product[];
+
+/**
+ * DB에서 제품 조회 시도, 실패 시 JSON 폴백
+ */
+async function fetchFromDB(params: {
+  category: string;
+  type: string;
+  diameter: string;
+  length: string;
+  color: string;
+  search: string;
+}): Promise<{ products: Product[]; fromDB: boolean } | null> {
+  try {
+    // 동적 import로 server-only 모듈 사용
+    const { getProductsFromDB } = await import('@/lib/products.db');
+    const result = await getProductsFromDB({
+      category: params.category || undefined,
+      type: params.type || undefined,
+      diameter: params.diameter || undefined,
+      length: params.length || undefined,
+      color: params.color || undefined,
+      search: params.search || undefined,
+    });
+    return { products: result.products, fromDB: true };
+  } catch {
+    // DB 연결 실패 시 null 반환 → JSON 폴백
+    return null;
+  }
+}
+
+/**
+ * JSON에서 제품 필터링 (기존 로직 유지 - 폴백용)
+ */
+function fetchFromJSON(params: {
+  category: string;
+  type: string;
+  diameter: string;
+  length: string;
+  color: string;
+  search: string;
+}): Product[] {
+  let filtered = jsonProducts;
+
+  if (params.category) {
+    filtered = filtered.filter(p => p.category === params.category);
+  }
+  if (params.search) {
+    const q = params.search.toLowerCase();
+    filtered = filtered.filter(p =>
+      [p.id, p.name, p.diameter, p.length, p.color, `m${p.diameter}`, `${p.length}mm`, p.sub_category]
+        .filter(Boolean).join(' ').toLowerCase().includes(q)
+    );
+  }
+  if (params.type) filtered = filtered.filter(p => p.type === params.type);
+  if (params.diameter) filtered = filtered.filter(p => p.diameter === params.diameter);
+  if (params.length) filtered = filtered.filter(p => p.length === params.length);
+  if (params.color) filtered = filtered.filter(p => p.color === params.color);
+
+  return filtered;
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -14,43 +75,51 @@ export async function GET(req: NextRequest) {
   const length = searchParams.get('length') || '';
   const color = searchParams.get('color') || '';
 
-  let filtered = allProducts;
+  const params = { category, search, type, diameter, length, color };
 
-  // 카테고리 필터
-  if (category) {
-    filtered = filtered.filter(p => p.category === category);
+  // DB 우선 → JSON 폴백
+  let filtered: Product[];
+  let source: string;
+
+  const dbResult = await fetchFromDB(params);
+  if (dbResult) {
+    filtered = dbResult.products;
+    source = 'db';
+  } else {
+    filtered = fetchFromJSON(params);
+    source = 'json';
   }
 
-  // 검색
-  if (search) {
-    const q = search.toLowerCase();
-    filtered = filtered.filter(p =>
-      [p.id, p.name, p.diameter, p.length, p.color, `m${p.diameter}`, `${p.length}mm`, p.sub_category]
-        .filter(Boolean).join(' ').toLowerCase().includes(q)
-    );
-  }
+  // 필터 옵션 계산 (filtered가 아닌 category 기반으로)
+  let base = source === 'db'
+    ? (category
+      ? (await fetchFromDB({ ...params, search: '', type: '', diameter: '', length: '', color: '' }))?.products ?? jsonProducts.filter(p => p.category === category)
+      : jsonProducts)
+    : (category
+      ? jsonProducts.filter(p => p.category === category)
+      : jsonProducts);
 
-  // 필터
-  if (type) filtered = filtered.filter(p => p.type === type);
-  if (diameter) filtered = filtered.filter(p => p.diameter === diameter);
-  if (length) filtered = filtered.filter(p => p.length === length);
-  if (color) filtered = filtered.filter(p => p.color === color);
-
-  // 필터 옵션 계산
-  let base = category ? allProducts.filter(p => p.category === category) : allProducts;
   if (type) base = base.filter(p => p.type === type);
   const diameters = [...new Set(base.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
   if (diameter) base = base.filter(p => p.diameter === diameter);
   const lengths = [...new Set(base.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
   if (length) base = base.filter(p => p.length === length);
   const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
-  const types = [...new Set((category ? allProducts.filter(p => p.category === category) : allProducts).map(p => p.type).filter(Boolean))].sort();
+  const types = [...new Set(
+    (category
+      ? (source === 'db'
+        ? filtered
+        : jsonProducts.filter(p => p.category === category))
+      : jsonProducts
+    ).map(p => p.type).filter(Boolean)
+  )].sort();
 
   return NextResponse.json(
     {
       products: filtered,
       filterOptions: { diameters, lengths, colors, types },
       total: filtered.length,
+      source,
     },
     {
       headers: {

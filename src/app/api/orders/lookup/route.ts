@@ -44,6 +44,13 @@ export async function POST(req: NextRequest) {
     if (!orderNumber || !phone) {
       return NextResponse.json({ error: '주문번호와 연락처를 입력해주세요.' }, { status: 400 });
     }
+    if (typeof orderNumber !== 'string' || orderNumber.length > 30) {
+      return NextResponse.json({ error: '주문번호가 올바르지 않습니다.' }, { status: 400 });
+    }
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      return NextResponse.json({ error: '연락처를 정확히 입력해주세요.' }, { status: 400 });
+    }
 
     const { supabaseAdmin } = await import('@/lib/supabase');
 
@@ -51,7 +58,7 @@ export async function POST(req: NextRequest) {
       .from('orders')
       .select(`*, order_items (*)`)
       .eq('order_number', orderNumber.trim().toUpperCase())
-      .eq('customer_phone', phone.replace(/\D/g, '').replace(/^82/, '0'))
+      .eq('customer_phone', phoneDigits.replace(/^82/, '0'))
       .single();
 
     if (error || !order) {

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CartItem } from '@/lib/cart';
 
+// server-only mock
+vi.mock('server-only', () => ({}));
+
 // nodemailer mock
 const mockSendMail = vi.fn();
 vi.mock('nodemailer', () => ({

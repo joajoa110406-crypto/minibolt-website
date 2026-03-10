@@ -41,7 +41,7 @@ export function addToCart(product: Product, qty: number, blockSize: number = 100
 }
 
 // 5,000개 복수구매 할인율
-function getBulkDiscount(blockSize: number, blockCount: number): number {
+export function getBulkDiscount(blockSize: number, blockCount: number): number {
   if (blockSize !== 5000) return 0;
   if (blockCount >= 4) return 10;
   if (blockCount >= 3) return 8;
@@ -49,21 +49,33 @@ function getBulkDiscount(blockSize: number, blockCount: number): number {
   return 0;
 }
 
-// 블록 단가 (공급가)
-function getBlockPrice(item: CartItem): number {
-  if (item.blockSize === 100) return item.price_100_block ?? 3000;
-  if (item.blockSize === 1000) return item.price_1000_block ?? 0;
-  if (item.blockSize === 5000) return item.price_5000_block ?? 0;
-  return 0;
+// 블록 단가 (공급가) - Product 또는 CartItem 모두 사용 가능
+export function getBlockPrice(item: { price_100_block?: number; price_1000_block?: number; price_5000_block?: number }, blockSize: number): number {
+  let price: number;
+  if (blockSize === 100) price = item.price_100_block ?? 3000;
+  else if (blockSize === 1000) price = item.price_1000_block ?? 0;
+  else if (blockSize === 5000) price = item.price_5000_block ?? 0;
+  else throw new Error(`유효하지 않은 블록 사이즈: ${blockSize}`);
+  // 0원 또는 비정상 가격 방어
+  if (!Number.isFinite(price) || price <= 0) {
+    if (blockSize === 100) return 3000; // 100개 블록은 항상 3000원
+    throw new Error(`유효하지 않은 가격: blockSize=${blockSize}, price=${price}`);
+  }
+  return price;
+}
+
+// 총 가격 계산 (할인 포함, VAT 포함)
+export function getTotalPrice(item: { price_100_block?: number; price_1000_block?: number; price_5000_block?: number }, blockSize: number, blockCount: number): number {
+  const basePrice = getBlockPrice(item, blockSize) * blockCount;
+  const discount = getBulkDiscount(blockSize, blockCount);
+  const supplyPrice = Math.round(basePrice * (1 - discount / 100));
+  return Math.round(supplyPrice * 1.1);
 }
 
 // 아이템 가격 (VAT 포함)
 export function calculateItemPrice(item: CartItem): number {
   if (item.blockCount < 1 || item.qty < 1) return 0;
-  const basePrice = getBlockPrice(item) * item.blockCount;
-  const discount = getBulkDiscount(item.blockSize, item.blockCount);
-  const supplyPrice = Math.round(basePrice * (1 - discount / 100));
-  return Math.round(supplyPrice * 1.1);
+  return getTotalPrice(item, item.blockSize, item.blockCount);
 }
 
 export function getItemDiscount(item: CartItem): number {
@@ -71,9 +83,18 @@ export function getItemDiscount(item: CartItem): number {
 }
 
 // 모든 금액 VAT 포함
-export function calculateTotals(cart: CartItem[]) {
-  const productAmount = cart.reduce((sum, item) => sum + calculateItemPrice(item), 0);
+export function calculateTotals(cart: CartItem[], isIsland: boolean = false, b2bDiscountRate?: number) {
+  if (!Array.isArray(cart) || cart.length === 0) {
+    return { productAmount: 0, shippingFee: 3000, islandFee: 0, b2bDiscount: 0, totalAmount: 3000 };
+  }
+  const rawProductAmount = cart.reduce((sum, item) => sum + calculateItemPrice(item), 0);
+
+  // B2B 할인 적용 (상품 금액에서 할인)
+  const b2bDiscount = b2bDiscountRate ? Math.round(rawProductAmount * b2bDiscountRate / 100) : 0;
+  const productAmount = rawProductAmount - b2bDiscount;
+
   const shippingFee = productAmount >= 50000 ? 0 : 3000;
-  const totalAmount = productAmount + shippingFee;
-  return { productAmount, shippingFee, totalAmount };
+  const islandFee = isIsland ? 3000 : 0;
+  const totalAmount = productAmount + shippingFee + islandFee;
+  return { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '이용약관 | 미니볼트',
+  description: '미니볼트 이용약관 - 서비스 이용 조건, 주문/결제, 배송, 청약철회 등에 관한 약관입니다.',
 };
 
 export default function TermsPage() {

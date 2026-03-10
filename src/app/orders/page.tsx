@@ -2,22 +2,17 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: '주문 접수',
-  confirmed: '주문 확인',
-  shipping: '배송 중',
-  delivered: '배송 완료',
-  cancelled: '주문 취소',
-};
+import { STATUS_LABELS } from '@/lib/order-status';
 
 const STATUS_COLOR: Record<string, string> = {
   pending: '#ff6b35',
   confirmed: '#2196F3',
-  shipping: '#9C27B0',
+  preparing: '#FF9800',
+  shipped: '#9C27B0',
   delivered: '#4CAF50',
+  completed: '#388E3C',
   cancelled: '#9E9E9E',
 };
 
@@ -49,15 +44,19 @@ interface Order {
 }
 
 function GuestLookup() {
-  const [orderNumber, setOrderNumber] = useState('');
-  const [phone, setPhone] = useState('');
+  const searchParams = useSearchParams();
+  const initialOrderNumber = searchParams.get('orderNumber') || '';
+  const initialPhone = searchParams.get('phone') || '';
+
+  const [orderNumber, setOrderNumber] = useState(initialOrderNumber);
+  const [phone, setPhone] = useState(initialPhone);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const autoLookedUp = useRef(false);
 
-  const handleLookup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderNumber.trim() || !phone.trim()) return;
+  const doLookup = useCallback(async (on: string, ph: string) => {
+    if (!on.trim() || !ph.trim()) return;
 
     setLoading(true);
     setError('');
@@ -67,7 +66,7 @@ function GuestLookup() {
       const res = await fetch('/api/orders/lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber, phone }),
+        body: JSON.stringify({ orderNumber: on, phone: ph }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -80,6 +79,19 @@ function GuestLookup() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // 쿼리 파라미터로 orderNumber, phone이 모두 있으면 자동 조회
+  useEffect(() => {
+    if (initialOrderNumber && initialPhone && !autoLookedUp.current) {
+      autoLookedUp.current = true;
+      doLookup(initialOrderNumber, initialPhone);
+    }
+  }, [initialOrderNumber, initialPhone, doLookup]);
+
+  const handleLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    doLookup(orderNumber, phone);
   };
 
   return (
@@ -100,6 +112,7 @@ function GuestLookup() {
               value={orderNumber}
               onChange={e => setOrderNumber(e.target.value)}
               placeholder="예: MB20260221-001"
+              autoComplete="off"
               style={{
                 width: '100%',
                 padding: '0.75rem 1rem',
@@ -124,6 +137,8 @@ function GuestLookup() {
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="예: 010-1234-5678"
+              autoComplete="tel"
+              inputMode="tel"
               style={{
                 width: '100%',
                 padding: '0.75rem 1rem',
@@ -159,7 +174,7 @@ function GuestLookup() {
       </form>
 
       {error && (
-        <div style={{
+        <div role="alert" style={{
           background: '#fff3cd',
           border: '1px solid #ffc107',
           borderRadius: 8,
@@ -177,7 +192,7 @@ function GuestLookup() {
 }
 
 function OrderDetail({ order }: { order: Order }) {
-  const statusLabel = STATUS_LABEL[order.order_status] || order.order_status;
+  const statusLabel = STATUS_LABELS[order.order_status] || order.order_status;
   const statusColor = STATUS_COLOR[order.order_status] || '#666';
 
   return (
@@ -331,7 +346,7 @@ function MemberOrders() {
               fontSize: '0.85rem',
               color: '#666',
               cursor: 'pointer',
-              minHeight: 36,
+              minHeight: 44,
             }}
           >
             로그아웃
@@ -394,14 +409,20 @@ function OrdersContent() {
     <div style={{ minHeight: '80vh', background: '#f5f5f5', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
         {/* 탭 */}
-        <div style={{
-          display: 'flex',
-          gap: '0.5rem',
-          marginBottom: '1.5rem',
-        }}>
+        <div
+          role={session ? 'tablist' : undefined}
+          aria-label={session ? '주문 조회 탭' : undefined}
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            marginBottom: '1.5rem',
+          }}
+        >
           {session ? (
             <>
               <button
+                role="tab"
+                aria-selected={!isGuest}
                 onClick={() => router.push('/orders')}
                 style={{
                   padding: '0.6rem 1.25rem',
@@ -418,6 +439,8 @@ function OrdersContent() {
                 내 주문
               </button>
               <button
+                role="tab"
+                aria-selected={isGuest}
                 onClick={() => router.push('/orders?guest=1')}
                 style={{
                   padding: '0.6rem 1.25rem',
@@ -448,12 +471,15 @@ function OrdersContent() {
         </div>
 
         {/* 카드 */}
-        <div style={{
-          background: '#fff',
-          borderRadius: 16,
-          padding: '1.5rem',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        }}>
+        <div
+          role={session ? 'tabpanel' : undefined}
+          style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: '1.5rem',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          }}
+        >
           {session && !isGuest ? (
             <MemberOrders />
           ) : (

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Script from 'next/script';
 import { getCart, calculateItemPrice, calculateTotals } from '@/lib/cart';
 import type { CartItem } from '@/lib/cart';
 import { generateProductName } from '@/lib/products';
+import { isIslandAddress } from '@/lib/island-postcodes';
 
 declare global {
   interface Window {
@@ -38,9 +40,15 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] =
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [tossError, setTossError] = useState('');
+
+  // B2B 할인
+  const [b2bInfo, setB2bInfo] = useState<{ isB2B: boolean; tier: string | null; discountRate: number; companyName?: string }>({ isB2B: false, tier: null, discountRate: 0 });
 
   // 주문자
   const [buyerName, setBuyerName] = useState('');
@@ -49,6 +57,7 @@ export default function CheckoutPage() {
 
   // 배송지
   const [zipcode, setZipcode] = useState('');
+  const [isIsland, setIsIsland] = useState(false);
   const [address, setAddress] = useState('');
   const [addressDetail, setAddressDetail] = useState('');
   const [shippingMemoSelect, setShippingMemoSelect] = useState('');
@@ -89,8 +98,22 @@ export default function CheckoutPage() {
     setMounted(true);
   }, [router]);
 
+  // B2B 할인율 조회 (로그인 시)
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    fetch('/api/b2b/discount')
+      .then(res => res.json())
+      .then(data => {
+        if (data.isB2B) setB2bInfo(data);
+      })
+      .catch(() => { /* B2B 조회 실패 시 무시 */ });
+  }, [session]);
+
   const openPostcode = () => {
-    if (!window.daum?.Postcode) return;
+    if (!window.daum?.Postcode) {
+      setFormError('주소 검색 기능을 불러올 수 없습니다. 페이지를 새로고침 해주세요.');
+      return;
+    }
     new window.daum.Postcode({
       oncomplete: (data: PostcodeData) => {
         let addr = data.address;
@@ -98,6 +121,7 @@ export default function CheckoutPage() {
           addr += ` (${data.bname}, ${data.buildingName})`;
         }
         setZipcode(data.zonecode);
+        setIsIsland(isIslandAddress(data.zonecode));
         setAddress(addr);
         document.getElementById('address-detail')?.focus();
       },
@@ -106,50 +130,66 @@ export default function CheckoutPage() {
 
   const handleTossReady = () => {
     const key = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
-    console.log('[Toss] SDK 초기화 시도, key:', key ? key.substring(0, 10) + '...' : 'MISSING');
     if (key && window.TossPayments) {
       try {
         const tossPayments = window.TossPayments(key);
         paymentRef.current = tossPayments.payment({ customerKey: 'ANONYMOUS' });
         tossRetryCount.current = 0;
-        console.log('[Toss] SDK 초기화 성공');
-      } catch (e) {
-        console.error('[Toss] SDK 초기화 실패:', e);
+        setTossError('');
+      } catch {
+        setTossError('결제 모듈 초기화에 실패했습니다. 페이지를 새로고침 해주세요.');
       }
     } else if (tossRetryCount.current < MAX_TOSS_RETRY) {
       tossRetryCount.current++;
-      console.warn(`[Toss] SDK 미로드, 재시도 (${tossRetryCount.current}/${MAX_TOSS_RETRY})`);
       setTimeout(handleTossReady, 1000);
     } else {
-      console.error('[Toss] SDK 로드 실패: 최대 재시도 초과');
+      setTossError('결제 모듈을 불러올 수 없습니다. 페이지를 새로고침 해주세요.');
     }
   };
 
   const validate = () => {
-    if (!buyerName.trim()) { alert('이름을 입력해주세요.'); return false; }
-    if (!buyerEmail.trim() || !buyerEmail.includes('@')) { alert('올바른 이메일을 입력해주세요.'); return false; }
+    setFormError('');
+    if (!buyerName.trim()) {
+      setFormError('이름을 입력해주세요.');
+      document.getElementById('buyer-name')?.focus();
+      return false;
+    }
+    if (!buyerEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
+      setFormError('올바른 이메일을 입력해주세요.');
+      document.getElementById('buyer-email')?.focus();
+      return false;
+    }
     const phoneDigits = buyerPhone.replace(/\D/g, '');
-    if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { alert('연락처를 정확히 입력해주세요. (10~11자리)'); return false; }
-    if (!address.trim()) { alert('배송 주소를 입력해주세요.'); return false; }
+    if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
+      setFormError('연락처를 정확히 입력해주세요. (10~11자리)');
+      document.getElementById('buyer-phone')?.focus();
+      return false;
+    }
+    if (!address.trim()) {
+      setFormError('배송 주소를 입력해주세요.');
+      document.getElementById('address-detail')?.focus();
+      return false;
+    }
     if (needTaxInvoice) {
       const bizNum = businessNumber.replace(/\D/g, '');
-      if (bizNum.length !== 10) { alert('사업자등록번호 10자리를 정확히 입력해주세요.'); return false; }
+      if (bizNum.length !== 10) { setFormError('사업자등록번호 10자리를 정확히 입력해주세요.'); return false; }
     }
     const isCashPayment = payMethod === 'TRANSFER' || payMethod === 'VIRTUAL_ACCOUNT';
     if (isCashPayment && needCashReceipt && !cashReceiptNumber.trim()) {
-      alert(cashReceiptType === 'personal' ? '휴대폰 번호를 입력해주세요.' : '사업자 번호를 입력해주세요.');
+      setFormError(cashReceiptType === 'personal' ? '휴대폰 번호를 입력해주세요.' : '사업자 번호를 입력해주세요.');
       return false;
     }
-    if (!agreeTerms || !agreePrivacy || !agreePayment) { alert('필수 약관에 모두 동의해주세요.'); return false; }
+    if (!agreeTerms || !agreePrivacy || !agreePayment) { setFormError('필수 약관에 모두 동의해주세요.'); return false; }
     return true;
   };
 
   const requestPayment = async () => {
     if (!validate()) return;
-    if (!paymentRef.current) { alert('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+    if (!paymentRef.current) { setFormError('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
 
-    const { productAmount, shippingFee, totalAmount } = calculateTotals(cart);
-    const orderId = `MB${Date.now()}`;
+    const b2bRate = b2bInfo.isB2B ? b2bInfo.discountRate : undefined;
+    const { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount } = calculateTotals(cart, isIsland, b2bRate);
+    const orderId = `MB${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const orderName = cart.length > 1
       ? `${generateProductName(cart[0])} 외 ${cart.length - 1}건`
       : generateProductName(cart[0]);
@@ -166,7 +206,7 @@ export default function CheckoutPage() {
       needTaxInvoice, businessNumber,
       needCashReceipt, cashReceiptType, cashReceiptNumber,
       items: cart,
-      productAmount, shippingFee, totalAmount,
+      productAmount, shippingFee, islandFee, isIsland, b2bDiscount, b2bDiscountRate: b2bRate || 0, totalAmount,
     };
     sessionStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
 
@@ -189,12 +229,11 @@ export default function CheckoutPage() {
         failUrl: `${base}/checkout/fail`,
       });
     } catch (err: unknown) {
-      console.error('[결제 오류]', err);
       if (err && typeof err === 'object' && 'code' in err) {
         const e = err as { code: string; message: string };
-        if (e.code !== 'USER_CANCEL') alert('결제 오류: ' + e.message + ' (코드: ' + e.code + ')');
+        if (e.code !== 'USER_CANCEL') setFormError('결제 오류: ' + e.message);
       } else {
-        alert('결제 오류: 알 수 없는 에러가 발생했습니다.');
+        setFormError('결제 중 알 수 없는 오류가 발생했습니다. 다시 시도해주세요.');
       }
     } finally {
       setLoading(false);
@@ -202,7 +241,8 @@ export default function CheckoutPage() {
   };
 
   if (!mounted) return null;
-  const { productAmount, shippingFee, totalAmount } = calculateTotals(cart);
+  const b2bRate = b2bInfo.isB2B ? b2bInfo.discountRate : undefined;
+  const { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount } = calculateTotals(cart, isIsland, b2bRate);
   const showCashReceipt = payMethod === 'TRANSFER' || payMethod === 'VIRTUAL_ACCOUNT';
 
   return (
@@ -252,14 +292,14 @@ export default function CheckoutPage() {
               {/* 주문자 정보 */}
               <Section title="주문자 정보">
                 <FormGroup label="이름 *" htmlFor="buyer-name">
-                  <input id="buyer-name" value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="홍길동" style={inputStyle} />
+                  <input id="buyer-name" value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="홍길동" autoComplete="name" style={inputStyle} />
                 </FormGroup>
                 <div className="checkout-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <FormGroup label="이메일 *" htmlFor="buyer-email">
-                    <input id="buyer-email" type="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" style={inputStyle} />
+                    <input id="buyer-email" type="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" autoComplete="email" style={inputStyle} />
                   </FormGroup>
                   <FormGroup label="연락처 *" htmlFor="buyer-phone">
-                    <input id="buyer-phone" type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
+                    <input id="buyer-phone" type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} placeholder="010-0000-0000" autoComplete="tel" inputMode="tel" style={inputStyle} />
                   </FormGroup>
                 </div>
               </Section>
@@ -275,7 +315,7 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                   <input value={address} readOnly placeholder="기본 주소" style={{ ...inputStyle, background: '#f8f9fa', marginBottom: '0.5rem' }} />
-                  <input id="address-detail" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} placeholder="상세 주소 입력" style={inputStyle} />
+                  <input id="address-detail" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} placeholder="상세 주소 입력" autoComplete="address-line2" style={inputStyle} />
                 </FormGroup>
                 <FormGroup label="배송 요청사항" htmlFor="shipping-memo">
                   <select id="shipping-memo" value={shippingMemoSelect} onChange={e => setShippingMemoSelect(e.target.value)} style={inputStyle}>
@@ -325,7 +365,8 @@ export default function CheckoutPage() {
                           <option value="business">지출증빙 (사업자)</option>
                         </select>
                         <input value={cashReceiptNumber} onChange={e => setCashReceiptNumber(e.target.value)}
-                          placeholder={cashReceiptType === 'personal' ? '휴대폰 번호' : '사업자 번호'}
+                          placeholder={cashReceiptType === 'personal' ? '010-0000-0000' : '000-00-00000'}
+                          inputMode="tel"
                           style={{ ...inputStyle, flex: 1 }} />
                       </div>
                     )}
@@ -341,6 +382,7 @@ export default function CheckoutPage() {
                   {needTaxInvoice && (
                     <input value={businessNumber} onChange={e => setBusinessNumber(e.target.value)}
                       placeholder="사업자등록번호 (000-00-00000)"
+                      inputMode="numeric"
                       style={{ ...inputStyle, marginTop: '0.75rem' }} />
                   )}
                 </div>
@@ -364,14 +406,27 @@ export default function CheckoutPage() {
               </Section>
 
               <Section title="결제 금액">
+                {b2bInfo.isB2B && (
+                  <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 8, padding: '0.6rem 0.8rem', marginBottom: '0.75rem', fontSize: '0.85rem', color: '#2e7d32', fontWeight: 600 }}>
+                    B2B 거래처 ({b2bInfo.companyName}) - {b2bInfo.tier?.toUpperCase()} 등급 할인 {b2bInfo.discountRate}% 적용
+                  </div>
+                )}
                 {[
-                  { label: '상품 금액', value: `₩${productAmount.toLocaleString()}` },
-                  { label: '배송비', value: shippingFee === 0 ? '무료' : `₩${shippingFee.toLocaleString()}` },
+                  { label: '상품 금액', value: `₩${(productAmount + b2bDiscount).toLocaleString()}`, color: '#555' },
+                  ...(b2bDiscount > 0 ? [{ label: `B2B 할인 (-${b2bInfo.discountRate}%)`, value: `-₩${b2bDiscount.toLocaleString()}`, color: '#2e7d32' }] : []),
+                  { label: '배송비', value: shippingFee === 0 ? '무료' : `₩${shippingFee.toLocaleString()}`, color: '#555' },
+                  ...(islandFee > 0 ? [{ label: '도서산간 추가배송비', value: `+₩${islandFee.toLocaleString()}`, color: '#e67e22' }] : []),
                 ].map(r => (
                   <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-                    <span style={{ color: '#555' }}>{r.label}</span><span>{r.value}</span>
+                    <span style={{ color: r.color }}>{r.label}</span>
+                    <span style={{ color: r.color }}>{r.value}</span>
                   </div>
                 ))}
+                {isIsland && (
+                  <div style={{ background: '#fff8f0', border: '1px solid #ffd4a8', borderRadius: 8, padding: '0.6rem 0.8rem', marginBottom: '0.75rem', fontSize: '0.82rem', color: '#e67e22' }}>
+                    도서산간 지역으로 추가 배송비 ₩3,000이 부과됩니다.
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.3rem', fontWeight: 700, color: '#ff6b35', borderTop: '2px solid #eee', paddingTop: '1rem', marginTop: '0.5rem' }}>
                   <span>총 결제금액</span><span>₩{totalAmount.toLocaleString()}</span>
                 </div>
@@ -403,14 +458,20 @@ export default function CheckoutPage() {
                   <a href="/refund" target="_blank" rel="noopener noreferrer" style={{ color: '#ff6b35', textDecoration: 'underline' }}>교환/환불 정책 보기</a>
                 </p>
 
+                {(formError || tossError) && (
+                  <div role="alert" style={{ background: '#fff3f3', border: '1px solid #e74c3c', borderRadius: 8, padding: '0.75rem 1rem', marginTop: '1rem', color: '#c0392b', fontSize: '0.9rem', fontWeight: 500 }}>
+                    {formError || tossError}
+                  </div>
+                )}
+
                 <button
                   onClick={requestPayment}
-                  disabled={loading || !agreeAll}
+                  disabled={loading || !agreeAll || !!tossError}
                   style={{
                     width: '100%', marginTop: '1.2rem', padding: '1rem',
-                    background: loading || !agreeAll ? '#ccc' : '#ff6b35',
+                    background: loading || !agreeAll || tossError ? '#ccc' : '#ff6b35',
                     color: '#fff', border: 'none', borderRadius: 8,
-                    cursor: loading || !agreeAll ? 'not-allowed' : 'pointer',
+                    cursor: loading || !agreeAll || tossError ? 'not-allowed' : 'pointer',
                     fontWeight: 700, fontSize: '1.1rem', minHeight: 48,
                   }}
                 >

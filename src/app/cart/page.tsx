@@ -59,6 +59,14 @@ export default function CartPage() {
     setPendingDelete(null);
   };
 
+  // 삭제 모달 배경 스크롤 방지
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = original; };
+  }, [pendingDelete]);
+
   if (!mounted) return null;
 
   if (cart.length === 0) {
@@ -229,8 +237,8 @@ export default function CartPage() {
       {pendingDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={() => setPendingDelete(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 380, width: '100%', textAlign: 'center' }}>
-            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#333', marginBottom: '0.5rem' }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 380, width: '100%', textAlign: 'center' }}>
+            <p id="delete-dialog-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#333', marginBottom: '0.5rem' }}>
               {pendingDelete === 'all' ? '장바구니를 비우시겠습니까?' : '이 상품을 삭제하시겠습니까?'}
             </p>
             <p style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1.5rem' }}>

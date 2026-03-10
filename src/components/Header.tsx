@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { getCartCount } from '@/lib/cart';
 
@@ -11,6 +11,8 @@ export default function Header() {
   const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: session } = useSession();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const update = () => setCartCount(getCartCount());
@@ -23,13 +25,41 @@ export default function Header() {
     };
   }, []);
 
-  const navLinks = [
-    { href: '/', label: '홈' },
-    { href: '/products', label: '제품' },
-    { href: '/cart', label: null },   // 장바구니는 별도 렌더링
-    { href: '/orders', label: '주문내역' },
-    { href: '/login', label: '로그인' },
-  ];
+  // 모바일 메뉴 포커스 트랩 + ESC 닫기
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        hamburgerRef.current?.focus();
+        return;
+      }
+      if (e.key !== 'Tab' || !menuRef.current) return;
+
+      const focusable = menuRef.current.querySelectorAll<HTMLElement>('a, button');
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    // 메뉴 열리면 첫 링크에 포커스
+    const firstLink = menuRef.current?.querySelector<HTMLElement>('a');
+    firstLink?.focus();
+
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
+
+  const isAdmin = !!(session?.user && (session.user as { isAdmin?: boolean }).isAdmin);
 
   return (
     <nav style={{ background: '#1a1a1a', color: '#fff', position: 'fixed', width: '100%', top: 0, zIndex: 999 }}>
@@ -44,7 +74,7 @@ export default function Header() {
           <li><NavLink href="/" label="홈" current={pathname} /></li>
           <li><NavLink href="/products" label="제품" current={pathname} /></li>
           <li>
-            <Link href="/cart" style={{ color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Link href="/cart" aria-label={`장바구니${cartCount > 0 ? ` (${cartCount}개)` : ''}`} style={{ color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
               🛒 장바구니
               {cartCount > 0 && (
                 <span style={{ background: '#ff6b35', borderRadius: '50%', padding: '2px 8px', fontSize: '0.8rem' }}>
@@ -54,13 +84,17 @@ export default function Header() {
             </Link>
           </li>
           <li><NavLink href="/orders" label="주문내역" current={pathname} /></li>
+          <li><NavLink href="/contact" label="문의" current={pathname} /></li>
+          {isAdmin && (
+            <li><NavLink href="/admin" label="관리" current={pathname} /></li>
+          )}
           <li>
             {session ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ color: '#aaa', fontSize: '0.85rem' }}>{session.user?.name}</span>
                 <button
                   onClick={() => signOut({ callbackUrl: '/' })}
-                  style={{ background: 'none', border: '1px solid #555', borderRadius: 6, color: '#aaa', padding: '0.4rem 0.8rem', fontSize: '0.85rem', cursor: 'pointer', minHeight: 36 }}
+                  style={{ background: 'none', border: '1px solid #555', borderRadius: 6, color: '#aaa', padding: '0.4rem 0.8rem', fontSize: '0.85rem', cursor: 'pointer', minHeight: 44 }}
                 >
                   로그아웃
                 </button>
@@ -73,11 +107,13 @@ export default function Header() {
 
         {/* 모바일 햄버거 */}
         <button
+          ref={hamburgerRef}
           onClick={() => setMenuOpen(!menuOpen)}
           className="hamburger"
           style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           aria-label={menuOpen ? '메뉴 닫기' : '메뉴 열기'}
           aria-expanded={menuOpen}
+          aria-controls="mobile-nav"
         >
           {menuOpen ? '✕' : '☰'}
         </button>
@@ -85,12 +121,16 @@ export default function Header() {
 
       {/* 모바일 드롭다운 */}
       {menuOpen && (
-        <div style={{ background: '#222', padding: '1rem 20px', borderTop: '1px solid #333' }} className="mobile-menu">
+        <div ref={menuRef} id="mobile-nav" role="navigation" aria-label="모바일 메뉴" style={{ background: '#222', padding: '1rem 20px', borderTop: '1px solid #333', maxHeight: 'calc(100vh - 70px)', overflowY: 'auto' }} className="mobile-menu">
           {[
             { href: '/', label: '홈' },
             { href: '/products', label: '제품' },
             { href: '/cart', label: `🛒 장바구니 ${cartCount > 0 ? `(${cartCount})` : ''}` },
             { href: '/orders', label: '📋 주문내역' },
+            { href: '/contact', label: '📩 문의하기' },
+            ...(isAdmin
+              ? [{ href: '/admin', label: '⚙️ 관리' }]
+              : []),
             ...(session ? [] : [{ href: '/login', label: '로그인' }]),
           ].map(({ href, label }) => (
             <Link

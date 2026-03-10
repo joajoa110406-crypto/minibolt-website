@@ -6,7 +6,7 @@
   --nav-bg: #1a1a1a;
   --hero-bg: #2c3e50;
   --text: #333;
-  --text-light: #666;
+  --text-light: #555;
   --bg-light: #f5f5f5;
 
   /* Status colors */
@@ -113,6 +113,19 @@ input[type="checkbox"] {
   background: #fff;
   border-radius: var(--rounded-lg);
   box-shadow: var(--shadow-sm);
+}
+
+/* Product card hover */
+.product-card {
+  transition: border-color 0.2s, transform 0.2s;
+}
+.product-card:hover {
+  border-color: #ff6b35 !important;
+  transform: translateY(-3px);
+}
+.product-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* Smooth page transitions */

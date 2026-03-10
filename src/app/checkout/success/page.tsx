@@ -11,6 +11,7 @@ interface OrderResult {
   totalAmount: number;
   productAmount: number;
   shippingFee: number;
+  islandFee?: number;
   payMethod: string;
   shippingAddress: string;
   itemCount: number;
@@ -40,7 +41,15 @@ function SuccessContent() {
       return;
     }
 
-    const orderInfo = JSON.parse(pending);
+    let orderInfo;
+    try {
+      orderInfo = JSON.parse(pending);
+    } catch {
+      setErrorMsg('주문 정보가 손상되었습니다. 다시 주문해주세요.');
+      setStatus('error');
+      sessionStorage.removeItem('pendingOrder');
+      return;
+    }
 
     fetch('/api/payment/confirm', {
       method: 'POST',
@@ -118,6 +127,7 @@ function SuccessContent() {
             { label: '배송지', value: result.shippingAddress },
             { label: '상품 금액', value: `₩${result.productAmount.toLocaleString()}` },
             { label: '배송비', value: result.shippingFee === 0 ? '무료' : `₩${result.shippingFee.toLocaleString()}` },
+            ...(result.islandFee && result.islandFee > 0 ? [{ label: '도서산간 추가배송비', value: `+₩${result.islandFee.toLocaleString()}` }] : []),
             { label: '총 결제금액', value: `₩${result.totalAmount.toLocaleString()} (VAT포함)` },
           ].map(row => (
             <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>

@@ -1,40 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Product } from '@/types/product';
-import { addToCart } from '@/lib/cart';
+import { addToCart, getBulkDiscount, getTotalPrice } from '@/lib/cart';
 import { generateProductName, getCategoryImage, getStockStatus, CATEGORY_TABS } from '@/lib/products';
 import ProductModal from '@/components/ProductModal';
 import ProductCard from '@/components/ProductCard';
 
+// JSON 폴백용
 import productsData from '@/data/products.json';
+const fallbackProducts = productsData as Product[];
 
-const allProducts = productsData as Product[];
-
-// 5,000개 복수구매 할인율
-function getBulkDiscount(blockSize: number, count: number) {
-  if (blockSize !== 5000) return 0;
-  if (count >= 4) return 10;
-  if (count >= 3) return 8;
-  if (count >= 2) return 5;
-  return 0;
-}
-
-// 블록별 가격 계산 (VAT 포함)
-function getBlockPrice(product: Product, blockSize: number) {
-  const supply = blockSize === 100 ? (product.price_100_block ?? 3000)
-    : blockSize === 1000 ? (product.price_1000_block ?? 0)
-    : blockSize === 5000 ? (product.price_5000_block ?? 0)
-    : 0;
-  return Math.round(supply * 1.1);
-}
-
-// 총 가격 계산 (할인 포함, VAT 포함)
-function getTotalPrice(product: Product, blockSize: number, count: number) {
-  const basePrice = getBlockPrice(product, blockSize) * count;
-  const discount = getBulkDiscount(blockSize, count);
-  return Math.round(basePrice * (1 - discount / 100));
+interface FilterOptions {
+  diameters: string[];
+  lengths: string[];
+  colors: string[];
+  types: string[];
 }
 
 function ProductsContent() {
@@ -50,13 +32,59 @@ function ProductsContent() {
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [toast, setToast] = useState('');
 
+  // API 응답 상태
+  const [apiProducts, setApiProducts] = useState<Product[] | null>(null);
+  const [apiFilterOptions, setApiFilterOptions] = useState<FilterOptions | null>(null);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // API에서 제품 조회
+  useEffect(() => {
+    if (!mounted) return;
+
+    // 이전 요청 취소
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+
+    const params = new URLSearchParams();
+    if (activeCategory) params.set('category', activeCategory);
+    if (search) params.set('search', search);
+    if (filterType) params.set('type', filterType);
+    if (filterDiameter) params.set('diameter', filterDiameter);
+    if (filterLength) params.set('length', filterLength);
+    if (filterColor) params.set('color', filterColor);
+
+    fetch(`/api/products?${params.toString()}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (!controller.signal.aborted) {
+          setApiProducts(data.products);
+          setApiFilterOptions(data.filterOptions);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          // API 실패 시 JSON 폴백
+          setApiProducts(null);
+          setApiFilterOptions(null);
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [mounted, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
+
   // 검색 debounce (300ms)
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // 클라이언트 마운트 후에만 렌더링 (한글 데이터 SSR → ByteString 이슈 방지)
+  // 클라이언트 마운트 후에만 렌더링 (한글 데이터 SSR -> ByteString 이슈 방지)
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get('category');
     if (param && CATEGORY_TABS.some(t => t.key === param)) {
@@ -65,19 +93,17 @@ function ProductsContent() {
     setMounted(true);
   }, []);
 
-  // 현재 카테고리 제품
-  const categoryProducts = useMemo(() => {
-    return allProducts.filter(p => {
+  // API 결과 또는 JSON 폴백
+  const filtered = useMemo(() => {
+    if (apiProducts !== null) return apiProducts;
+
+    // JSON 폴백: 기존 로직 유지
+    let P = fallbackProducts.filter(p => {
       if (activeCategory === '마이크로스크류/평머리') {
         return p.category === '마이크로스크류/평머리';
       }
       return p.category === activeCategory;
     });
-  }, [activeCategory]);
-
-  // 필터 적용
-  const filtered = useMemo(() => {
-    let P = categoryProducts;
     if (search) {
       const q = search.toLowerCase();
       P = P.filter(p =>
@@ -90,20 +116,23 @@ function ProductsContent() {
     if (filterLength) P = P.filter(p => p.length === filterLength);
     if (filterColor) P = P.filter(p => p.color === filterColor);
     return P;
-  }, [categoryProducts, search, filterType, filterDiameter, filterLength, filterColor]);
+  }, [apiProducts, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
 
-  // 필터 옵션 목록 (현재 선택 기준 dependent)
+  // 필터 옵션 (API 또는 폴백)
   const filterOptions = useMemo(() => {
-    let base = categoryProducts;
+    if (apiFilterOptions) return apiFilterOptions;
+
+    // JSON 폴백
+    let base = fallbackProducts.filter(p => p.category === activeCategory);
     if (filterType) base = base.filter(p => p.type === filterType);
     const diameters = [...new Set(base.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
     if (filterDiameter) base = base.filter(p => p.diameter === filterDiameter);
     const lengths = [...new Set(base.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
     if (filterLength) base = base.filter(p => p.length === filterLength);
     const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
-    const types = [...new Set(categoryProducts.map(p => p.type).filter(Boolean))].sort();
+    const types = [...new Set(fallbackProducts.filter(p => p.category === activeCategory).map(p => p.type).filter(Boolean))].sort();
     return { diameters, lengths, colors, types };
-  }, [categoryProducts, filterType, filterDiameter, filterLength]);
+  }, [apiFilterOptions, activeCategory, filterType, filterDiameter, filterLength]);
 
   // 카테고리 변경 시 필터 초기화
   useEffect(() => {
@@ -181,10 +210,14 @@ function ProductsContent() {
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
         {/* 카테고리 탭 */}
-        <div className="category-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+        <div className="category-tabs" role="tablist" aria-label="제품 카테고리" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
           {CATEGORY_TABS.map(tab => (
             <button
               key={tab.key}
+              role="tab"
+              id={`tab-${tab.key}`}
+              aria-selected={activeCategory === tab.key}
+              aria-controls="product-tabpanel"
               onClick={() => setActiveCategory(tab.key)}
               style={{
                 background: activeCategory === tab.key ? '#ff6b35' : '#fff',
@@ -203,7 +236,7 @@ function ProductsContent() {
           ))}
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div id="product-tabpanel" role="tabpanel" aria-labelledby={`tab-${activeCategory}`} style={{ background: '#fff', borderRadius: 15, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           {/* 검색 */}
           <div style={{ maxWidth: 500, margin: '0 auto 1.5rem', position: 'relative' }}>
             <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#999', fontSize: '1.1rem' }}>🔍</span>
@@ -261,7 +294,15 @@ function ProductsContent() {
 
           {/* 제품 그리드 */}
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>검색 결과가 없습니다</div>
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
+              <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>검색 결과가 없습니다</p>
+              <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>다른 검색어나 필터를 시도해보세요</p>
+              <button onClick={() => { setSearchInput(''); setFilterDiameter(''); setFilterLength(''); setFilterColor(''); setFilterType(''); }}
+                style={{ background: '#ff6b35', color: '#fff', border: 'none', padding: '0.7rem 1.5rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
+                필터 초기화
+              </button>
+            </div>
           ) : (
             <div className="product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
               {filtered.map(product => (
@@ -288,7 +329,7 @@ function ProductsContent() {
 
       {/* 토스트 */}
       {toast && (
-        <div style={{
+        <div role="status" aria-live="polite" aria-atomic="true" style={{
           position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
           background: '#1a1a1a', color: '#fff', padding: '0.85rem 1.5rem',
           borderRadius: 10, fontSize: '0.9rem', zIndex: 2000,

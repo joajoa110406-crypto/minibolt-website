@@ -33,6 +33,10 @@ export function verifyItemPrices(items: { id: string; price_100_block: number; p
     if (item.price_unit !== original.price_unit) {
       errors.push(`${item.id}: price_unit 불일치 (${item.price_unit} vs ${original.price_unit})`);
     }
+    // 0원 가격 조작 방지
+    if (item.price_100_block <= 0 || item.price_1000_block < 0 || item.price_5000_block < 0 || item.price_unit <= 0) {
+      errors.push(`${item.id}: 유효하지 않은 가격 (0 이하)`);
+    }
   }
 
   return { valid: errors.length === 0, errors };

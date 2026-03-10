@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { NextAuthOptions } from 'next-auth';
 
 // next-auth/providers mock
 vi.mock('next-auth/providers/naver', () => ({
@@ -11,10 +12,24 @@ vi.mock('next-auth', () => ({
   default: vi.fn(() => vi.fn()),
 }));
 
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+// 환경변수 설정 후 동적 import (providers가 모듈 스코프에서 평가되므로)
+async function loadAuthOptions(): Promise<NextAuthOptions> {
+  vi.stubEnv('NAVER_CLIENT_ID', 'test-naver-id');
+  vi.stubEnv('NAVER_CLIENT_SECRET', 'test-naver-secret');
+  vi.stubEnv('KAKAO_CLIENT_ID', 'test-kakao-id');
+  vi.stubEnv('KAKAO_CLIENT_SECRET', 'test-kakao-secret');
+
+  // 이전 캐시 무효화 후 재로드
+  vi.resetModules();
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return mod.authOptions;
+}
 
 describe('NextAuth 설정', () => {
-  it('네이버, 카카오 2개 프로바이더 등록', () => {
+  let authOptions: NextAuthOptions;
+
+  it('네이버, 카카오 2개 프로바이더 등록', async () => {
+    authOptions = await loadAuthOptions();
     expect(authOptions.providers).toHaveLength(2);
     expect(authOptions.providers[0]).toHaveProperty('id', 'naver');
     expect(authOptions.providers[1]).toHaveProperty('id', 'kakao');

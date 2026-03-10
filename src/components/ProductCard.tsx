@@ -3,6 +3,7 @@
 import React from 'react';
 import type { Product } from '@/types/product';
 import { generateProductName, getCategoryImage, getStockStatus } from '@/lib/products';
+import { getBulkDiscount, getTotalPrice } from '@/lib/cart';
 import ProductImage from '@/components/ProductImage';
 
 const BLOCKS = [
@@ -10,28 +11,6 @@ const BLOCKS = [
   { size: 1000, label: '1,000개' },
   { size: 5000, label: '5,000개' },
 ] as const;
-
-function getBulkDiscount(blockSize: number, count: number) {
-  if (blockSize !== 5000) return 0;
-  if (count >= 4) return 10;
-  if (count >= 3) return 8;
-  if (count >= 2) return 5;
-  return 0;
-}
-
-function getBlockPrice(product: Product, blockSize: number) {
-  const supply = blockSize === 100 ? (product.price_100_block ?? 3000)
-    : blockSize === 1000 ? (product.price_1000_block ?? 0)
-    : blockSize === 5000 ? (product.price_5000_block ?? 0)
-    : 0;
-  return Math.round(supply * 1.1);
-}
-
-function getTotalPrice(product: Product, blockSize: number, count: number) {
-  const basePrice = getBlockPrice(product, blockSize) * count;
-  const discount = getBulkDiscount(blockSize, count);
-  return Math.round(basePrice * (1 - discount / 100));
-}
 
 interface ProductCardProps {
   product: Product;
@@ -50,9 +29,8 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
 
   return (
     <div
-      style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem', position: 'relative', background: '#fff', transition: 'border-color 0.2s, transform 0.2s' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#ff6b35'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#e9ecef'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; }}
+      className="product-card"
+      style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem', position: 'relative', background: '#fff' }}
     >
       {/* 재고 뱃지 */}
       <span style={{
@@ -73,7 +51,7 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
             onClick={onShowDetail}
             title="상세 보기"
             aria-label={`${displayName} 상세 보기`}
-            style={{ background: '#ff6b35', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ background: '#ff6b35', color: '#fff', border: 'none', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             +
           </button>
