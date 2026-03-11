@@ -12,8 +12,8 @@ import { isIslandAddress } from '@/lib/island-postcodes';
 declare global {
   interface Window {
     TossPayments: (clientKey: string) => {
-      payment: (options: { customerKey: string }) => {
-        requestPayment: (options: Record<string, unknown>) => Promise<void>;
+      widgets: (options: { customerKey: string }) => {
+        requestPaymentWindow: (options: Record<string, unknown>) => Promise<void>;
       };
     };
     daum: {
@@ -89,7 +89,7 @@ export default function CheckoutPage() {
     setAgreePayment(checked);
   };
 
-  const paymentRef = useRef<{ requestPayment: (options: Record<string, unknown>) => Promise<void> } | null>(null);
+  const paymentRef = useRef<{ requestPaymentWindow: (options: Record<string, unknown>) => Promise<void> } | null>(null);
   const tossRetryCount = useRef(0);
   const MAX_TOSS_RETRY = 10;
 
@@ -144,7 +144,7 @@ export default function CheckoutPage() {
     if (key && window.TossPayments) {
       try {
         const tossPayments = window.TossPayments(key);
-        paymentRef.current = tossPayments.payment({ customerKey: 'ANONYMOUS' });
+        paymentRef.current = tossPayments.widgets({ customerKey: 'ANONYMOUS' });
         tossRetryCount.current = 0;
         setTossError('');
       } catch {
@@ -225,8 +225,7 @@ export default function CheckoutPage() {
     const base = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
 
     try {
-      await paymentRef.current.requestPayment({
-        method: payMethod,
+      await paymentRef.current.requestPaymentWindow({
         amount: {
           currency: 'KRW',
           value: totalAmount,
