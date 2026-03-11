@@ -82,12 +82,17 @@ export default function CheckoutPage() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreePayment, setAgreePayment] = useState(false);
-  const agreeAll = agreeTerms && agreePrivacy && agreePayment;
+  const [agreeThirdParty, setAgreeThirdParty] = useState(false);
+  const agreeAll = agreeTerms && agreePrivacy && agreePayment && agreeThirdParty;
   const handleAgreeAll = (checked: boolean) => {
     setAgreeTerms(checked);
     setAgreePrivacy(checked);
     setAgreePayment(checked);
+    setAgreeThirdParty(checked);
   };
+
+  // 모바일 주문 요약 접기/펼치기
+  const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
 
   const paymentRef = useRef<{ requestPaymentWindow: (options: Record<string, unknown>) => Promise<void> } | null>(null);
   const tossRetryCount = useRef(0);
@@ -99,6 +104,16 @@ export default function CheckoutPage() {
     setCart(c);
     setMounted(true);
   }, [router]);
+
+  // 소셜 로그인 정보로 주문자 정보 자동 채우기 (네이버: 이름, 이메일, 전화번호)
+  useEffect(() => {
+    if (!session?.user) return;
+    const user = session.user as { name?: string; email?: string; phone?: string };
+    if (user.name && !buyerName) setBuyerName(user.name);
+    if (user.email && !buyerEmail) setBuyerEmail(user.email);
+    if ((user as { phone?: string }).phone && !buyerPhone) setBuyerPhone((user as { phone?: string }).phone || '');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   // B2B 할인율 조회 (로그인 시)
   useEffect(() => {
@@ -158,27 +173,32 @@ export default function CheckoutPage() {
     }
   };
 
+  const focusAndScroll = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+  };
+
   const validate = () => {
     setFormError('');
     if (!buyerName.trim()) {
       setFormError('이름을 입력해주세요.');
-      document.getElementById('buyer-name')?.focus();
+      focusAndScroll('buyer-name');
       return false;
     }
     if (!buyerEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
       setFormError('올바른 이메일을 입력해주세요.');
-      document.getElementById('buyer-email')?.focus();
+      focusAndScroll('buyer-email');
       return false;
     }
     const phoneDigits = buyerPhone.replace(/\D/g, '');
     if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
       setFormError('연락처를 정확히 입력해주세요. (10~11자리)');
-      document.getElementById('buyer-phone')?.focus();
+      focusAndScroll('buyer-phone');
       return false;
     }
     if (!address.trim()) {
       setFormError('배송 주소를 입력해주세요.');
-      document.getElementById('address-detail')?.focus();
+      focusAndScroll('address-detail');
       return false;
     }
     if (needTaxInvoice) {
@@ -190,7 +210,7 @@ export default function CheckoutPage() {
       setFormError(cashReceiptType === 'personal' ? '휴대폰 번호를 입력해주세요.' : '사업자 번호를 입력해주세요.');
       return false;
     }
-    if (!agreeTerms || !agreePrivacy || !agreePayment) { setFormError('필수 약관에 모두 동의해주세요.'); return false; }
+    if (!agreeTerms || !agreePrivacy || !agreePayment || !agreeThirdParty) { setFormError('필수 약관에 모두 동의해주세요.'); return false; }
     return true;
   };
 
@@ -261,7 +281,7 @@ export default function CheckoutPage() {
       <Script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="afterInteractive" />
 
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
-        <div style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 30px', textAlign: 'center' }}>
+        <div className="checkout-hero" style={{ background: 'linear-gradient(135deg,#2c3e50,#34495e)', color: '#fff', padding: '60px 20px 30px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>주문 / 결제</h1>
           <p style={{ fontSize: '0.9rem', color: '#ccc', marginTop: '0.5rem' }}>비회원 주문 - 회원가입 없이 결제 가능합니다</p>
         </div>
@@ -294,7 +314,7 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem 20px' }}>
+        <div className="checkout-content" style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem 20px' }}>
           <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: '1.5rem' }}>
 
             {/* 왼쪽: 주문자 + 배송지 + 결제수단 */}
@@ -306,7 +326,7 @@ export default function CheckoutPage() {
                 </FormGroup>
                 <div className="checkout-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <FormGroup label="이메일 *" htmlFor="buyer-email">
-                    <input id="buyer-email" type="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" autoComplete="email" style={inputStyle} />
+                    <input id="buyer-email" type="email" inputMode="email" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} placeholder="example@email.com" autoComplete="email" style={inputStyle} />
                   </FormGroup>
                   <FormGroup label="연락처 *" htmlFor="buyer-phone">
                     <input id="buyer-phone" type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} placeholder="010-0000-0000" autoComplete="tel" inputMode="tel" style={inputStyle} />
@@ -317,10 +337,10 @@ export default function CheckoutPage() {
               {/* 배송 정보 */}
               <Section title="배송 정보">
                 <FormGroup label="배송 주소 *" htmlFor="address-detail">
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <input value={zipcode} readOnly placeholder="우편번호" style={{ ...inputStyle, width: 120, background: '#f8f9fa' }} />
-                    <button onClick={openPostcode} type="button"
-                      style={{ background: '#2c3e50', color: '#fff', border: 'none', padding: '0 1rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', minHeight: 44 }}>
+                  <div className="checkout-address-row" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <input value={zipcode} readOnly placeholder="우편번호" style={{ ...inputStyle, width: 120, background: '#f8f9fa' }} tabIndex={-1} />
+                    <button onClick={openPostcode} type="button" className="checkout-address-btn"
+                      style={{ background: '#2c3e50', color: '#fff', border: 'none', padding: '0 1.25rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', minHeight: 48, minWidth: 88, fontSize: '0.95rem', WebkitTapHighlightColor: 'transparent', transition: 'background 0.15s' }}>
                       주소 검색
                     </button>
                   </div>
@@ -328,12 +348,12 @@ export default function CheckoutPage() {
                     <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
                       <div ref={postcodeRef} style={{ border: '1px solid #ddd', borderRadius: 8, height: 400, overflow: 'hidden' }} />
                       <button type="button" onClick={() => setShowPostcode(false)}
-                        style={{ position: 'absolute', top: 8, right: 8, background: '#333', color: '#fff', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, lineHeight: '28px', textAlign: 'center' }}>
+                        style={{ position: 'absolute', top: 8, right: 8, background: '#333', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 16, lineHeight: '36px', textAlign: 'center', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         ✕
                       </button>
                     </div>
                   )}
-                  <input value={address} readOnly placeholder="기본 주소" style={{ ...inputStyle, background: '#f8f9fa', marginBottom: '0.5rem' }} />
+                  <input value={address} readOnly placeholder="기본 주소" style={{ ...inputStyle, background: '#f8f9fa', marginBottom: '0.5rem' }} tabIndex={-1} />
                   <input id="address-detail" value={addressDetail} onChange={e => setAddressDetail(e.target.value)} placeholder="상세 주소 입력" autoComplete="address-line2" style={inputStyle} />
                 </FormGroup>
                 <FormGroup label="배송 요청사항" htmlFor="shipping-memo">
@@ -358,12 +378,15 @@ export default function CheckoutPage() {
                 <div className="checkout-pay-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
                   {PAYMENT_METHODS.map(m => (
                     <button key={m.value} onClick={() => setPayMethod(m.value)}
+                      className="checkout-pay-btn"
                       style={{
                         padding: '0.9rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, minHeight: 48,
                         border: `2px solid ${payMethod === m.value ? '#ff6b35' : '#e0e0e0'}`,
                         background: payMethod === m.value ? '#fff8f5' : '#fff',
                         color: payMethod === m.value ? '#ff6b35' : '#333',
                         fontSize: '0.9rem', textAlign: 'left',
+                        WebkitTapHighlightColor: 'transparent',
+                        transition: 'all 0.15s',
                       }}>
                       <span style={{ marginRight: '0.4rem' }}>{m.icon}</span>{m.label}
                     </button>
@@ -373,12 +396,12 @@ export default function CheckoutPage() {
                 {/* 현금영수증 */}
                 {showCashReceipt && (
                   <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
-                      <input type="checkbox" checked={needCashReceipt} onChange={e => setNeedCashReceipt(e.target.checked)} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, minHeight: 44 }}>
+                      <input type="checkbox" checked={needCashReceipt} onChange={e => setNeedCashReceipt(e.target.checked)} style={{ width: 20, height: 20, accentColor: '#ff6b35' }} />
                       현금영수증 신청
                     </label>
                     {needCashReceipt && (
-                      <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div className="checkout-cash-receipt-row" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         <select value={cashReceiptType} onChange={e => setCashReceiptType(e.target.value as 'personal' | 'business')} style={{ ...inputStyle, width: 'auto', flex: '0 0 auto' }}>
                           <option value="personal">소득공제 (개인)</option>
                           <option value="business">지출증빙 (사업자)</option>
@@ -386,6 +409,7 @@ export default function CheckoutPage() {
                         <input value={cashReceiptNumber} onChange={e => setCashReceiptNumber(e.target.value)}
                           placeholder={cashReceiptType === 'personal' ? '010-0000-0000' : '000-00-00000'}
                           inputMode="tel"
+                          type="tel"
                           style={{ ...inputStyle, flex: 1 }} />
                       </div>
                     )}
@@ -394,14 +418,15 @@ export default function CheckoutPage() {
 
                 {/* 세금계산서 */}
                 <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
-                    <input type="checkbox" checked={needTaxInvoice} onChange={e => setNeedTaxInvoice(e.target.checked)} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, minHeight: 44 }}>
+                    <input type="checkbox" checked={needTaxInvoice} onChange={e => setNeedTaxInvoice(e.target.checked)} style={{ width: 20, height: 20, accentColor: '#ff6b35' }} />
                     세금계산서 발행 요청
                   </label>
                   {needTaxInvoice && (
                     <input value={businessNumber} onChange={e => setBusinessNumber(e.target.value)}
                       placeholder="사업자등록번호 (000-00-00000)"
                       inputMode="numeric"
+                      type="tel"
                       style={{ ...inputStyle, marginTop: '0.75rem' }} />
                   )}
                 </div>
@@ -410,19 +435,36 @@ export default function CheckoutPage() {
 
             {/* 오른쪽: 주문 상품 + 금액 */}
             <div>
-              <Section title="주문 상품">
-                {cart.map(item => (
-                  <div key={`${item.id}-${item.blockSize}`} style={{ borderBottom: '1px solid #eee', padding: '0.9rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.2rem' }}>{generateProductName(item)}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#888' }}>M{item.diameter}×{item.length}mm | {item.color} | {item.qty.toLocaleString()}개</div>
+              {/* 모바일에서 접기/펼치기 가능한 주문 상품 */}
+              <div className="checkout-order-summary-section" style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', marginBottom: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <button
+                  type="button"
+                  className="checkout-summary-toggle"
+                  onClick={() => setOrderSummaryOpen(!orderSummaryOpen)}
+                  aria-expanded={orderSummaryOpen}
+                >
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2c3e50', margin: 0 }}>
+                    주문 상품 <span className="checkout-summary-count">({cart.length}건)</span>
+                  </h2>
+                  <span className="checkout-summary-arrow" style={{ transform: orderSummaryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                    ▼
+                  </span>
+                </button>
+                <div className="checkout-summary-divider" style={{ height: 2, background: '#ff6b35', marginTop: '0.5rem', marginBottom: '1.2rem' }} />
+                <div className="checkout-order-items" data-open={orderSummaryOpen}>
+                  {cart.map(item => (
+                    <div key={`${item.id}-${item.blockSize}`} style={{ borderBottom: '1px solid #eee', padding: '0.9rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="checkout-item-name" style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.2rem' }}>{generateProductName(item)}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#888' }}>M{item.diameter}×{item.length}mm | {item.color} | {item.qty.toLocaleString()}개</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: '#ff6b35', fontSize: '0.95rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        ₩{calculateItemPrice(item).toLocaleString()}
+                      </div>
                     </div>
-                    <div style={{ fontWeight: 700, color: '#ff6b35', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
-                      ₩{calculateItemPrice(item).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </Section>
+                  ))}
+                </div>
+              </div>
 
               <Section title="결제 금액">
                 {b2bInfo.isB2B && (
@@ -454,20 +496,21 @@ export default function CheckoutPage() {
 
               {/* 약관 동의 */}
               <Section title="약관 동의">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #eee' }}>
-                  <input type="checkbox" checked={agreeAll} onChange={e => handleAgreeAll(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#ff6b35' }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #eee', minHeight: 44 }}>
+                  <input type="checkbox" checked={agreeAll} onChange={e => handleAgreeAll(e.target.checked)} style={{ width: 20, height: 20, accentColor: '#ff6b35' }} />
                   전체 동의
                 </label>
                 {[
                   { checked: agreeTerms, onChange: setAgreeTerms, label: '[필수] 이용약관 동의', href: '/terms' },
                   { checked: agreePrivacy, onChange: setAgreePrivacy, label: '[필수] 개인정보 수집 및 이용 동의', href: '/privacy' },
-                  { checked: agreePayment, onChange: setAgreePayment, label: '[필수] 결제대행서비스 이용약관 동의', href: null },
+                  { checked: agreePayment, onChange: setAgreePayment, label: '[필수] 결제대행서비스 이용약관 동의', href: '/payment-terms' },
+                  { checked: agreeThirdParty, onChange: setAgreeThirdParty, label: '[필수] 제3자 정보 제공 동의 (결제사·배송사)', href: '/privacy#third-party' },
                 ].map(item => (
-                  <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '0.5rem', color: '#555' }}>
-                    <input type="checkbox" checked={item.checked} onChange={e => item.onChange(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#ff6b35' }} />
+                  <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '0.5rem', color: '#555', minHeight: 40 }}>
+                    <input type="checkbox" checked={item.checked} onChange={e => item.onChange(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#ff6b35', flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>{item.label}</span>
                     {item.href && (
-                      <a href={item.href} target="_blank" rel="noopener noreferrer" style={{ color: '#999', fontSize: '0.78rem', textDecoration: 'underline', whiteSpace: 'nowrap' }}>보기</a>
+                      <a href={item.href} target="_blank" rel="noopener noreferrer" style={{ color: '#999', fontSize: '0.78rem', textDecoration: 'underline', whiteSpace: 'nowrap', minWidth: 32, textAlign: 'center' }}>보기</a>
                     )}
                   </label>
                 ))}
@@ -483,9 +526,11 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {/* 데스크톱 전용 결제 버튼 */}
                 <button
                   onClick={requestPayment}
                   disabled={loading || !agreeAll || !!tossError}
+                  className="checkout-pay-submit-desktop"
                   style={{
                     width: '100%', marginTop: '1.2rem', padding: '1rem',
                     background: loading || !agreeAll || tossError ? '#ccc' : '#ff6b35',
@@ -509,13 +554,166 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* 모바일 하단 고정 결제 버튼 */}
+      <div className="checkout-mobile-cta">
+        <div className="checkout-mobile-cta-inner">
+          <div className="checkout-mobile-cta-info">
+            <div className="checkout-mobile-cta-label">총 결제금액</div>
+            <div className="checkout-mobile-cta-price">₩{totalAmount.toLocaleString()}</div>
+          </div>
+          <button
+            onClick={requestPayment}
+            disabled={loading || !agreeAll || !!tossError}
+            className="checkout-mobile-pay-btn"
+          >
+            {loading ? '처리 중...' : '결제하기'}
+          </button>
+        </div>
+        <div className="checkout-mobile-cta-security">
+          🔒 SSL 보안결제 · 토스페이먼츠
+        </div>
+      </div>
+
       <style>{`
+        /* 주문 요약 토글 - 데스크톱에서 숨김 */
+        .checkout-summary-toggle {
+          display: none;
+          width: 100%;
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          align-items: center;
+          justify-content: space-between;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .checkout-summary-arrow { display: none; }
+        .checkout-summary-count { display: none; }
+
+        /* 모바일 하단 고정 - 기본 숨김 */
+        .checkout-mobile-cta { display: none; }
+
+        /* 주소 검색 버튼 호버 */
+        .checkout-address-btn:active { background: #1a2a3a !important; }
+
+        /* 결제수단 버튼 호버 */
+        .checkout-pay-btn:active { opacity: 0.85; }
+
         @media (max-width: 768px) {
           .checkout-grid { grid-template-columns: 1fr !important; }
           .checkout-pay-grid { grid-template-columns: 1fr !important; }
+          .checkout-hero { padding: 50px 16px 24px !important; }
+          .checkout-hero h1 { font-size: 1.6rem !important; }
+
+          /* 주문 요약 접기/펼치기 활성화 */
+          .checkout-summary-toggle {
+            display: flex !important;
+          }
+          .checkout-summary-arrow {
+            display: inline-block !important;
+            font-size: 0.75rem;
+            color: #999;
+          }
+          .checkout-summary-count {
+            display: inline !important;
+            font-size: 0.9rem;
+            color: '#888';
+            font-weight: 400;
+          }
+          .checkout-summary-divider { margin-bottom: 0 !important; }
+          .checkout-order-items {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+          }
+          .checkout-order-items[data-open="true"] {
+            max-height: 2000px;
+            padding-top: 1rem;
+          }
+
+          /* 상품명 줄바꿈 */
+          .checkout-item-name {
+            word-break: keep-all;
+            overflow-wrap: break-word;
+          }
+
+          /* 데스크톱 결제 버튼 숨김 */
+          .checkout-pay-submit-desktop { display: none !important; }
+
+          /* 모바일 하단 고정 결제 바 */
+          .checkout-mobile-cta {
+            display: block;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .checkout-mobile-cta-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px 4px;
+            gap: 12px;
+          }
+          .checkout-mobile-cta-info {
+            flex-shrink: 0;
+          }
+          .checkout-mobile-cta-label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 2px;
+          }
+          .checkout-mobile-cta-price {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ff6b35;
+            white-space: nowrap;
+          }
+          .checkout-mobile-pay-btn {
+            flex: 1;
+            max-width: 200px;
+            min-height: 48px;
+            background: #ff6b35;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            transition: all 0.15s;
+          }
+          .checkout-mobile-pay-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+          }
+          .checkout-mobile-pay-btn:not(:disabled):active {
+            background: #e55a25;
+            transform: scale(0.98);
+          }
+          .checkout-mobile-cta-security {
+            text-align: center;
+            font-size: 0.72rem;
+            color: #aaa;
+            padding: 4px 16px 8px;
+          }
+
+          /* 메인 콘텐츠에 하단 여백 */
+          .checkout-content {
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+          }
         }
+
         @media (max-width: 480px) {
           .checkout-form-row { grid-template-columns: 1fr !important; }
+          .checkout-cash-receipt-row { flex-direction: column !important; }
+          .checkout-cash-receipt-row select { width: 100% !important; }
         }
       `}</style>
     </>
