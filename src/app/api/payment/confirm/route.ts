@@ -105,7 +105,10 @@ export async function POST(req: NextRequest) {
           logPayment('warn', 'b2b_rate_mismatch', { orderId, clientRate: orderInfo.b2bDiscountRate, serverRate: b2bCustomer?.discount_rate });
           verifiedB2bRate = b2bCustomer.discount_rate; // 서버 값 사용
         }
-        // b2bCustomer가 null이면 B2B 할인 없음 (verifiedB2bRate는 undefined)
+        if (!b2bCustomer) {
+          logPayment('warn', 'b2b_unauthorized', { orderId, email: orderInfo.buyerEmail, requestedRate: orderInfo.b2bDiscountRate });
+          return NextResponse.json({ error: 'B2B 거래처로 등록되지 않은 계정입니다. 할인을 적용할 수 없습니다.' }, { status: 403 });
+        }
       } catch (b2bErr) {
         logPayment('warn', 'b2b_verify_failed', { orderId, error: String(b2bErr) });
         // B2B 검증 실패 시 할인 없이 진행
@@ -326,6 +329,14 @@ export async function POST(req: NextRequest) {
       logPayment('info', 'email_sent', { orderId, orderNumber, email: orderInfo.buyerEmail });
     } catch (mailErr) {
       logPayment('warn', 'email_failed', { orderId, orderNumber, error: String(mailErr) });
+    }
+
+    // 5. 관리자 푸시 알림 (새 주문)
+    try {
+      const { notifyNewOrder } = await import('@/lib/push-notification');
+      await notifyNewOrder(orderNumber, orderInfo.totalAmount);
+    } catch {
+      // 푸시 실패해도 무시
     }
 
     logPayment('info', 'payment_complete', { orderId, orderNumber, amount });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
+import { withCronLogging } from '@/lib/cron-logger';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendWeeklyReportEmail } from '@/lib/mailer';
 import type { WeeklyReportData } from '@/lib/mailer-templates';
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+  const result = await withCronLogging('weekly-report', async () => {
     const supabase = getSupabaseAdmin();
 
     // KST 기준 지난주 월~일 날짜 범위 계산
@@ -57,11 +59,7 @@ export async function GET(req: NextRequest) {
       .lt('created_at', endOfWeek);
 
     if (ordersError) {
-      console.warn('[weekly-report] 주문 조회 오류:', ordersError.message);
-      return NextResponse.json(
-        { error: '주문 데이터 조회 실패', detail: ordersError.message },
-        { status: 500 }
-      );
+      throw new Error(`주문 데이터 조회 실패: ${ordersError.message}`);
     }
 
     const orderList = orders || [];
@@ -156,7 +154,7 @@ export async function GET(req: NextRequest) {
 
     await sendWeeklyReportEmail(reportData);
 
-    return NextResponse.json({
+    return {
       success: true,
       weekStart,
       weekEnd,
@@ -167,14 +165,13 @@ export async function GET(req: NextRequest) {
       changePercent: Math.round(changePercent * 10) / 10,
       categoryCount: categoryBreakdown.length,
       topProductCount: topProducts.length,
-    });
+    };
+  });
+
+  return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    console.warn('[weekly-report] 리포트 생성 오류:', message);
-    return NextResponse.json(
-      { error: '주간 리포트 생성 실패', detail: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '주간 리포트 생성 실패', detail: message }, { status: 500 });
   }
 }
 

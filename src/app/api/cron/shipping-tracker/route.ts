@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyCronAuth } from '@/lib/cron-auth';
+import { withCronLogging } from '@/lib/cron-logger';
 import {
   fetchTrackingInfo,
   isDelivered,
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const result = await withCronLogging('shipping-tracker', async () => {
   const supabase = getSupabaseAdmin();
   const results = {
     success: true,
@@ -62,7 +64,7 @@ export async function GET(request: Request) {
 
     if (!shippedOrders || shippedOrders.length === 0) {
       console.log('[Shipping Tracker] 추적할 배송 중 주문 없음');
-      return NextResponse.json(results);
+      return results;
     }
 
     console.log(`[Shipping Tracker] 추적 대상: ${shippedOrders.length}건`);
@@ -155,7 +157,10 @@ export async function GET(request: Request) {
     `[Shipping Tracker] 완료 - 추적: ${results.tracked}건, 배송완료: ${results.delivered}건, 오류: ${results.errors.length}건`,
   );
 
-  return NextResponse.json(results);
+  return results;
+  });
+
+  return NextResponse.json(result);
 }
 
 /**

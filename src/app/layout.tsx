@@ -1,9 +1,19 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import FloatingCartButton from '@/components/FloatingCartButton';
+import CartRecoveryBanner from '@/components/CartRecoveryBanner';
 import NextAuthSessionProvider from '@/components/SessionProvider';
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#1a1a1a',
+};
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -61,7 +71,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://minibolt.co.kr',
+    canonical: '/',
   },
   verification: {
     google: 'tykkbXLz51nKo9TeD74lI_xE6LQmnfZYtA4hJl6',  // TODO: 구글 인증 완료 후 정확한 값으로 수정
@@ -80,12 +90,12 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'Organization',
-      name: '성원특수금속',
-      alternateName: ['MiniBolt', '미니볼트'],
+      name: '미니볼트 (성원특수금속)',
+      alternateName: ['MiniBolt', '미니볼트', '성원특수금속'],
       url: 'https://minibolt.co.kr',
-      logo: 'https://minibolt.co.kr/image-1.png',
-      foundingDate: '1987-12-14',
-      description: '1987년 설립, 39년 역사의 정밀 마이크로 스크류(M1.2~M4) 전문 제조기업. 833개 규격 보유. 공장 직판.',
+      logo: 'https://minibolt.co.kr/logo.png',
+      foundingDate: '1987',
+      description: '1987년부터 39년 제조 경험의 마이크로 스크류 전문 제조사 직접판매',
       address: {
         '@type': 'PostalAddress',
         streetAddress: '미산동 87-3',
@@ -95,11 +105,12 @@ const jsonLd = {
       },
       contactPoint: {
         '@type': 'ContactPoint',
+        telephone: '+82-10-9006-5846',
         email: 'contact@minibolt.co.kr',
-        contactType: 'sales',
+        contactType: 'customer service',
         availableLanguage: 'Korean',
       },
-      sameAs: [],  // TODO: 네이버 블로그, 인스타그램 등 SNS 주소 추가
+      sameAs: [],
     },
     {
       '@type': 'WebSite',
@@ -109,10 +120,7 @@ const jsonLd = {
       inLanguage: 'ko',
       potentialAction: {
         '@type': 'SearchAction',
-        target: {
-          '@type': 'EntryPoint',
-          urlTemplate: 'https://minibolt.co.kr/products?q={search_term_string}',
-        },
+        target: 'https://minibolt.co.kr/products?search={search_term_string}',
         'query-input': 'required name=search_term_string',
       },
     },
@@ -152,6 +160,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="미니볼트" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -160,11 +172,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={notoSansKR.className}>
         <NextAuthSessionProvider>
           <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
+          <CartRecoveryBanner />
           <Header />
-          <main id="main-content" style={{ paddingTop: 70 }}>
+          <main id="main-content" className="main-content">
             {children}
           </main>
           <Footer />
+          <FloatingCartButton />
+          <ServiceWorkerRegistration />
         </NextAuthSessionProvider>
       </body>
     </html>

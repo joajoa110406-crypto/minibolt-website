@@ -62,6 +62,20 @@ const MENU_SECTIONS: MenuSection[] = [
       { href: '/admin/backups', label: '백업' },
     ],
   },
+  {
+    icon: '\u26A1',
+    title: '자동화',
+    items: [
+      { href: '/admin/automation', label: '자동화 모니터링' },
+    ],
+  },
+  {
+    icon: '\u{1F512}',
+    title: '보안',
+    items: [
+      { href: '/admin/audit-log', label: '감사 로그' },
+    ],
+  },
 ];
 
 // ─── 레이아웃 컴포넌트 ─────────────────────────────────────────

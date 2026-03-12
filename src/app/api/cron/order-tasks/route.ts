@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyCronAuth } from '@/lib/cron-auth';
+import { withCronLogging } from '@/lib/cron-logger';
 
 /**
  * 주문 상태 자동 변경 Cron
@@ -16,6 +17,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const parentJob = new URL(request.url).searchParams.get('parent') || undefined;
+
+  const result = await withCronLogging('order-tasks', async () => {
   const supabase = getSupabaseAdmin();
   const results = {
     success: true,
@@ -178,5 +182,8 @@ export async function GET(request: Request) {
     `[Order Tasks] 완료 - 취소: ${results.cancelled}건, 배송완료: ${results.delivered}건, 거래완료: ${results.completed}건`
   );
 
-  return NextResponse.json(results);
+  return results;
+  }, parentJob);
+
+  return NextResponse.json(result);
 }
