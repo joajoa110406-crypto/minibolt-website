@@ -11,9 +11,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim());
-
-  if (!session?.user?.email || !adminEmails.includes(session.user.email)) {
+  if (!(session?.user as { isAdmin?: boolean })?.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

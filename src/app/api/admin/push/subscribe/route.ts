@@ -9,11 +9,12 @@ import { getSupabaseAdmin } from '@/lib/supabase';
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim());
-
-  if (!session?.user?.email || !adminEmails.includes(session.user.email)) {
+  const user = session?.user as { email?: string; phone?: string; isAdmin?: boolean } | undefined;
+  if (!user?.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const adminIdentifier = user.email || user.phone || 'unknown';
 
   try {
     const { subscription } = await request.json();
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
           p256dh: subscription.keys.p256dh,
           auth: subscription.keys.auth,
           enabled: true,
-          admin_email: session.user.email,
+          admin_email: adminIdentifier,
         })
         .eq('id', existing[0].id);
     } else {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       await supabase
         .from('push_subscriptions')
         .insert({
-          admin_email: session.user.email,
+          admin_email: adminIdentifier,
           endpoint: subscription.endpoint,
           p256dh: subscription.keys.p256dh,
           auth: subscription.keys.auth,
@@ -68,9 +69,7 @@ export async function POST(request: Request) {
  */
 export async function DELETE(request: Request) {
   const session = await getServerSession(authOptions);
-  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim());
-
-  if (!session?.user?.email || !adminEmails.includes(session.user.email)) {
+  if (!(session?.user as { isAdmin?: boolean })?.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
