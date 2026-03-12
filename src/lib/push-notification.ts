@@ -2,13 +2,23 @@ import 'server-only';
 import webpush from 'web-push';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
-// VAPID 설정
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+// VAPID 설정 (지연 초기화 - 빌드 시 환경변수 없어도 안전)
 const VAPID_SUBJECT = 'mailto:contact@minibolt.co.kr';
+let vapidInitialized = false;
 
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+function ensureVapidSetup(): boolean {
+  if (vapidInitialized) return true;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+  const privateKey = process.env.VAPID_PRIVATE_KEY || '';
+  if (!publicKey || !privateKey) return false;
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, publicKey, privateKey);
+    vapidInitialized = true;
+    return true;
+  } catch (err) {
+    console.warn('[push] VAPID 설정 실패:', err);
+    return false;
+  }
 }
 
 interface PushPayload {
@@ -24,7 +34,7 @@ interface PushPayload {
  * 모든 활성 관리자에게 푸시 알림을 보냅니다.
  */
 export async function sendPushToAdmins(payload: PushPayload): Promise<{ sent: number; failed: number }> {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  if (!ensureVapidSetup()) {
     console.warn('[push] VAPID 키 미설정, 건너뜀');
     return { sent: 0, failed: 0 };
   }
