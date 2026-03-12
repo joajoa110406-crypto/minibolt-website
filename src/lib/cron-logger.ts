@@ -121,6 +121,7 @@ export async function getLatestCronStatus(jobName: string): Promise<CronLog | nu
 
 /**
  * 모든 크론 작업의 최근 상태 조회 (각 작업별 1건씩)
+ * 단일 쿼리로 최근 로그를 가져온 뒤 job_name별 최신 1건만 추출
  */
 export async function getAllCronStatuses(): Promise<CronLog[]> {
   const supabase = getSupabaseAdmin();
@@ -135,19 +136,22 @@ export async function getAllCronStatuses(): Promise<CronLog[]> {
     'backup-data',
   ];
 
+  const { data } = await supabase
+    .from('cron_logs')
+    .select('*')
+    .in('job_name', jobNames)
+    .order('started_at', { ascending: false })
+    .limit(80);
+
+  if (!data || data.length === 0) return [];
+
+  // job_name별 최신 1건만 추출
+  const seen = new Set<string>();
   const results: CronLog[] = [];
-
-  for (const jobName of jobNames) {
-    const { data } = await supabase
-      .from('cron_logs')
-      .select('*')
-      .eq('job_name', jobName)
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (data) {
-      results.push(data as CronLog);
+  for (const row of data as CronLog[]) {
+    if (!seen.has(row.job_name)) {
+      seen.add(row.job_name);
+      results.push(row);
     }
   }
 

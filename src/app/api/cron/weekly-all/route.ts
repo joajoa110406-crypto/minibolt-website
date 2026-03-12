@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     const settled = await Promise.allSettled(
       tasks.map(async (task) => {
-        const res = await fetch(`${baseUrl}/api/cron/${task}`, {
+        const res = await fetch(`${baseUrl}/api/cron/${task}?parent=weekly-all`, {
           method: 'GET',
           headers: { Authorization: `Bearer ${secret}` },
         });

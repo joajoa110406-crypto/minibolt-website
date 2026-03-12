@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const parentJob = req.nextUrl.searchParams.get('parent') || undefined;
+
   try {
     const cronResult = await withCronLogging('backup-data', async () => {
       console.log('[backup-cron] 백업 시작');
@@ -47,7 +49,7 @@ export async function GET(req: NextRequest) {
         tables_failed: result.errors.length,
         deleted_old_files: result.deleted_old_files,
       };
-    });
+    }, parentJob);
 
     return NextResponse.json(cronResult);
   } catch (err) {

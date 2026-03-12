@@ -7,6 +7,7 @@ export default function PushNotificationToggle() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
@@ -22,11 +23,18 @@ export default function PushNotificationToggle() {
   }, []);
 
   useEffect(() => {
+    // iOS Safari는 Web Push를 지원하지 않음 (16.4+ 홈화면 앱에서만 제한적 지원)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      ('standalone' in navigator && (navigator as unknown as { standalone: boolean }).standalone);
+
     const isSupported =
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       'PushManager' in window &&
-      'Notification' in window;
+      'Notification' in window &&
+      (!isIOS || isStandalone); // iOS는 홈화면 앱에서만 지원
 
     setSupported(isSupported);
 
@@ -74,13 +82,14 @@ export default function PushNotificationToggle() {
 
       if (res.ok) {
         setSubscribed(true);
+        setError(null);
       } else {
         const err = await res.json();
-        alert(`구독 저장 실패: ${err.error}`);
+        setError(`구독 저장 실패: ${err.error}`);
       }
     } catch (err) {
       console.error('푸시 알림 구독 실패:', err);
-      alert('알림 구독에 실패했습니다.');
+      setError('알림 구독에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -155,6 +164,12 @@ export default function PushNotificationToggle() {
           </div>
         </div>
       </div>
+
+      {error && (
+        <div style={{ fontSize: '0.78rem', color: '#e74c3c', marginBottom: '0.5rem' }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {!subscribed ? (

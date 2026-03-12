@@ -38,6 +38,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const parentJob = new URL(request.url).searchParams.get('parent') || undefined;
+
   const result = await withCronLogging('shipping-tracker', async () => {
   const supabase = getSupabaseAdmin();
   const results = {
@@ -158,7 +160,7 @@ export async function GET(request: Request) {
   );
 
   return results;
-  });
+  }, parentJob);
 
   return NextResponse.json(result);
 }

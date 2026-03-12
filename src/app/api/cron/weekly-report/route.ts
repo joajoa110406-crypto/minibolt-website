@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const parentJob = req.nextUrl.searchParams.get('parent') || undefined;
+
   try {
   const result = await withCronLogging('weekly-report', async () => {
     const supabase = getSupabaseAdmin();
@@ -166,7 +168,7 @@ export async function GET(req: NextRequest) {
       categoryCount: categoryBreakdown.length,
       topProductCount: topProducts.length,
     };
-  });
+  }, parentJob);
 
   return NextResponse.json(result);
   } catch (err) {

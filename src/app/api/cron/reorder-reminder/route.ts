@@ -35,6 +35,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, message: 'Supabase not configured', sent: 0 });
   }
 
+  const parentJob = new URL(request.url).searchParams.get('parent') || undefined;
+
   try {
   const cronResult = await withCronLogging('reorder-reminder', async () => {
   const supabase = createClient(supabaseUrl, supabaseKey);
@@ -181,7 +183,7 @@ export async function GET(request: Request) {
   console.log(`[reorder-reminder] 완료 - 배송확인: ${results.deliveryFollowUp}, 재주문: ${results.reorderReminder}, 휴면복구: ${results.dormantCustomer}, 오류: ${results.errors}`);
 
   return { success: true, sent: totalSent, results };
-  });
+  }, parentJob);
 
   return NextResponse.json(cronResult);
   } catch (err) {

@@ -112,10 +112,16 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // 이미 열린 창이 있으면 포커스
+      // 이미 열린 창이 있으면 포커스 (pathname 기준 비교)
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
-          return client.focus();
+        try {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.pathname.startsWith(targetUrl) && 'focus' in client) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
+        } catch {
+          // URL 파싱 실패 시 무시
         }
       }
       // 없으면 새 창 열기
