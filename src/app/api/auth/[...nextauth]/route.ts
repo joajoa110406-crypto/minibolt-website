@@ -2,7 +2,7 @@ import NextAuth from 'next-auth';
 import NaverProvider from 'next-auth/providers/naver';
 import KakaoProvider from 'next-auth/providers/kakao';
 import type { NextAuthOptions } from 'next-auth';
-import { getAdminEmails } from '@/lib/admin';
+import { isAdmin } from '@/lib/admin';
 
 const providers = [];
 if (process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET) {
@@ -67,10 +67,11 @@ export const authOptions: NextAuthOptions = {
       if ((user as { phone?: string })?.phone) {
         token.phone = (user as { phone?: string }).phone;
       }
-      // 관리자 여부 판별
-      const adminEmails = getAdminEmails();
-      const tokenEmail = (token.email as string | undefined)?.toLowerCase() || '';
-      token.isAdmin = adminEmails.length > 0 && adminEmails.includes(tokenEmail);
+      // 관리자 여부 판별 (이메일 또는 전화번호)
+      token.isAdmin = isAdmin(
+        token.email as string | undefined,
+        token.phone as string | undefined,
+      );
 
       return token;
     },

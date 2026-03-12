@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { getAdminEmails } from '@/lib/admin';
+import { isAdmin as checkIsAdmin } from '@/lib/admin';
 
 /**
  * 클라이언트 IP 추출
@@ -159,22 +159,14 @@ async function handleAdminApiAuth(req: NextRequest): Promise<NextResponse> {
   try {
     const token = await getToken({ req });
 
-    if (!token?.email) {
+    if (!token?.email && !token?.phone) {
       return NextResponse.json(
         { error: '인증 필요: 로그인이 필요합니다' },
         { status: 401 }
       );
     }
 
-    const adminEmails = getAdminEmails();
-    if (adminEmails.length === 0) {
-      return NextResponse.json(
-        { error: 'ADMIN_EMAILS 환경변수가 설정되지 않았습니다' },
-        { status: 500 }
-      );
-    }
-
-    if (!adminEmails.includes((token.email as string).toLowerCase())) {
+    if (!checkIsAdmin(token.email as string | undefined, token.phone as string | undefined)) {
       return NextResponse.json(
         { error: '관리자 권한이 없습니다' },
         { status: 403 }
@@ -201,14 +193,13 @@ async function handleAdminPageAuth(req: NextRequest): Promise<NextResponse> {
   try {
     const token = await getToken({ req });
 
-    if (!token?.email) {
+    if (!token?.email && !token?.phone) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('callbackUrl', req.url);
       return NextResponse.redirect(loginUrl);
     }
 
-    const adminEmails = getAdminEmails();
-    if (adminEmails.length === 0 || !adminEmails.includes((token.email as string).toLowerCase())) {
+    if (!checkIsAdmin(token.email as string | undefined, token.phone as string | undefined)) {
       // 관리자가 아닌 경우 메인 페이지로 리다이렉트
       return NextResponse.redirect(new URL('/', req.url));
     }
