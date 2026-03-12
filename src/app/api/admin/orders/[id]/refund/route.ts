@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { processRefund } from '@/lib/refund.server';
+import { logAuditEvent } from '@/lib/audit-log';
 
 /**
  * 관리자 환불 처리 API
@@ -22,28 +23,9 @@ export async function POST(
     );
   }
 
-  // 1. 관리자 인증 (기존 패턴 따라하기)
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    console.error('[Admin Refund] ADMIN_EMAILS 환경변수가 설정되지 않았습니다.');
-    return NextResponse.json(
-      { error: '서버 설정 오류입니다. 관리자에게 문의하세요.' },
-      { status: 500 }
-    );
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 });
-  }
+  // 1. 관리자 인증
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   // 2. 요청 바디 파싱
   let body: { refundAmount?: number; refundReason?: string; restockItems?: boolean };
@@ -97,7 +79,7 @@ export async function POST(
     refundAmount,
     refundReason: refundReason.trim(),
     restockItems: restockItems !== false,
-    adminEmail: token.email,
+    adminEmail: auth.token.email,
   });
 
   if (!result.success) {
@@ -132,10 +114,21 @@ export async function POST(
   }
 
   // 민감 정보 마스킹 (이메일: a***@b.com)
-  const maskedEmail = token.email.replace(/^(.{1,2}).*@/, '$1***@');
+  const maskedEmail = auth.token.email.replace(/^(.{1,2}).*@/, '$1***@');
   console.log(
     `[Admin] 환불 처리: orderId=${orderId}, amount=${refundAmount}, reason="${refundReason}", by ${maskedEmail}`
   );
+
+  // 감사 로그 기록
+  await logAuditEvent({
+    admin_email: auth.token.email,
+    action_type: 'refund',
+    target_type: 'order',
+    target_id: orderId,
+    description: `환불 처리: ${refundAmount.toLocaleString()}원, 사유: ${refundReason.trim()}`,
+    ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+    metadata: { orderId, refundAmount, refundReason: refundReason.trim(), refundId: result.refundId },
+  });
 
   // 7. 응답 반환
   return NextResponse.json({

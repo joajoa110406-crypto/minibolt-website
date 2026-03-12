@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { canTransition, STATUS_TIMESTAMP_COLUMN } from '@/lib/order-status';
+import { logAuditEvent } from '@/lib/audit-log';
 
 /**
  * 관리자 주문 상태 변경 API
@@ -21,26 +22,8 @@ export async function PATCH(
   }
 
   // 1. 관리자 인증
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    return NextResponse.json(
-      { error: 'ADMIN_EMAILS 환경변수가 설정되지 않았습니다.' },
-      { status: 500 }
-    );
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 });
-  }
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   // 2. 요청 바디 파싱
   let body: { status?: string; tracking_number?: string };
@@ -141,8 +124,19 @@ export async function PATCH(
   }
 
   console.log(
-    `[Admin] 주문 상태 변경: ${order.order_number} (${order.order_status} → ${newStatus}) by ${token.email}`
+    `[Admin] 주문 상태 변경: ${order.order_number} (${order.order_status} → ${newStatus}) by ${auth.token.email}`
   );
+
+  // 감사 로그 기록
+  await logAuditEvent({
+    admin_email: auth.token.email,
+    action_type: 'order_status',
+    target_type: 'order',
+    target_id: order.order_number,
+    description: `주문 상태 변경: ${order.order_status} → ${newStatus}${tracking_number ? `, 운송장: ${tracking_number}` : ''}`,
+    ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+    metadata: { orderId, previousStatus: order.order_status, newStatus, tracking_number },
+  });
 
   // 8. 상태 변경 이메일 발송 (preparing, shipped, delivered)
   if (['preparing', 'shipped', 'delivered'].includes(newStatus) && order.customer_email) {

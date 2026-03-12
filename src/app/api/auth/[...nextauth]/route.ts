@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import NaverProvider from 'next-auth/providers/naver';
 import KakaoProvider from 'next-auth/providers/kakao';
 import type { NextAuthOptions } from 'next-auth';
+import { getAdminEmails } from '@/lib/admin';
 
 const providers = [];
 if (process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET) {
@@ -28,15 +29,6 @@ if (process.env.KAKAO_CLIENT_ID && process.env.KAKAO_CLIENT_SECRET) {
       clientSecret: process.env.KAKAO_CLIENT_SECRET,
     })
   );
-}
-
-// 관리자 이메일 목록 (쉼표 구분 환경변수)
-function getAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS || '';
-  return raw
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
 }
 
 export const authOptions: NextAuthOptions = {

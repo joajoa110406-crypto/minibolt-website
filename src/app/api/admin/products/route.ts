@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductsFromDB, updateProductPrice } from '@/lib/products.db';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 
 /**
  * GET /api/admin/products - 관리자용 제품 목록 (필터, 정렬, 페이지네이션)
@@ -48,8 +48,9 @@ export async function GET(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const token = await getToken({ req });
-    const changedBy = (token?.email as string) || 'admin';
+    const auth = await checkAdminAuth(req);
+    if (auth.error) return auth.error;
+    const changedBy = auth.token.email;
 
     const body = await req.json();
     const { productId, priceUnit, reason } = body;

@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Product } from '@/types/product';
 import { addToCart, getBulkDiscount, getTotalPrice } from '@/lib/cart';
 import { generateProductName, getCategoryImage, getStockStatus, CATEGORY_TABS } from '@/lib/products';
-import ProductModal from '@/components/ProductModal';
 import ProductCard from '@/components/ProductCard';
+
 
 // JSON 폴백용
 import productsData from '@/data/products.json';
@@ -29,13 +29,15 @@ function ProductsContent() {
   const [filterColor, setFilterColor] = useState('');
   const [filterType, setFilterType] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [toast, setToast] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   // API 응답 상태
   const [apiProducts, setApiProducts] = useState<Product[] | null>(null);
   const [apiFilterOptions, setApiFilterOptions] = useState<FilterOptions | null>(null);
   const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // API에서 제품 조회
@@ -57,23 +59,29 @@ function ProductsContent() {
     if (filterLength) params.set('length', filterLength);
     if (filterColor) params.set('color', filterColor);
 
+    setApiError(false);
+
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     fetch(`/api/products?${params.toString()}`, { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         if (!controller.signal.aborted) {
           setApiProducts(data.products);
           setApiFilterOptions(data.filterOptions);
+          setApiError(false);
           setLoading(false);
         }
       })
       .catch(err => {
         if (err.name !== 'AbortError') {
-          // API 실패 시 JSON 폴백
           setApiProducts(null);
           setApiFilterOptions(null);
+          setApiError(true);
           setLoading(false);
         }
-      });
+      })
+      .finally(() => clearTimeout(timeoutId));
 
     return () => controller.abort();
   }, [mounted, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
@@ -172,23 +180,23 @@ function ProductsContent() {
   // 모든 Hooks 선언 완료 후 조기 반환
   if (!mounted) return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
+      <div className="products-hero" style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>마이크로스크류 선택</h1>
       </div>
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+      <div className="products-container" style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
+        <div className="skeleton-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
           {[1, 2, 3, 4].map(i => (
             <div key={i} style={{ width: 120, height: 44, background: '#e9ecef', borderRadius: 10, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
         <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          <div className="skeleton-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem', height: 320 }}>
-                <div style={{ width: '60%', height: 20, background: '#e9ecef', borderRadius: 4, marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1rem', height: 280 }}>
+                <div style={{ width: '60%', height: 20, background: '#e9ecef', borderRadius: 4, marginBottom: '0.75rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
                 <div style={{ width: '40%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '50%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '1.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '100%', height: 80, background: '#f8f9fa', borderRadius: 8, marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '50%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '100%', height: 60, background: '#f8f9fa', borderRadius: 8, marginBottom: '0.75rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
                 <div style={{ width: '100%', height: 44, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
               </div>
             ))}
@@ -197,20 +205,34 @@ function ProductsContent() {
       </div>
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @media (max-width: 768px) {
+          .skeleton-tabs { flex-wrap: nowrap !important; overflow-x: auto; justify-content: flex-start !important; padding-bottom: 8px; scrollbar-width: none; }
+          .skeleton-tabs::-webkit-scrollbar { display: none; }
+          .skeleton-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
+          .products-container { padding: 1rem 12px !important; }
+          .products-hero { padding: 48px 16px 32px !important; }
+        }
       `}</style>
     </div>
   );
 
+  const activeFilterCount = [filterDiameter, filterLength, filterColor, filterType, search].filter(Boolean).length;
+
   return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
       {/* 페이지 헤더 */}
-      <div style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>마이크로스크류 선택</h1>
+      <div className="products-hero" style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>마이크로스크류 선택</h1>
       </div>
 
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
-        {/* 카테고리 탭 */}
-        <div className="category-tabs" role="tablist" aria-label="제품 카테고리" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }} className="products-container">
+        {/* 카테고리 탭 - 모바일에서 가로 스크롤 */}
+        <div
+          className="category-tabs"
+          ref={tabsRef}
+          role="tablist"
+          aria-label="제품 카테고리"
+        >
           {CATEGORY_TABS.map(tab => (
             <button
               key={tab.key}
@@ -219,83 +241,110 @@ function ProductsContent() {
               aria-selected={activeCategory === tab.key}
               aria-controls="product-tabpanel"
               onClick={() => setActiveCategory(tab.key)}
-              style={{
-                background: activeCategory === tab.key ? '#ff6b35' : '#fff',
-                color: activeCategory === tab.key ? '#fff' : '#333',
-                border: `2px solid ${activeCategory === tab.key ? '#ff6b35' : '#e0e0e0'}`,
-                padding: '0.75rem 1.5rem',
-                borderRadius: 10,
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 600,
-                transition: 'all 0.2s',
-              }}
+              className={`category-tab ${activeCategory === tab.key ? 'active' : ''}`}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        <div id="product-tabpanel" role="tabpanel" aria-labelledby={`tab-${activeCategory}`} style={{ background: '#fff', borderRadius: 15, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div id="product-tabpanel" role="tabpanel" aria-labelledby={`tab-${activeCategory}`} className="product-panel">
           {/* 검색 */}
-          <div style={{ maxWidth: 500, margin: '0 auto 1.5rem', position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#999', fontSize: '1.1rem' }}>🔍</span>
+          <div className="search-wrapper">
+            <span className="search-icon">&#x1F50D;</span>
             <input
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="검색... (예: M2, 블랙, S20)"
-              style={{ width: '100%', padding: '0.9rem 1rem 0.9rem 2.8rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '1rem', outline: 'none' }}
+              className="search-input"
             />
           </div>
 
+          {/* 필터 토글 버튼 (모바일) */}
+          <button
+            className="filter-toggle"
+            onClick={() => setFilterOpen(!filterOpen)}
+            aria-expanded={filterOpen}
+            aria-controls="filter-section"
+          >
+            <span>필터</span>
+            {activeFilterCount > 0 && (
+              <span className="filter-badge">{activeFilterCount}</span>
+            )}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              style={{ transform: filterOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}
+            >
+              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
           {/* 필터 */}
-          <div className="filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
+          <div id="filter-section" className={`filter-grid ${filterOpen ? 'filter-open' : ''}`}>
             {/* 타입 필터 (마이크로스크류/평머리만) */}
             {activeCategory === '마이크로스크류/평머리' && filterOptions.types.length > 0 && (
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>타입</label>
+                <label className="filter-label">타입</label>
                 <select value={filterType} onChange={e => { setFilterType(e.target.value); setFilterDiameter(''); setFilterLength(''); }}
-                  style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
+                  className="filter-select">
                   <option value="">전체</option>
                   {filterOptions.types.map(t => <option key={t} value={t}>{t === 'M' ? 'M/C (머신)' : t === 'T' ? 'T/C (태핑)' : t}</option>)}
                 </select>
               </div>
             )}
             <div>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>직경</label>
+              <label className="filter-label">직경</label>
               <select value={filterDiameter} onChange={e => { setFilterDiameter(e.target.value); setFilterLength(''); }}
-                style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
+                className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.diameters.map(d => <option key={d} value={d}>M{d}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>길이</label>
+              <label className="filter-label">길이</label>
               <select value={filterLength} onChange={e => setFilterLength(e.target.value)}
-                style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
+                className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.lengths.map(l => <option key={l} value={l}>{l}mm</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem' }}>색상</label>
+              <label className="filter-label">색상</label>
               <select value={filterColor} onChange={e => setFilterColor(e.target.value)}
-                style={{ width: '100%', padding: '0.6rem', border: '2px solid #e0e0e0', borderRadius: 8, fontSize: '0.9rem', minHeight: 44 }}>
+                className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.colors.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
 
-          {/* 결과 수 */}
-          <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-            {filtered.length}개 제품
-          </p>
+          {/* API 에러 안내 */}
+          {apiError && (
+            <div role="alert" style={{ background: '#fff8f0', border: '1px solid #ffd4a8', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', color: '#e67e22', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>서버에서 제품을 불러오지 못해 기본 데이터를 표시합니다.</span>
+            </div>
+          )}
+
+          {/* 결과 수 + 필터 초기화 */}
+          <div className="results-bar">
+            <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>
+              {filtered.length}개 제품
+            </p>
+            {(filterDiameter || filterLength || filterColor || filterType || search) && (
+              <button onClick={() => { setSearchInput(''); setFilterDiameter(''); setFilterLength(''); setFilterColor(''); setFilterType(''); }}
+                className="reset-btn">
+                필터 초기화
+              </button>
+            )}
+          </div>
 
           {/* 제품 그리드 */}
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
+            <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#666' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#x1F50D;</div>
               <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>검색 결과가 없습니다</p>
               <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>다른 검색어나 필터를 시도해보세요</p>
               <button onClick={() => { setSearchInput(''); setFilterDiameter(''); setFilterLength(''); setFilterColor(''); setFilterType(''); }}
@@ -304,7 +353,7 @@ function ProductsContent() {
               </button>
             </div>
           ) : (
-            <div className="product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            <div className="product-grid">
               {filtered.map(product => (
                 <ProductCard
                   key={product.id}
@@ -314,7 +363,6 @@ function ProductsContent() {
                   onBlockChange={(size) => setBlock(product.id, size)}
                   onBlockCountChange={(count) => setBlockCount(product.id, count)}
                   onAddToCart={() => handleAddToCart(product)}
-                  onShowDetail={() => setModalProduct(product)}
                 />
               ))}
             </div>
@@ -322,35 +370,289 @@ function ProductsContent() {
         </div>
       </div>
 
-      {/* 제품 상세 모달 */}
-      {modalProduct && (
-        <ProductModal product={modalProduct} onClose={() => setModalProduct(null)} />
-      )}
-
       {/* 토스트 */}
       {toast && (
-        <div role="status" aria-live="polite" aria-atomic="true" style={{
-          position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
-          background: '#1a1a1a', color: '#fff', padding: '0.85rem 1.5rem',
-          borderRadius: 10, fontSize: '0.9rem', zIndex: 2000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 40px)',
-          textAlign: 'center',
-        }}>
-          ✅ {toast}
+        <div role="status" aria-live="polite" aria-atomic="true" className="cart-toast">
+          {toast}
         </div>
       )}
 
       <style>{`
+        /* ===== 수량 입력 스핀버튼 제거 ===== */
         .qty-input::-webkit-inner-spin-button,
         .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .qty-input { -moz-appearance: textfield; }
-        @media (max-width: 640px) {
-          .product-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+
+        /* ===== 히어로 헤더 ===== */
+        .products-hero {
+          padding: 60px 20px 40px;
         }
-        @media (max-width: 480px) {
-          .category-tabs { gap: 0.5rem !important; }
-          .category-tabs button { padding: 0.6rem 1rem !important; font-size: 0.9rem !important; }
-          .filter-grid { grid-template-columns: 1fr 1fr !important; }
+
+        /* ===== 카테고리 탭: 가로 스크롤 + 스냅 ===== */
+        .category-tabs {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          justify-content: center;
+          margin-bottom: 2rem;
+        }
+        .category-tab {
+          background: #fff;
+          color: #333;
+          border: 2px solid #e0e0e0;
+          padding: 0.75rem 1.5rem;
+          border-radius: 10px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 600;
+          transition: all 0.2s;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .category-tab.active {
+          background: #ff6b35;
+          color: #fff;
+          border-color: #ff6b35;
+        }
+
+        /* ===== 제품 패널 ===== */
+        .product-panel {
+          background: #fff;
+          border-radius: 15px;
+          padding: 2rem;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        /* ===== 검색 ===== */
+        .search-wrapper {
+          max-width: 500px;
+          margin: 0 auto 1.5rem;
+          position: relative;
+        }
+        .search-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #999;
+          font-size: 1.1rem;
+          pointer-events: none;
+        }
+        .search-input {
+          width: 100%;
+          padding: 0.9rem 1rem 0.9rem 2.8rem;
+          border: 2px solid #e0e0e0;
+          border-radius: 8px;
+          font-size: 1rem;
+          outline: none;
+          box-sizing: border-box;
+          transition: border-color 0.2s;
+        }
+        .search-input:focus {
+          border-color: #ff6b35;
+        }
+
+        /* ===== 필터 토글 (모바일에서만 표시) ===== */
+        .filter-toggle {
+          display: none;
+        }
+
+        /* ===== 필터 그리드 ===== */
+        .filter-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+          padding: 1rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+        }
+        .filter-label {
+          display: block;
+          font-weight: 600;
+          margin-bottom: 0.4rem;
+          font-size: 0.85rem;
+          color: #333;
+        }
+        .filter-select {
+          width: 100%;
+          padding: 0.6rem;
+          border: 2px solid #e0e0e0;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          min-height: 44px;
+          background: #fff;
+          cursor: pointer;
+          -webkit-appearance: none;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          padding-right: 28px;
+        }
+
+        /* ===== 결과 바 ===== */
+        .results-bar {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+        }
+        .reset-btn {
+          background: #f0f0f0;
+          color: #666;
+          border: none;
+          padding: 0.35rem 0.8rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.8rem;
+          font-weight: 600;
+        }
+
+        /* ===== 제품 그리드 ===== */
+        .product-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1.5rem;
+        }
+
+        /* ===== 토스트 ===== */
+        .cart-toast {
+          position: fixed;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1a1a1a;
+          color: #fff;
+          padding: 0.85rem 1.5rem;
+          border-radius: 10px;
+          font-size: 0.9rem;
+          z-index: 2000;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          max-width: calc(100vw - 40px);
+          text-align: center;
+        }
+
+        /* ===== 모바일 최적화 (768px 이하) ===== */
+        @media (max-width: 768px) {
+          .products-hero {
+            padding: 48px 16px 32px !important;
+          }
+          .products-hero h1 {
+            font-size: 1.5rem !important;
+          }
+          .products-container {
+            padding: 1rem 12px !important;
+          }
+
+          /* 카테고리 탭: 가로 스크롤 + 스냅 */
+          .category-tabs {
+            flex-wrap: nowrap !important;
+            justify-content: flex-start !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 0 4px 8px;
+            margin-bottom: 1rem !important;
+            gap: 0.5rem !important;
+          }
+          .category-tabs::-webkit-scrollbar {
+            display: none;
+          }
+          .category-tab {
+            scroll-snap-align: start;
+            padding: 0.6rem 1rem !important;
+            font-size: 0.85rem !important;
+            border-radius: 8px !important;
+            min-width: fit-content;
+          }
+
+          /* 패널 */
+          .product-panel {
+            padding: 1rem !important;
+            border-radius: 12px !important;
+          }
+
+          /* 검색 */
+          .search-wrapper {
+            margin-bottom: 1rem !important;
+          }
+          .search-input {
+            padding: 0.75rem 1rem 0.75rem 2.5rem !important;
+            font-size: 0.95rem !important;
+          }
+
+          /* 필터 토글 버튼 표시 */
+          .filter-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.75rem;
+            min-height: 44px;
+          }
+          .filter-badge {
+            background: #ff6b35;
+            color: #fff;
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1.4;
+          }
+
+          /* 필터: 기본 숨김, 펼침 시 표시 */
+          .filter-grid {
+            display: none !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 0.5rem !important;
+            padding: 0.75rem !important;
+            margin-bottom: 0.75rem !important;
+          }
+          .filter-grid.filter-open {
+            display: grid !important;
+          }
+
+          /* 결과 바 */
+          .results-bar {
+            margin-bottom: 1rem !important;
+          }
+
+          /* 제품 그리드: 모바일 2열 */
+          .product-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.75rem !important;
+          }
+
+          /* 토스트 */
+          .cart-toast {
+            bottom: 20px !important;
+            font-size: 0.8rem !important;
+            padding: 0.7rem 1rem !important;
+          }
+        }
+
+        /* ===== 매우 작은 화면 (360px 이하) ===== */
+        @media (max-width: 360px) {
+          .product-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.5rem !important;
+          }
+          .products-container {
+            padding: 0.75rem 8px !important;
+          }
         }
       `}</style>
     </div>

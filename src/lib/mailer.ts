@@ -20,6 +20,9 @@ import {
   buildContactAutoReplyEmail,
   buildContactReceivedEmail,
   buildContactAdminReplyEmail,
+  buildReorderReminderEmail,
+  buildDeliveryFollowUpEmail,
+  buildDormantCustomerEmail,
 } from '@/lib/mailer-templates';
 import type {
   PaymentFailureData,
@@ -37,6 +40,9 @@ import type {
   ContactAutoReplyEmailData,
   ContactReceivedEmailData,
   ContactAdminReplyEmailData,
+  ReorderReminderData,
+  DeliveryFollowUpData,
+  DormantCustomerData,
 } from '@/lib/mailer-templates';
 
 // ─── 공통 유틸리티 ──────────────────────────────────────────────
@@ -184,7 +190,8 @@ export async function sendOrderNotification(data: OrderEmailData) {
       html: customerHtml,
     });
   } catch (err) {
-    console.warn('[mailer] 주문 확인 메일 발송 오류:', err);
+    console.error('[mailer] 주문 확인 메일 발송 오류:', err);
+    throw err;
   }
 }
 
@@ -733,5 +740,73 @@ export async function sendContactAdminReplyEmail(
     });
   } catch (err) {
     console.warn('[mailer] 문의 답변 메일 발송 오류:', err);
+  }
+}
+
+// ─── 재구매 유도 이메일 ──────────────────────────────────────
+
+export async function sendReorderReminderEmail(
+  customerEmail: string,
+  data: ReorderReminderData
+): Promise<void> {
+  if (!isSmtpConfigured()) {
+    console.warn('[mailer] SMTP 설정 없음, 재주문 리마인더 메일 발송 건너뜀');
+    return;
+  }
+
+  try {
+    const transporter = createTransport();
+    await transporter.sendMail({
+      from: `"MiniBolt" <${process.env.SMTP_USER}>`,
+      to: customerEmail,
+      subject: `[MiniBolt] ${data.buyerName}님, 재주문 시점이 다가왔습니다`,
+      html: buildReorderReminderEmail(data),
+    });
+  } catch (err) {
+    console.warn('[mailer] 재주문 리마인더 메일 발송 오류:', err);
+  }
+}
+
+export async function sendDeliveryFollowUpEmail(
+  customerEmail: string,
+  data: DeliveryFollowUpData
+): Promise<void> {
+  if (!isSmtpConfigured()) {
+    console.warn('[mailer] SMTP 설정 없음, 배송 후속 메일 발송 건너뜀');
+    return;
+  }
+
+  try {
+    const transporter = createTransport();
+    await transporter.sendMail({
+      from: `"MiniBolt" <${process.env.SMTP_USER}>`,
+      to: customerEmail,
+      subject: `[MiniBolt] 제품 수령 확인 - ${data.orderNumber}`,
+      html: buildDeliveryFollowUpEmail(data),
+    });
+  } catch (err) {
+    console.warn('[mailer] 배송 후속 메일 발송 오류:', err);
+  }
+}
+
+export async function sendDormantCustomerEmail(
+  customerEmail: string,
+  data: DormantCustomerData
+): Promise<void> {
+  if (!isSmtpConfigured()) {
+    console.warn('[mailer] SMTP 설정 없음, 휴면 고객 메일 발송 건너뜀');
+    return;
+  }
+
+  try {
+    const transporter = createTransport();
+    await transporter.sendMail({
+      from: `"MiniBolt" <${process.env.SMTP_USER}>`,
+      to: customerEmail,
+      subject: `[MiniBolt] ${data.buyerName}님, 오랜만입니다!`,
+      html: buildDormantCustomerEmail(data),
+    });
+  } catch (err) {
+    console.warn('[mailer] 휴면 고객 메일 발송 오류:', err);
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendReturnApprovedEmail, sendReturnRejectedEmail } from '@/lib/mailer';
 
@@ -19,8 +19,9 @@ export async function PATCH(
     return NextResponse.json({ error: '유효하지 않은 ID 형식입니다.' }, { status: 400 });
   }
 
-  const token = await getToken({ req: request });
-  const adminEmail = token?.email || '';
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
+  const adminEmail = auth.token.email;
 
   let body: { action?: string; rejectionReason?: string };
   try {

@@ -74,19 +74,27 @@ export default function TermsPage() {
         <Section title="제7조 (배송)">
           <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>① 회사는 이용자와 배송방법에 관한 별도 약정이 없는 이상, 이용자가 선택한 배송방법으로 구매확정일로부터 영업일 기준 2~3일 이내에 배송합니다.</p>
           <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>② 기본 배송비는 3,000원이며, 상품 금액이 50,000원 이상인 경우 무료 배송합니다.</p>
-          <p style={{ lineHeight: 1.8 }}>③ 도서산간 지역의 경우 추가 배송비 5,000원이 부과됩니다.</p>
+          <p style={{ lineHeight: 1.8 }}>③ 도서산간 지역의 경우 추가 배송비 3,000원이 부과됩니다.</p>
         </Section>
 
         <Section title="제8조 (청약철회 등)">
-          <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>① 이용자는 구매계약을 체결한 날부터 7일 이내에 청약의 철회를 할 수 있습니다.</p>
-          <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>② 이용자는 재화 등을 배송 받은 경우 다음 각 호의 1에 해당하는 경우에는 반품 및 교환을 할 수 없습니다.</p>
+          <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>① 이용자는 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조에 따라 재화 등을 공급받은 날부터 7일 이내에 청약의 철회를 할 수 있습니다.</p>
+          <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>② 이용자는 재화 등을 배송 받은 경우 다음 각 호의 1에 해당하는 경우에는 「전자상거래 등에서의 소비자보호에 관한 법률 시행령」 제21조에 따라 반품 및 교환이 제한됩니다.</p>
           <ol style={{ paddingLeft: '1.5rem', lineHeight: 2 }}>
-            <li>이용자에게 책임 있는 사유로 재화 등이 멸실 또는 훼손된 경우</li>
+            <li>이용자에게 책임 있는 사유로 재화 등이 멸실 또는 훼손된 경우 (다만, 재화 등의 내용을 확인하기 위하여 포장 등을 훼손한 경우는 제외)</li>
             <li>이용자의 사용 또는 일부 소비에 의하여 재화 등의 가치가 현저히 감소한 경우</li>
-            <li>나사류 특성상 개봉 후 수량 확인 및 품질 보증이 불가하여 개봉된 제품</li>
-            <li>맞춤 제작 제품</li>
+            <li>시간의 경과에 의하여 재판매가 곤란할 정도로 재화 등의 가치가 현저히 감소한 경우</li>
+            <li>복제가 가능한 재화 등의 포장을 훼손한 경우</li>
+            <li>이용자의 주문에 의하여 개별적으로 생산되는 재화로서 청약철회 제한에 대하여 사전 고지한 경우</li>
           </ol>
-          <p style={{ lineHeight: 1.8, marginTop: '0.75rem' }}>③ 불량품의 경우, 수령일로부터 7일 이내에 100% 교환합니다.</p>
+          <p style={{ lineHeight: 1.8, marginTop: '0.75rem' }}>③ 제품 하자(불량)의 경우, 수령일로부터 7일 이내에 100% 교환 또는 환불 처리합니다.</p>
+          <p style={{ lineHeight: 1.8, marginTop: '0.5rem' }}>④ 청약철회 시 반환에 필요한 비용은 이용자에게 귀책사유가 있는 경우 이용자가 부담하고, 제품 하자의 경우 회사가 부담합니다.</p>
+        </Section>
+
+        <Section title="제8조의2 (미성년자 보호)">
+          <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>① 미성년자가 재화 또는 용역을 구매하고자 하는 경우, 법정대리인의 동의를 얻어야 합니다.</p>
+          <p style={{ lineHeight: 1.8, marginBottom: '0.75rem' }}>② 법정대리인의 동의 없이 미성년자가 체결한 계약은 미성년자 본인 또는 법정대리인이 취소할 수 있습니다.</p>
+          <p style={{ lineHeight: 1.8 }}>③ 본 쇼핑몰은 B2B(기업 간 거래) 성격의 산업용 부품을 판매하므로, 만 14세 미만의 아동은 서비스를 이용할 수 없습니다.</p>
         </Section>
 
         <Section title="제9조 (개인정보 보호)">
@@ -100,7 +108,7 @@ export default function TermsPage() {
 
         <div style={{ marginTop: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8, fontSize: '0.875rem', color: '#666' }}>
           <strong>사업자 정보:</strong> 미니볼트 | 대표: 김민수 | 사업자등록번호: 279-52-00982<br />
-          통신판매업 신고번호: 2025-경기시흥-3264 | 주소: 경기도 시흥시 미산동 87-3<br />
+          통신판매업 신고번호: 2025-경기시흥-3264 | 주소: 경기도 시흥시 신현로38번길 23 태산아파트 3동 1108호<br />
           고객센터: 010-9006-5846 | contact@minibolt.co.kr
         </div>
       </div>

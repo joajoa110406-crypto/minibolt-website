@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { logAuditEvent } from '@/lib/audit-log';
 
 /**
  * 관리자 재고 개별 수정 API
@@ -19,27 +20,8 @@ export async function PATCH(
   }
 
   // 1. 관리자 인증
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    console.error('[Admin Inventory] ADMIN_EMAILS 환경변수가 설정되지 않았습니다.');
-    return NextResponse.json(
-      { error: '서버 설정 오류입니다. 관리자에게 문의하세요.' },
-      { status: 500 }
-    );
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 });
-  }
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   try {
     const supabase = getSupabaseAdmin();
@@ -61,6 +43,16 @@ export async function PATCH(
           { status: 500 }
         );
       }
+
+      await logAuditEvent({
+        admin_email: auth.token.email,
+        action_type: 'inventory',
+        target_type: 'product_stock',
+        target_id: productId,
+        description: `재고 임계값 변경: ${threshold}`,
+        ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+        metadata: { productId, threshold },
+      });
 
       return NextResponse.json({ ok: true, message: '임계값이 변경되었습니다.' });
     }
@@ -122,6 +114,16 @@ export async function PATCH(
           reason,
         });
 
+        await logAuditEvent({
+          admin_email: auth.token.email,
+          action_type: 'inventory',
+          target_type: 'product_stock',
+          target_id: productId,
+          description: `재고 생성: ${adjust}개 (사유: ${reason})`,
+          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+          metadata: { productId, adjust, reason, newStock: adjust },
+        });
+
         return NextResponse.json({
           ok: true,
           message: '재고가 생성되었습니다.',
@@ -168,6 +170,16 @@ export async function PATCH(
         product_id: productId,
         qty_change: adjust,
         reason,
+      });
+
+      await logAuditEvent({
+        admin_email: auth.token.email,
+        action_type: 'inventory',
+        target_type: 'product_stock',
+        target_id: productId,
+        description: `재고 조정: ${current.current_stock} → ${newStock} (${adjust > 0 ? '+' : ''}${adjust}, 사유: ${reason})`,
+        ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+        metadata: { productId, previousStock: current.current_stock, newStock, adjust, reason },
       });
 
       return NextResponse.json({

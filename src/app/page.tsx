@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import RecentlyViewed from '@/components/RecentlyViewed';
 
 const categories = [
   {
@@ -77,31 +78,83 @@ const features = [
 export default function HomePage() {
   return (
     <>
-      {/* 히어로 */}
-      <section style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '100px 20px 80px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 700, marginBottom: '1rem' }}>
+      {/* 히어로 - 모바일: 줄인 패딩, 적절한 텍스트 크기, 충분한 CTA 터치 영역 */}
+      <section className="safe-area-padding" style={{
+        background: 'linear-gradient(135deg, #2c3e50, #34495e)',
+        color: '#fff',
+        padding: 'clamp(60px, 10vw, 100px) clamp(16px, 4vw, 20px) clamp(48px, 8vw, 80px)',
+        textAlign: 'center',
+      }}>
+        <h1 style={{
+          fontSize: 'clamp(1.75rem, 5vw, 3rem)',
+          fontWeight: 700,
+          marginBottom: '0.75rem',
+          lineHeight: 1.3,
+        }}>
           마이크로 스크류 전문, Mini Bolt
         </h1>
-        <p style={{ fontSize: '1.2rem', color: '#ccc', marginBottom: '0.5rem' }}>
+        <p style={{
+          fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
+          color: '#ccc',
+          marginBottom: '0.5rem',
+          lineHeight: 1.6,
+        }}>
           개발자와 기업을 위한 고품질 마이크로 스크류
         </p>
-        <p style={{ fontSize: '1rem', color: '#aaa', marginBottom: '2rem' }}>
-          💰 합리적인 가격, 폭넓은 소형 스크류 라인업
+        <p style={{
+          fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+          color: '#aaa',
+          marginBottom: 'clamp(1.5rem, 4vw, 2rem)',
+        }}>
+          합리적인 가격, 폭넓은 소형 스크류 라인업
         </p>
         <Link
           href="/products"
-          style={{ background: '#ff6b35', color: '#fff', padding: '1rem 2.5rem', borderRadius: 8, textDecoration: 'none', fontSize: '1.1rem', fontWeight: 600, display: 'inline-block', minHeight: 48 }}
+          style={{
+            background: '#ff6b35',
+            color: '#fff',
+            padding: '0.875rem 2rem',
+            borderRadius: 8,
+            textDecoration: 'none',
+            fontSize: 'clamp(1rem, 2.5vw, 1.1rem)',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 52,
+            minWidth: 180,
+          }}
         >
           제품 둘러보기
         </Link>
       </section>
 
-      {/* 카테고리 */}
-      <section style={{ padding: '4rem 20px', background: '#f5f5f5' }}>
+      {/* 카테고리 - 모바일: 2열 그리드, 줄인 간격 */}
+      <section style={{
+        padding: 'clamp(2.5rem, 6vw, 4rem) clamp(12px, 3vw, 20px)',
+        background: '#f5f5f5',
+      }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '0.5rem' }}>제품 카테고리</h2>
-          <p style={{ textAlign: 'center', color: '#666', marginBottom: '2.5rem' }}>다양한 헤드 타입과 규격을 준비했습니다</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
+          <h2 style={{
+            textAlign: 'center',
+            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            marginBottom: '0.5rem',
+          }}>
+            제품 카테고리
+          </h2>
+          <p style={{
+            textAlign: 'center',
+            color: '#666',
+            marginBottom: 'clamp(1.5rem, 4vw, 2.5rem)',
+            fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+          }}>
+            다양한 헤드 타입과 규격을 준비했습니다
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))',
+            gap: 'clamp(0.75rem, 2vw, 1.5rem)',
+          }}>
             {categories.map(cat => (
               <Link
                 key={cat.title}
@@ -117,7 +170,18 @@ export default function HomePage() {
                   height: '100%',
                 }}>
                   {cat.featured && (
-                    <span style={{ position: 'absolute', top: 10, left: 10, background: '#ff6b35', color: '#fff', padding: '2px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, zIndex: 1 }}>
+                    <span style={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 10,
+                      background: '#ff6b35',
+                      color: '#fff',
+                      padding: '4px 12px',
+                      borderRadius: 20,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      zIndex: 1,
+                    }}>
                       주력
                     </span>
                   )}
@@ -126,11 +190,24 @@ export default function HomePage() {
                     alt={cat.alt}
                     width={400}
                     height={180}
-                    style={{ width: '100%', height: 180, objectFit: 'cover' }}
+                    style={{ width: '100%', height: 'clamp(140px, 20vw, 180px)', objectFit: 'cover' }}
                   />
-                  <div style={{ padding: '1.2rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>{cat.title}</h3>
-                    <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '0.75rem' }}>{cat.desc}</p>
+                  <div style={{ padding: 'clamp(0.875rem, 2vw, 1.2rem)' }}>
+                    <h3 style={{
+                      fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
+                      fontWeight: 700,
+                      marginBottom: '0.4rem',
+                    }}>
+                      {cat.title}
+                    </h3>
+                    <p style={{
+                      color: '#666',
+                      fontSize: 'clamp(0.825rem, 2vw, 0.9rem)',
+                      marginBottom: '0.5rem',
+                      lineHeight: 1.5,
+                    }}>
+                      {cat.desc}
+                    </p>
                     <p style={{ fontSize: '0.8rem', color: '#888' }}>{cat.specs}</p>
                   </div>
                 </div>
@@ -140,49 +217,132 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 회사소개 */}
-      <section style={{ background: '#2c3e50', color: '#fff', padding: '5rem 20px' }}>
+      {/* 회사소개 - 모바일: 줄인 패딩, 반응형 텍스트 */}
+      <section style={{
+        background: '#2c3e50',
+        color: '#fff',
+        padding: 'clamp(3rem, 6vw, 5rem) clamp(16px, 3vw, 20px)',
+      }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <span style={{ background: '#ff6b35', color: '#fff', padding: '4px 16px', borderRadius: 20, fontSize: '0.8rem', fontWeight: 600 }}>
+          <div style={{ textAlign: 'center', marginBottom: 'clamp(2rem, 4vw, 3rem)' }}>
+            <span style={{
+              background: '#ff6b35',
+              color: '#fff',
+              padding: '4px 16px',
+              borderRadius: 20,
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              display: 'inline-block',
+            }}>
               COMPANY PROFILE
             </span>
-            <h2 style={{ fontSize: '2rem', marginTop: '1rem', marginBottom: '1rem' }}>39년 경험의 제조사 직접 판매</h2>
-            <p style={{ color: '#ccc', lineHeight: 1.8 }}>
-              MINIBOLT는 1987년부터 소형 정밀 나사를 생산해온 <strong style={{ color: '#fff' }}>성원특수금속</strong>의 온라인 채널입니다.<br />
+            <h2 style={{
+              fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+              marginTop: '1rem',
+              marginBottom: '1rem',
+            }}>
+              39년 경험의 제조사 직접 판매
+            </h2>
+            <p style={{
+              color: '#ccc',
+              lineHeight: 1.8,
+              fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+              maxWidth: 600,
+              margin: '0 auto',
+            }}>
+              MINIBOLT는 1987년부터 소형 정밀 나사를 생산해온 <strong style={{ color: '#fff' }}>성원특수금속</strong>의 온라인 채널입니다.
               제조사가 직접 운영하기 때문에 중간 유통 단계 없이 합리적인 가격으로 제공합니다.
             </p>
           </div>
 
-          {/* 통계 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '2rem', marginBottom: '3rem', textAlign: 'center' }}>
+          {/* 통계 - 모바일: 2열 그리드, 줄인 텍스트 */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 45%), 1fr))',
+            gap: 'clamp(1rem, 3vw, 2rem)',
+            marginBottom: 'clamp(2rem, 4vw, 3rem)',
+            textAlign: 'center',
+          }}>
             {stats.map(s => (
               <div key={s.label}>
-                <div style={{ fontSize: '2.5rem', fontWeight: 700, color: '#ff6b35' }}>{s.value}</div>
-                <div style={{ color: '#ccc', marginTop: '0.5rem', fontSize: '0.9rem' }}>{s.label}</div>
+                <div style={{
+                  fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
+                  fontWeight: 700,
+                  color: '#ff6b35',
+                }}>
+                  {s.value}
+                </div>
+                <div style={{
+                  color: '#ccc',
+                  marginTop: '0.35rem',
+                  fontSize: 'clamp(0.8rem, 2vw, 0.9rem)',
+                }}>
+                  {s.label}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* 강점 카드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
+          {/* 강점 카드 - 모바일: 1열, 줄인 패딩 */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
+            gap: 'clamp(0.75rem, 2vw, 1.5rem)',
+          }}>
             {strengths.map(s => (
-              <div key={s.title} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '1.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>{s.icon}</div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>{s.title}</h3>
-                <p style={{ color: '#ccc', fontSize: '0.9rem', lineHeight: 1.7 }}>{s.desc}</p>
+              <div key={s.title} style={{
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: 12,
+                padding: 'clamp(1.125rem, 3vw, 1.5rem)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}>
+                <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>{s.icon}</div>
+                <h3 style={{
+                  fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
+                  fontWeight: 700,
+                  marginBottom: '0.5rem',
+                }}>
+                  {s.title}
+                </h3>
+                <p style={{
+                  color: '#ccc',
+                  fontSize: 'clamp(0.825rem, 2vw, 0.9rem)',
+                  lineHeight: 1.7,
+                }}>
+                  {s.desc}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 가격 */}
-      <section style={{ padding: '4rem 20px', background: '#f5f5f5' }}>
+      {/* 가격 - 모바일: 1열, 줄인 패딩 */}
+      <section style={{
+        padding: 'clamp(2.5rem, 6vw, 4rem) clamp(12px, 3vw, 20px)',
+        background: '#f5f5f5',
+      }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '0.5rem' }}>합리적인 가격</h2>
-          <p style={{ textAlign: 'center', color: '#888', fontSize: '0.9rem', marginBottom: '2rem' }}>* 모든 가격은 VAT 포함</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+          <h2 style={{
+            textAlign: 'center',
+            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            marginBottom: '0.5rem',
+          }}>
+            합리적인 가격
+          </h2>
+          <p style={{
+            textAlign: 'center',
+            color: '#888',
+            fontSize: 'clamp(0.825rem, 2vw, 0.9rem)',
+            marginBottom: 'clamp(1.5rem, 3vw, 2rem)',
+          }}>
+            * 표시 가격은 VAT 포함 (공급가 + 부가세 10%)
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))',
+            gap: 'clamp(1rem, 2vw, 1.5rem)',
+          }}>
             {[
               { title: '소량 구매', qty: '100개', price: '₩3,300~', desc: '기본 단위', popular: false },
               { title: '인기', qty: '1,000개', price: '₩6,600~', desc: '개당 7~20원', popular: true },
@@ -191,19 +351,31 @@ export default function HomePage() {
               <div key={p.title} style={{
                 background: '#fff',
                 borderRadius: 12,
-                padding: '2rem',
+                padding: 'clamp(1.25rem, 3vw, 2rem)',
                 textAlign: 'center',
                 border: p.popular ? '3px solid #ff6b35' : '2px solid #e0e0e0',
                 position: 'relative',
               }}>
                 {p.popular && (
-                  <span style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#ff6b35', color: '#fff', padding: '2px 16px', borderRadius: 20, fontSize: '0.8rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  <span style={{
+                    position: 'absolute',
+                    top: -12,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: '#ff6b35',
+                    color: '#fff',
+                    padding: '2px 16px',
+                    borderRadius: 20,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}>
                     추천
                   </span>
                 )}
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>{p.title}</h3>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#333', marginBottom: '0.5rem' }}>{p.qty}</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#ff6b35', marginBottom: '0.5rem' }}>{p.price}</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem' }}>{p.title}</h3>
+                <div style={{ fontSize: 'clamp(1.2rem, 3vw, 1.4rem)', fontWeight: 700, color: '#333', marginBottom: '0.4rem' }}>{p.qty}</div>
+                <div style={{ fontSize: 'clamp(1.3rem, 3.5vw, 1.6rem)', fontWeight: 700, color: '#ff6b35', marginBottom: '0.4rem' }}>{p.price}</div>
                 <p style={{ color: '#888', fontSize: '0.85rem' }}>{p.desc}</p>
               </div>
             ))}
@@ -211,31 +383,96 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 구매 혜택 */}
-      <section style={{ padding: '4rem 20px' }}>
+      {/* 구매 혜택 - 모바일: 1열, 줄인 간격 */}
+      <section style={{
+        padding: 'clamp(2.5rem, 6vw, 4rem) clamp(12px, 3vw, 20px)',
+      }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '2.5rem' }}>구매 혜택</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+          <h2 style={{
+            textAlign: 'center',
+            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            marginBottom: 'clamp(1.5rem, 4vw, 2.5rem)',
+          }}>
+            구매 혜택
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))',
+            gap: 'clamp(0.75rem, 2vw, 1.5rem)',
+          }}>
             {features.map(f => (
-              <div key={f.title} style={{ background: '#f8f9fa', borderRadius: 12, padding: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+              <div key={f.title} style={{
+                background: '#f8f9fa',
+                borderRadius: 12,
+                padding: 'clamp(1.125rem, 3vw, 1.5rem)',
+              }}>
+                <h3 style={{
+                  fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
+                  fontWeight: 700,
+                  marginBottom: '0.5rem',
+                }}>
                   <span style={{ marginRight: '0.5rem' }}>{f.icon}</span>{f.title}
                 </h3>
-                <p style={{ color: '#666', fontSize: '0.9rem', lineHeight: 1.7 }}>{f.desc}</p>
+                <p style={{
+                  color: '#666',
+                  fontSize: 'clamp(0.825rem, 2vw, 0.9rem)',
+                  lineHeight: 1.7,
+                }}>
+                  {f.desc}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 문의 */}
-      <section style={{ background: '#2c3e50', color: '#fff', padding: '4rem 20px', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>주문 및 견적 문의</h2>
-        <p style={{ color: '#ccc', marginBottom: '1.5rem' }}>30,000개 이상 대량 구매 또는 맞춤 제작 상담</p>
-        <div style={{ fontSize: '2rem', fontWeight: 700, color: '#ff6b35', marginBottom: '1rem' }}>
-          📞 010-9006-5846
-        </div>
-        <p style={{ color: '#aaa' }}>평일 09:00 – 18:00 (주말 및 공휴일 휴무)</p>
+      {/* 최근 본 상품 */}
+      <RecentlyViewed />
+
+      {/* 문의 - 모바일: 줄인 텍스트, 전화번호 터치 가능 */}
+      <section className="safe-area-bottom" style={{
+        background: '#2c3e50',
+        color: '#fff',
+        padding: 'clamp(2.5rem, 6vw, 4rem) clamp(16px, 3vw, 20px)',
+        textAlign: 'center',
+      }}>
+        <h2 style={{
+          fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+          marginBottom: '0.75rem',
+        }}>
+          주문 및 견적 문의
+        </h2>
+        <p style={{
+          color: '#ccc',
+          marginBottom: '1.25rem',
+          fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+        }}>
+          30,000개 이상 대량 구매 또는 맞춤 제작 상담
+        </p>
+        <a
+          href="tel:01090065846"
+          style={{
+            fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+            fontWeight: 700,
+            color: '#ff6b35',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 52,
+            minWidth: 48,
+            textDecoration: 'none',
+            gap: '0.5rem',
+            marginBottom: '0.75rem',
+          }}
+        >
+          010-9006-5846
+        </a>
+        <p style={{
+          color: '#aaa',
+          fontSize: 'clamp(0.8rem, 2vw, 0.9rem)',
+        }}>
+          평일 09:00 - 18:00 (주말 및 공휴일 휴무)
+        </p>
       </section>
     </>
   );

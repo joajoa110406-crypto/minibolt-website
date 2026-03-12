@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 /**
@@ -20,27 +20,8 @@ export async function PATCH(
   }
 
   // 1. 관리자 인증
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    console.error('[Admin Tax Invoice] ADMIN_EMAILS 환경변수가 설정되지 않았습니다.');
-    return NextResponse.json(
-      { error: '서버 설정 오류입니다. 관리자에게 문의하세요.' },
-      { status: 500 }
-    );
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 });
-  }
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   // 2. 요청 바디 파싱
   let body: { status?: string; issuedBy?: string; notes?: string };
@@ -111,7 +92,7 @@ export async function PATCH(
       );
     }
 
-    const maskedEmail = token.email.replace(/^(.{1,2}).*@/, '$1***@');
+    const maskedEmail = auth.token.email.replace(/^(.{1,2}).*@/, '$1***@');
     console.log(
       `[Admin Tax Invoice] 발행 완료: ${invoice.order_number} by ${maskedEmail}`
     );

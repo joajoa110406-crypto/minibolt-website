@@ -88,13 +88,13 @@ export default function RefundPage() {
           <p style={{ fontSize: '0.9rem', color: '#555', lineHeight: 1.8 }}>
             전화: 010-9006-5846 (평일 09:00~18:00)<br />
             이메일: contact@minibolt.co.kr<br />
-            반품 주소: 경기도 시흥시 미산동 87-3
+            반품 주소: 경기도 시흥시 신현로38번길 23 태산아파트 3동 1108호
           </p>
         </div>
 
         <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8, fontSize: '0.875rem', color: '#666' }}>
           <strong>사업자 정보:</strong> 미니볼트 | 대표: 김민수 | 사업자등록번호: 279-52-00982<br />
-          통신판매업 신고번호: 2025-경기시흥-3264 | 주소: 경기도 시흥시 미산동 87-3
+          통신판매업 신고번호: 2025-경기시흥-3264 | 주소: 경기도 시흥시 신현로38번길 23 태산아파트 3동 1108호
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { downloadBackup, deleteBackup } from '@/lib/backup.server';
 
 /**
@@ -10,30 +10,6 @@ import { downloadBackup, deleteBackup } from '@/lib/backup.server';
  *
  * [id]는 URL-encoded 파일명 (예: orders-20260310-090000.json)
  */
-
-// ─── 관리자 인증 헬퍼 ──────────────────────────────────────────
-
-async function verifyAdmin(request: NextRequest): Promise<{ ok: true } | { ok: false; response: NextResponse }> {
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return { ok: false, response: NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 }) };
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    return { ok: false, response: NextResponse.json({ error: '서버 설정 오류입니다.' }, { status: 500 }) };
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return { ok: false, response: NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 }) };
-  }
-
-  return { ok: true };
-}
 
 // ─── 파일명 검증 (경로 탐색 방지) ─────────────────────────────
 
@@ -56,8 +32,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await verifyAdmin(request);
-  if (!auth.ok) return auth.response;
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   const { id } = await params;
   const filename = validateFilename(id);
@@ -88,8 +64,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await verifyAdmin(request);
-  if (!auth.ok) return auth.response;
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   const { id } = await params;
   const filename = validateFilename(id);

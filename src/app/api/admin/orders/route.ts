@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { escapeILikeWildcard } from '@/lib/validation';
 
 /**
  * 관리자 주문 목록 API
@@ -12,26 +13,8 @@ import { getSupabaseAdmin } from '@/lib/supabase';
  */
 export async function GET(request: NextRequest) {
   // 1. 관리자 인증
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    return NextResponse.json(
-      { error: 'ADMIN_EMAILS 환경변수가 설정되지 않았습니다.' },
-      { status: 500 }
-    );
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 });
-  }
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   try {
     const supabase = getSupabaseAdmin();
@@ -58,8 +41,9 @@ export async function GET(request: NextRequest) {
         q = q.eq('payment_status', paymentStatus);
       }
       if (search) {
+        const escaped = escapeILikeWildcard(search);
         q = q.or(
-          `order_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`
+          `order_number.ilike.%${escaped}%,customer_name.ilike.%${escaped}%,customer_phone.ilike.%${escaped}%`
         );
       }
       if (dateFrom) {

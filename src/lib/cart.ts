@@ -1,4 +1,5 @@
 import type { Product } from '@/types/product';
+import { PRICING } from '@/lib/company-info';
 
 export interface CartItem extends Product {
   qty: number;          // 총 수량 (예: 10000)
@@ -52,13 +53,12 @@ export function getBulkDiscount(blockSize: number, blockCount: number): number {
 // 블록 단가 (공급가) - Product 또는 CartItem 모두 사용 가능
 export function getBlockPrice(item: { price_100_block?: number; price_1000_block?: number; price_5000_block?: number }, blockSize: number): number {
   let price: number;
-  if (blockSize === 100) price = item.price_100_block ?? 3000;
+  if (blockSize === 100) price = item.price_100_block ?? PRICING.block100DefaultPrice; // 비즈니스 규칙: 100개 블록 기본가
   else if (blockSize === 1000) price = item.price_1000_block ?? 0;
   else if (blockSize === 5000) price = item.price_5000_block ?? 0;
   else throw new Error(`유효하지 않은 블록 사이즈: ${blockSize}`);
-  // 0원 또는 비정상 가격 방어
   if (!Number.isFinite(price) || price <= 0) {
-    if (blockSize === 100) return 3000; // 100개 블록은 항상 3000원
+    if (blockSize === 100) return PRICING.block100DefaultPrice; // 비즈니스 규칙: 100개 블록 기본가
     throw new Error(`유효하지 않은 가격: blockSize=${blockSize}, price=${price}`);
   }
   return price;
@@ -69,7 +69,7 @@ export function getTotalPrice(item: { price_100_block?: number; price_1000_block
   const basePrice = getBlockPrice(item, blockSize) * blockCount;
   const discount = getBulkDiscount(blockSize, blockCount);
   const supplyPrice = Math.round(basePrice * (1 - discount / 100));
-  return Math.round(supplyPrice * 1.1);
+  return Math.round(supplyPrice * (1 + PRICING.vatRate));
 }
 
 // 아이템 가격 (VAT 포함)
@@ -83,9 +83,45 @@ export function getItemDiscount(item: CartItem): number {
 }
 
 // 모든 금액 VAT 포함
+// 주문 내역에서 장바구니로 다시 담기 (원클릭 재주문)
+// products.json에서 실제 제품 데이터를 조회하여 정확한 가격 사용
+export function reorderFromHistory(
+  items: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number; diameter?: string; length?: string; color?: string; category?: string; blockSize?: number; blockCount?: number }>,
+  allProducts: Product[],
+): number {
+  const cart = getCart();
+  let addedCount = 0;
+
+  for (const item of items) {
+    // products.json에서 product_id로 실제 제품 조회
+    const realProduct = allProducts.find(p => p.id === item.product_id);
+    if (!realProduct) continue; // 제품이 없으면 건너뜀 (단종 등)
+
+    const blockSize = item.blockSize || (item.quantity >= 5000 ? 5000 : item.quantity >= 1000 ? 1000 : 100);
+    const blockCount = item.blockCount || Math.max(1, Math.round(item.quantity / blockSize));
+
+    const idx = cart.findIndex(x => x.id === realProduct.id && x.blockSize === blockSize);
+    if (idx >= 0) {
+      cart[idx].blockCount += blockCount;
+      cart[idx].qty = cart[idx].blockSize * cart[idx].blockCount;
+    } else {
+      cart.push({
+        ...realProduct,
+        qty: blockSize * blockCount,
+        blockSize,
+        blockCount,
+      });
+    }
+    addedCount++;
+  }
+
+  saveCart(cart);
+  return addedCount;
+}
+
 export function calculateTotals(cart: CartItem[], isIsland: boolean = false, b2bDiscountRate?: number) {
   if (!Array.isArray(cart) || cart.length === 0) {
-    return { productAmount: 0, shippingFee: 3000, islandFee: 0, b2bDiscount: 0, totalAmount: 3000 };
+    return { productAmount: 0, shippingFee: PRICING.shippingFee, islandFee: 0, b2bDiscount: 0, totalAmount: PRICING.shippingFee };
   }
   const rawProductAmount = cart.reduce((sum, item) => sum + calculateItemPrice(item), 0);
 
@@ -93,8 +129,8 @@ export function calculateTotals(cart: CartItem[], isIsland: boolean = false, b2b
   const b2bDiscount = b2bDiscountRate ? Math.round(rawProductAmount * b2bDiscountRate / 100) : 0;
   const productAmount = rawProductAmount - b2bDiscount;
 
-  const shippingFee = productAmount >= 50000 ? 0 : 3000;
-  const islandFee = isIsland ? 3000 : 0;
+  const shippingFee = productAmount >= PRICING.freeShippingThreshold ? 0 : PRICING.shippingFee;
+  const islandFee = isIsland ? PRICING.islandFee : 0;
   const totalAmount = productAmount + shippingFee + islandFee;
   return { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount };
 }

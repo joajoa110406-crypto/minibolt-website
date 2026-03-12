@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { isValidEmail } from '@/lib/validation';
 
 /**
  * 고객 상세 조회 API
@@ -7,16 +9,18 @@ import { getSupabaseAdmin } from '@/lib/supabase';
  * - 고객 통계 + 주문 이력
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ email: string }> }
 ) {
+  // 관리자 인증
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
+
   try {
     const { email } = await params;
     const decodedEmail = decodeURIComponent(email);
 
-    // 이메일 형식 검증
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!decodedEmail || decodedEmail.length > 254 || !emailRegex.test(decodedEmail)) {
+    if (!isValidEmail(decodedEmail)) {
       return NextResponse.json({ error: '유효하지 않은 이메일 형식입니다.' }, { status: 400 });
     }
 

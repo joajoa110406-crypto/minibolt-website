@@ -34,7 +34,7 @@ export default function Footer() {
         <div style={{ borderTop: '1px solid #34495e', paddingTop: '2rem', color: '#b0b0b0', lineHeight: 1.8, fontSize: '0.85rem' }}>
           <p><strong style={{ color: '#fff' }}>미니볼트</strong> | 대표: 김민수 | 사업자등록번호: 279-52-00982</p>
           <p>통신판매업 신고번호: 2025-경기시흥-3264</p>
-          <p>사업장 소재지: 경기도 시흥시 미산동 87-3</p>
+          <p>사업장 소재지: 경기도 시흥시 신현로38번길 23 태산아파트 3동 1108호</p>
           <p style={{ marginTop: '1rem', fontSize: '0.8rem' }}>© 2025 MiniBolt. All rights reserved.</p>
         </div>
       </div>

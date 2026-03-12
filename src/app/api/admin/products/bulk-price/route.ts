@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { previewBulkPriceChange, applyBulkPriceChange } from '@/lib/products.db';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { logAuditEvent } from '@/lib/audit-log';
 
 /**
  * POST /api/admin/products/bulk-price - 일괄 변경 미리보기
@@ -81,8 +82,9 @@ export async function POST(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
-    const token = await getToken({ req });
-    const changedBy = (token?.email as string) || 'admin';
+    const auth = await checkAdminAuth(req);
+    if (auth.error) return auth.error;
+    const changedBy = auth.token.email;
 
     const body = await req.json();
     const { items, changeType, changeAmount, reason } = body;
@@ -139,6 +141,16 @@ export async function PUT(req: NextRequest) {
       changedBy,
       reason
     );
+
+    await logAuditEvent({
+      admin_email: changedBy,
+      action_type: 'price_change',
+      target_type: 'products',
+      target_id: `${items.length}개 제품`,
+      description: `일괄 가격 변경: ${changeType === 'percent' ? `${changeAmount}%` : `${changeAmount}원`}, 사유: ${reason.trim()}, 적용: ${result.updated}/${items.length}`,
+      ip_address: req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+      metadata: { changeType, changeAmount, reason: reason.trim(), updated: result.updated, total: items.length },
+    });
 
     return NextResponse.json({
       success: result.success,

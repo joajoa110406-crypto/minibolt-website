@@ -98,7 +98,7 @@ const jsonLd = {
       description: '1987년부터 39년 제조 경험의 마이크로 스크류 전문 제조사 직접판매',
       address: {
         '@type': 'PostalAddress',
-        streetAddress: '미산동 87-3',
+        streetAddress: '신현로38번길 23 태산아파트 3동 1108호',
         addressLocality: '시흥시',
         addressRegion: '경기도',
         addressCountry: 'KR',
@@ -132,7 +132,7 @@ const jsonLd = {
       description: 'M1.2~M4 정밀 마이크로 스크류 833종 — 제조사 직접판매. 안경나사, 노트북나사, SSD나사, 카메라나사, 드론나사, 라즈베리파이나사 등 소량 구매 가능.',
       address: {
         '@type': 'PostalAddress',
-        streetAddress: '미산동 87-3',
+        streetAddress: '신현로38번길 23 태산아파트 3동 1108호',
         addressLocality: '시흥시',
         addressRegion: '경기도',
         addressCountry: 'KR',

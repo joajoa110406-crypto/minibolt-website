@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { checkAdminAuth } from '@/lib/admin-auth';
 import { listBackups, createBackup } from '@/lib/backup.server';
+import { logAuditEvent } from '@/lib/audit-log';
 
 /**
  * 관리자 백업 API
@@ -9,36 +10,11 @@ import { listBackups, createBackup } from '@/lib/backup.server';
  * POST /api/admin/backups       → 수동 백업 실행
  */
 
-// ─── 관리자 인증 헬퍼 ──────────────────────────────────────────
-
-async function verifyAdmin(request: NextRequest): Promise<{ ok: true } | { ok: false; response: NextResponse }> {
-  const token = await getToken({ req: request });
-  if (!token?.email) {
-    return { ok: false, response: NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 }) };
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) {
-    console.error('[Admin Backups] ADMIN_EMAILS 환경변수가 설정되지 않았습니다.');
-    return { ok: false, response: NextResponse.json({ error: '서버 설정 오류입니다.' }, { status: 500 }) };
-  }
-
-  if (!adminEmails.includes(token.email.toLowerCase())) {
-    return { ok: false, response: NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 }) };
-  }
-
-  return { ok: true };
-}
-
 // ─── GET: 백업 목록 조회 ──────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const auth = await verifyAdmin(request);
-  if (!auth.ok) return auth.response;
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   try {
     const files = await listBackups();
@@ -53,12 +29,22 @@ export async function GET(request: NextRequest) {
 // ─── POST: 수동 백업 실행 ─────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  const auth = await verifyAdmin(request);
-  if (!auth.ok) return auth.response;
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   try {
     console.log('[Admin Backups] 수동 백업 실행');
     const result = await createBackup();
+
+    await logAuditEvent({
+      admin_email: auth.token.email,
+      action_type: 'backup',
+      target_type: 'system',
+      target_id: 'manual_backup',
+      description: `수동 백업 실행: ${result.tables.length}개 테이블 성공, ${result.errors.length}개 실패`,
+      ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+      metadata: { tables: result.tables.length, errors: result.errors.length, deletedOld: result.deleted_old_files },
+    });
 
     return NextResponse.json({
       success: result.success,

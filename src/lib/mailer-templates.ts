@@ -938,7 +938,7 @@ export function buildReturnApprovedEmail(data: ReturnApprovedEmailData): string 
       <tr>
         <td style="padding:16px;font-size:13px;color:#0c5460;line-height:1.6">
           <strong>반품 발송 안내</strong><br/>
-          - 반품 주소: 경기도 시흥시 미산동 87-3<br/>
+          - 반품 주소: 경기도 시흥시 신현로38번길 23 태산아파트 3동 1108호<br/>
           - 수취인: 미니볼트<br/>
           - 연락처: 010-9006-5846<br/>
           - 택배사: CJ대한통운 또는 편한 택배사 이용 가능<br/>
@@ -1123,6 +1123,148 @@ export function buildContactAdminReplyEmail(data: ContactAdminReplyEmailData): s
     </p>`;
 
   return buildEmailLayout('문의 답변 안내 - MiniBolt', body);
+}
+
+// ─── 재구매 유도 이메일 시퀀스 ──────────────────────────────────
+
+export interface ReorderReminderData {
+  buyerName: string;
+  items: Array<{ name: string; qty: number }>;
+  lastOrderDate: string;
+  daysSinceOrder: number;
+  reorderUrl: string;
+}
+
+export function buildReorderReminderEmail(data: ReorderReminderData): string {
+  const itemRows = data.items
+    .map(item => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:14px">${escapeHtml(item.name)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-size:14px">${item.qty.toLocaleString()}개</td>
+    </tr>`)
+    .join('');
+
+  const body = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+      <tr>
+        <td align="center" style="padding:12px 0">
+          <span style="font-size:48px;line-height:1">&#128260;</span>
+        </td>
+      </tr>
+    </table>
+    <h2 style="color:#ff6b35;margin-top:0;font-size:20px;text-align:center">재고가 떨어지셨나요?</h2>
+    <p style="color:#555;font-size:14px;line-height:1.6;text-align:center">
+      ${escapeHtml(data.buyerName)}님, 마지막 주문(${escapeHtml(data.lastOrderDate)}) 이후 ${data.daysSinceOrder}일이 지났습니다.
+    </p>
+
+    <h3 style="color:#2c3e50;font-size:16px;border-bottom:2px solid #ff6b35;padding-bottom:8px">지난 주문 상품</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px">
+      <thead>
+        <tr style="background:#f8f9fa">
+          <th style="padding:8px 12px;text-align:left;font-size:14px">상품명</th>
+          <th style="padding:8px 12px;text-align:center;font-size:14px">수량</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <div style="text-align:center;margin:28px 0">
+      <a href="${escapeHtml(data.reorderUrl)}"
+         style="display:inline-block;background:#ff6b35;color:#fff;padding:16px 40px;border-radius:8px;text-decoration:none;font-weight:700;font-size:18px">
+        &#128722; 같은 상품 다시 주문하기
+      </a>
+    </div>
+
+    <p style="color:#888;font-size:12px;text-align:center;line-height:1.6">
+      &#10003; 빠른 배송 (1~2일) &nbsp; &#10003; 동일 품질 보장 &nbsp; &#10003; 5만원 이상 무료배송
+    </p>`;
+
+  return buildEmailLayout('재주문 시점이 다가왔습니다 - MiniBolt', body);
+}
+
+export interface DeliveryFollowUpData {
+  buyerName: string;
+  orderNumber: string;
+  items: Array<{ name: string; qty: number }>;
+  shopUrl: string;
+}
+
+export function buildDeliveryFollowUpEmail(data: DeliveryFollowUpData): string {
+  const body = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+      <tr>
+        <td align="center" style="padding:12px 0">
+          <span style="font-size:48px;line-height:1">&#128230;</span>
+        </td>
+      </tr>
+    </table>
+    <h2 style="color:#27ae60;margin-top:0;font-size:20px;text-align:center">제품 수령은 잘 하셨나요?</h2>
+    <p style="color:#555;font-size:14px;line-height:1.6;text-align:center">
+      ${escapeHtml(data.buyerName)}님, 주문(${escapeHtml(data.orderNumber)}) 배송이 완료되었습니다.<br/>
+      제품 사용에 문제가 있으시면 언제든 문의해 주세요.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fff4;border:1px solid #c3e6cb;border-radius:8px;margin:20px 0">
+      <tr>
+        <td style="padding:16px;font-size:14px;color:#155724;line-height:1.8">
+          <strong>&#9989; MiniBolt 품질 보증</strong><br/>
+          - 불량 발견 시 무상 교환해드립니다<br/>
+          - 규격 불일치 시 즉시 교환 가능<br/>
+          - 문의: 010-9006-5846 / contact@minibolt.co.kr
+        </td>
+      </tr>
+    </table>
+
+    <div style="text-align:center;margin:24px 0">
+      <a href="${escapeHtml(data.shopUrl)}"
+         style="display:inline-block;background:#ff6b35;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:16px">
+        다른 제품 둘러보기
+      </a>
+    </div>`;
+
+  return buildEmailLayout('배송 완료 확인 - MiniBolt', body);
+}
+
+export interface DormantCustomerData {
+  buyerName: string;
+  lastOrderDate: string;
+  daysSinceOrder: number;
+  shopUrl: string;
+}
+
+export function buildDormantCustomerEmail(data: DormantCustomerData): string {
+  const body = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+      <tr>
+        <td align="center" style="padding:12px 0">
+          <span style="font-size:48px;line-height:1">&#128075;</span>
+        </td>
+      </tr>
+    </table>
+    <h2 style="color:#3498db;margin-top:0;font-size:20px;text-align:center">${escapeHtml(data.buyerName)}님, 오랜만입니다!</h2>
+    <p style="color:#555;font-size:14px;line-height:1.6;text-align:center">
+      마지막 주문(${escapeHtml(data.lastOrderDate)})으로부터 ${data.daysSinceOrder}일이 지났습니다.<br/>
+      MiniBolt에서 필요한 부품을 찾아보세요.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff5f0;border:1px solid #ffd4c2;border-radius:8px;margin:20px 0">
+      <tr>
+        <td style="padding:16px;font-size:14px;color:#333;line-height:1.8;text-align:center">
+          <strong style="color:#ff6b35">&#127873; 특별 혜택</strong><br/>
+          5만원 이상 주문 시 <strong>무료배송</strong><br/>
+          5,000개 2묶음 이상 <strong>최대 10% 할인</strong>
+        </td>
+      </tr>
+    </table>
+
+    <div style="text-align:center;margin:28px 0">
+      <a href="${escapeHtml(data.shopUrl)}"
+         style="display:inline-block;background:#ff6b35;color:#fff;padding:16px 40px;border-radius:8px;text-decoration:none;font-weight:700;font-size:18px">
+        제품 둘러보기
+      </a>
+    </div>`;
+
+  return buildEmailLayout('MiniBolt에서 기다리고 있습니다 - MiniBolt', body);
 }
 
 export function buildTaxInvoiceAdminAlertEmail(data: TaxInvoiceAdminAlertData): string {

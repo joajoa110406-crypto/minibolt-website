@@ -128,6 +128,17 @@ input[type="checkbox"] {
   outline-offset: 2px;
 }
 
+/* Main content padding to offset fixed header */
+.main-content {
+  padding-top: 66px;
+  animation: fadeIn 0.2s ease-in;
+}
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: 56px;
+  }
+}
+
 /* Smooth page transitions */
 main {
   animation: fadeIn 0.2s ease-in;
@@ -135,4 +146,129 @@ main {
 @keyframes fadeIn {
   from { opacity: 0.85; }
   to { opacity: 1; }
+}
+
+/* ===== Mobile Touch & UX Enhancements ===== */
+
+/* Remove tap highlight on iOS/Android for custom-styled interactive elements */
+button,
+a,
+[role="button"],
+[role="tab"],
+input[type="submit"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure all interactive elements meet 48px minimum touch target */
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Safe area inset padding for notched devices (iPhone X+) */
+.safe-area-padding {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Horizontal scrollbar styling for category tabs */
+.scroll-horizontal {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scroll-horizontal::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Thin scrollbar for content areas */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* Active state feedback for mobile touch */
+@media (hover: none) and (pointer: coarse) {
+  button:active,
+  a:active,
+  [role="button"]:active,
+  [role="tab"]:active {
+    opacity: 0.85;
+    transform: scale(0.98);
+    transition: opacity 0.1s, transform 0.1s;
+  }
+
+  /* Disable hover effects on touch-only devices */
+  .product-card:hover {
+    transform: none;
+  }
+}
+
+/* Mobile typography improvements */
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Improve readability on small screens */
+  p, li, dd, td {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  /* Safe area padding for bottom-fixed elements */
+  .fixed-bottom {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Prevent text selection on interactive elements for cleaner touch UX */
+button,
+[role="button"],
+[role="tab"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Smooth scrolling globally */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

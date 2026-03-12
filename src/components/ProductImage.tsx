@@ -37,7 +37,8 @@ export default function ProductImage({ src, alt, size = 80 }: Props) {
       width={size}
       height={size}
       loading="lazy"
-      quality={75}
+      quality={50}
+      sizes={`${size}px`}
       onError={() => setImgSrc(getFallback(src))}
       style={{ borderRadius: 8, border: '1px solid #e0e0e0', objectFit: 'cover', width: size, height: size }}
     />

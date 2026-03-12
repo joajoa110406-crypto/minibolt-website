@@ -29,28 +29,36 @@ function LoginContent() {
   }
 
   return (
-    <div style={{
+    <div className="safe-area-padding" style={{
       minHeight: '80vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       background: '#f5f5f5',
-      padding: '2rem 1rem',
+      padding: 'clamp(1.5rem, 4vw, 2rem) clamp(0.75rem, 3vw, 1rem)',
     }}>
       <div style={{
         background: '#fff',
         borderRadius: 16,
-        padding: '2.5rem 2rem',
+        padding: 'clamp(1.75rem, 5vw, 2.5rem) clamp(1.25rem, 4vw, 2rem)',
         width: '100%',
         maxWidth: 400,
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
       }}>
         {/* 로고 */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#ff6b35', marginBottom: '0.5rem' }}>
-            ⚡ MiniBolt
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(1.5rem, 4vw, 2rem)' }}>
+          <div style={{
+            fontSize: 'clamp(1.75rem, 5vw, 2rem)',
+            fontWeight: 800,
+            color: '#ff6b35',
+            marginBottom: '0.5rem',
+          }}>
+            MiniBolt
           </div>
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
+          <p style={{
+            color: '#666',
+            fontSize: 'clamp(0.85rem, 2.5vw, 0.9rem)',
+          }}>
             로그인하여 주문 내역을 확인하세요
           </p>
         </div>
@@ -61,10 +69,11 @@ function LoginContent() {
             background: '#fff3cd',
             border: '1px solid #ffc107',
             borderRadius: 8,
-            padding: '0.75rem 1rem',
+            padding: '0.875rem 1rem',
             marginBottom: '1.5rem',
             fontSize: '0.875rem',
             color: '#856404',
+            lineHeight: 1.6,
           }}>
             {error === 'OAuthSignin' ? '소셜 로그인 연결에 실패했습니다.' :
              error === 'OAuthCallback' ? '인증 처리 중 오류가 발생했습니다.' :
@@ -72,8 +81,13 @@ function LoginContent() {
           </div>
         )}
 
-        {/* 소셜 로그인 버튼 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        {/* 소셜 로그인 버튼 - 모바일: 충분한 높이(56px), 넉넉한 간격 */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.875rem',
+          marginBottom: '1.75rem',
+        }}>
           <button
             onClick={() => signIn('naver', { callbackUrl })}
             style={{
@@ -81,15 +95,16 @@ function LoginContent() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.75rem',
-              padding: '0.875rem 1rem',
+              padding: '1rem',
               background: '#03C75A',
               color: '#fff',
               border: 'none',
-              borderRadius: 8,
+              borderRadius: 10,
               fontSize: '1rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'opacity 0.2s',
+              minHeight: 56,
             }}
             onMouseOver={e => (e.currentTarget.style.opacity = '0.9')}
             onMouseOut={e => (e.currentTarget.style.opacity = '1')}
@@ -107,15 +122,16 @@ function LoginContent() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.75rem',
-              padding: '0.875rem 1rem',
+              padding: '1rem',
               background: '#FEE500',
               color: '#000',
               border: 'none',
-              borderRadius: 8,
+              borderRadius: 10,
               fontSize: '1rem',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'opacity 0.2s',
+              minHeight: 56,
             }}
             onMouseOver={e => (e.currentTarget.style.opacity = '0.9')}
             onMouseOut={e => (e.currentTarget.style.opacity = '1')}
@@ -131,31 +147,33 @@ function LoginContent() {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '1rem',
+          gap: '0.75rem',
           marginBottom: '1.5rem',
           color: '#aaa',
           fontSize: '0.85rem',
         }}>
           <div style={{ flex: 1, height: 1, background: '#eee' }} />
-          비회원 주문 조회
+          <span style={{ whiteSpace: 'nowrap' }}>비회원 주문 조회</span>
           <div style={{ flex: 1, height: 1, background: '#eee' }} />
         </div>
 
-        {/* 비회원 주문 조회 링크 */}
+        {/* 비회원 주문 조회 링크 - 모바일: 충분한 터치 타겟 */}
         <Link
           href="/orders?guest=1"
           style={{
-            display: 'block',
-            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             padding: '0.875rem 1rem',
             background: '#fff',
             color: '#555',
             border: '1.5px solid #ddd',
-            borderRadius: 8,
+            borderRadius: 10,
             fontSize: '0.95rem',
             fontWeight: 500,
             textDecoration: 'none',
             transition: 'border-color 0.2s',
+            minHeight: 52,
           }}
           onMouseOver={e => (e.currentTarget.style.borderColor = '#ff6b35')}
           onMouseOut={e => (e.currentTarget.style.borderColor = '#ddd')}
@@ -169,7 +187,7 @@ function LoginContent() {
           marginTop: '1.5rem',
           fontSize: '0.8rem',
           color: '#999',
-          lineHeight: 1.6,
+          lineHeight: 1.7,
         }}>
           소셜 로그인 시 서비스 이용약관 및<br />
           개인정보처리방침에 동의하는 것으로 간주됩니다.

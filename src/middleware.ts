@@ -1,28 +1,78 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { getAdminEmails } from '@/lib/admin';
 
 /**
- * 관리자 이메일 목록 (환경변수에서 파싱)
+ * 클라이언트 IP 추출
  */
-function getAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS || '';
-  return raw
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
+function getClientIp(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown';
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // /api/payment/* 경로: 결제 API 레이트 리미트 (10 req/60s)
+  if (pathname.startsWith('/api/payment/')) {
+    const ip = getClientIp(req);
+    const rl = checkRateLimit(`payment:${ip}`, 10, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+  }
 
   // /api/cron/* 경로: CRON_SECRET 검증
   if (pathname.startsWith('/api/cron/')) {
     return handleCronAuth(req);
   }
 
-  // /api/admin/* 경로: JWT 토큰 + 관리자 이메일 검증
+  // /api/auth/* 경로: 로그인 시도 레이트 리미트 (20 req/60s)
+  if (pathname.startsWith('/api/auth/')) {
+    const ip = getClientIp(req);
+    const rl = checkRateLimit(`auth:${ip}`, 20, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+  }
+
+  // /api/admin/* 경로: 레이트 리미트 + JWT 토큰 + 관리자 이메일 검증
   if (pathname.startsWith('/api/admin/')) {
+    const ip = getClientIp(req);
+    const rl = checkRateLimit(`admin-api:${ip}`, 100, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
     return handleAdminApiAuth(req);
   }
 
