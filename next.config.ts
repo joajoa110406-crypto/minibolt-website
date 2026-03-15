@@ -105,23 +105,25 @@ const nextConfig: NextConfig = {
               //   - 'unsafe-inline': Next.js 인라인 스크립트에 필요 (향후 nonce 기반으로 전환 권장)
               //   - 'unsafe-eval': Toss Payments SDK v2가 내부적으로 eval 패턴 사용하므로 현재 제거 불가
               //     → Toss SDK가 CSP strict-dynamic 또는 nonce를 지원하면 제거할 것
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.tosspayments.com https://cdn.iamport.kr https://t1.daumcdn.net",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.tosspayments.com https://cdn.iamport.kr https://t1.daumcdn.net https://postcode.map.kakao.com https://postcode.map.daum.net",
               // style-src:
               //   - 'unsafe-inline': Next.js/Tailwind 인라인 스타일에 필요
               //     → 향후 nonce 기반 CSP로 전환 시 제거 가능
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://t1.daumcdn.net https://postcode.map.kakao.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              "worker-src 'self'",
-              "connect-src 'self' https://api.tosspayments.com https://*.supabase.co https://t1.daumcdn.net",
+              "worker-src 'self' blob:",
+              "child-src 'self' https://postcode.map.kakao.com https://postcode.map.daum.net https://*.tosspayments.com",
+              "connect-src 'self' https://*.tosspayments.com https://*.supabase.co https://t1.daumcdn.net https://postcode.map.kakao.com https://postcode.map.daum.net",
               // frame-src: X-Frame-Options SAMEORIGIN과 일관되게 self 포함
-              "frame-src 'self' https://js.tosspayments.com https://pgapi.tosspayments.com https://nid.naver.com https://kauth.kakao.com https://t1.daumcdn.net https://postcode.map.daum.net https://postcode.map.kakao.com",
+              // Toss Payments v2는 pay.tosspayments.com 등 여러 서브도메인 사용 → 와일드카드 허용
+              "frame-src 'self' https://*.tosspayments.com https://nid.naver.com https://kauth.kakao.com https://t1.daumcdn.net https://postcode.map.daum.net https://postcode.map.kakao.com",
               // frame-ancestors: X-Frame-Options의 CSP 대체 - 동일 출처만 허용
               "frame-ancestors 'self'",
               // base-uri: <base> 태그 삽입 공격 방지
               "base-uri 'self'",
               // form-action: 폼 제출 대상 제한
-              "form-action 'self' https://pgapi.tosspayments.com https://nid.naver.com https://kauth.kakao.com",
+              "form-action 'self' https://*.tosspayments.com https://nid.naver.com https://kauth.kakao.com",
               // object-src: Flash/Java 플러그인 차단
               "object-src 'none'",
             ].join('; '),
