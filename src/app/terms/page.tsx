@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
 
+// 정적 콘텐츠 페이지 - 항상 정적 생성 (SSR 불필요)
+export const dynamic = 'force-static';
+
 export const metadata: Metadata = {
   title: '이용약관 | 미니볼트',
   description: '미니볼트 이용약관 - 서비스 이용 조건, 주문/결제, 배송, 청약철회 등에 관한 약관입니다.',
+  alternates: {
+    canonical: '/terms',
+  },
 };
 
 export default function TermsPage() {

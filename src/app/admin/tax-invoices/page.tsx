@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface TaxInvoice {
   id: string;
@@ -101,7 +102,7 @@ export default function AdminTaxInvoicesPage() {
     setIssueSuccess('');
 
     try {
-      const res = await fetch(`/api/admin/tax-invoices/${invoice.id}`, {
+      const res = await csrfFetch(`/api/admin/tax-invoices/${invoice.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

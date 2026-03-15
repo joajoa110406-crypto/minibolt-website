@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 import { STATUS_TRANSITIONS, STATUS_LABELS } from '@/lib/order-status';
 
 interface Order {
@@ -154,7 +155,7 @@ export default function AdminOrdersPage() {
     setBundleProcessing(true);
     setSaveError('');
     try {
-      const res = await fetch('/api/admin/orders/bundle', {
+      const res = await csrfFetch('/api/admin/orders/bundle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderIds }),
@@ -228,7 +229,7 @@ export default function AdminOrdersPage() {
         body.tracking_number = trackingInput.trim();
       }
 
-      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+      const res = await csrfFetch(`/api/admin/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

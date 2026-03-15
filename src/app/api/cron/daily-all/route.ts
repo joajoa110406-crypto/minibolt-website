@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/cron-auth';
 import { withCronLogging } from '@/lib/cron-logger';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('cron/daily-all');
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -53,7 +56,7 @@ export async function GET(request: Request) {
         const message = r.reason instanceof Error ? r.reason.message : String(r.reason);
         results[tasks[i]] = { status: 'error', message };
         allSuccess = false;
-        console.error(`[daily-all] ${tasks[i]} 실행 실패:`, message);
+        log.error(`${tasks[i]} 실행 실패`, undefined, { task: tasks[i], errorMessage: message });
       }
     }
 

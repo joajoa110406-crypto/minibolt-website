@@ -8,6 +8,9 @@ import {
   type TrackingResult,
 } from '@/lib/sweet-tracker.server';
 import { sendStatusChangeEmail } from '@/lib/mailer';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('cron/shipping-tracker');
 
 /**
  * 배송 추적 Cron (6시간 간격)
@@ -119,11 +122,9 @@ export async function GET(request: Request) {
                 newStatus: '배송완료',
                 trackingNumber: order.tracking_number,
               });
-            } catch {
+            } catch (mailErr) {
               // 이메일 발송 실패해도 배송 상태 변경은 유지
-              console.warn(
-                `[Shipping Tracker] ${order.order_number} 배송완료 이메일 발송 실패`,
-              );
+              log.warn('배송완료 이메일 발송 실패', { orderNumber: order.order_number });
             }
           }
         } else {
@@ -140,14 +141,14 @@ export async function GET(request: Request) {
         const message =
           err instanceof Error ? err.message : '알 수 없는 오류';
         results.errors.push(`${order.order_number}: ${message}`);
-        console.error(`[Shipping Tracker] ${order.order_number} 처리 오류: ${message}`);
+        log.error('주문 처리 오류', err, { orderNumber: order.order_number });
       }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : '배송 추적 중 알 수 없는 오류';
     results.errors.push(message);
     results.success = false;
-    console.error(`[Shipping Tracker] ${message}`);
+    log.error('배송 추적 실패', err);
   }
 
   // 7. 결과 응답
@@ -207,8 +208,6 @@ async function saveTrackingLogs(
   });
 
   if (error) {
-    console.warn(
-      `[Shipping Tracker] shipping_logs 저장 실패 (order: ${orderId}): ${error.message}`,
-    );
+    log.warn('shipping_logs 저장 실패', { orderId, errorMessage: error.message });
   }
 }

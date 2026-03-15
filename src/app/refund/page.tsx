@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '교환/환불 정책 | 미니볼트',
-  description: '미니볼트 교환, 반품, 환불 정책 안내',
+  description: '미니볼트 교환, 반품, 환불 정책 안내 - 불량품 7일 이내 100% 교환, 단순 변심 반품 절차 및 환불 규정.',
+  alternates: {
+    canonical: '/refund',
+  },
 };
 
 export default function RefundPage() {

@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 import { STATUS_LABELS, STATUS_TRANSITIONS } from '@/lib/order-status';
 
 interface OrderItem {
@@ -91,7 +92,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       if (newStatus === 'shipped' && trackingInput.trim()) {
         body.tracking_number = trackingInput.trim();
       }
-      const res = await fetch(`/api/admin/orders/${order.id}/status`, {
+      const res = await csrfFetch(`/api/admin/orders/${order.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -126,7 +127,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setRefunding(true);
     setRefundMsg('');
     try {
-      const res = await fetch(`/api/admin/orders/${order.id}/refund`, {
+      const res = await csrfFetch(`/api/admin/orders/${order.id}/refund`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refundAmount: amount, refundReason: refundReason.trim() }),

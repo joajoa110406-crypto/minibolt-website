@@ -1,4 +1,25 @@
 import type { Product } from '@/types/product';
+import productsData from '@/data/products.json';
+
+// ─── 모듈 레벨 캐시: products.json 한 번만 파싱 ────────────────────────
+// Node.js 모듈 시스템이 JSON import를 캐시하므로 매번 파일 I/O 없음.
+// 여기서 Product[] 캐스트와 Map을 한 번만 생성해 두면, 여러 모듈에서
+// 각각 products.json을 import해 Map을 만들 필요 없이 이 모듈을 참조.
+const _allProducts: Product[] = productsData as Product[];
+
+/** 전체 제품 배열 (모듈 캐시, 읽기 전용) */
+export const allProducts: readonly Product[] = _allProducts;
+
+/** 제품 ID → Product 맵 (O(1) 조회, 모듈 캐시) */
+const _productMap = new Map<string, Product>();
+for (const p of _allProducts) {
+  _productMap.set(p.id, p);
+}
+export const productMap: ReadonlyMap<string, Product> = _productMap;
+
+/** 제품 ID → 이름 맵 (모듈 캐시) */
+const _productNameMap = new Map<string, string>();
+// 아래 generateProductName 선언 후 초기화 (함수 호이스팅)
 
 // 제품명 자동 생성 (마스터플랜 Section 5.3)
 export function generateProductName(product: Product): string {
@@ -67,3 +88,10 @@ export function getStockStatus(stock: number): { label: string; ok: boolean } {
   if (stock < 50000) return { label: '재고부족', ok: false };
   return { label: '재고충분', ok: true };
 }
+
+// ─── productNameMap 초기화 (generateProductName 선언 후) ─────────
+for (const p of _allProducts) {
+  _productNameMap.set(p.id, generateProductName(p));
+}
+/** 제품 ID → 이름 맵 (모듈 캐시, 읽기 전용) */
+export const productNameMap: ReadonlyMap<string, string> = _productNameMap;

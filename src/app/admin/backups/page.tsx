@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface BackupFile {
   name: string;
@@ -49,7 +50,7 @@ export default function AdminBackupsPage() {
     setBackingUp(true);
     setBackupResult('');
     try {
-      const res = await fetch('/api/admin/backups', { method: 'POST' });
+      const res = await csrfFetch('/api/admin/backups', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '백업 실패');
 
@@ -92,7 +93,7 @@ export default function AdminBackupsPage() {
     if (!confirm(`"${filename}" 파일을 삭제하시겠습니까?`)) return;
     setDeletingFile(filename);
     try {
-      const res = await fetch(`/api/admin/backups/${encodeURIComponent(filename)}`, {
+      const res = await csrfFetch(`/api/admin/backups/${encodeURIComponent(filename)}`, {
         method: 'DELETE',
       });
       if (!res.ok) {

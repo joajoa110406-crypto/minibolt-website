@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface B2BCustomer {
   id: string;
@@ -113,7 +114,7 @@ export default function AdminB2BPage() {
     setModalLoading(true);
     setModalError('');
     try {
-      const res = await fetch('/api/admin/b2b', {
+      const res = await csrfFetch('/api/admin/b2b', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -135,7 +136,7 @@ export default function AdminB2BPage() {
   const handleTierChange = async (id: string, newTier: string) => {
     setTierSaving(true);
     try {
-      const res = await fetch(`/api/admin/b2b/${id}`, {
+      const res = await csrfFetch(`/api/admin/b2b/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier: newTier }),
@@ -153,7 +154,7 @@ export default function AdminB2BPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`"${name}" 거래처를 비활성화하시겠습니까?`)) return;
     try {
-      const res = await fetch(`/api/admin/b2b/${id}`, { method: 'DELETE' });
+      const res = await csrfFetch(`/api/admin/b2b/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('삭제에 실패했습니다.');
       fetchCustomers();
     } catch {

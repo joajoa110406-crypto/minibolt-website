@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface OrderItem {
   id: string;
@@ -52,7 +53,7 @@ export default function ReturnRequestPage() {
 
     try {
       const phoneDigits = customerPhone.replace(/\D/g, '');
-      const res = await fetch('/api/orders/lookup', {
+      const res = await csrfFetch('/api/orders/lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderNumber: orderNumber.trim(), phone: phoneDigits }),
@@ -121,7 +122,7 @@ export default function ReturnRequestPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/returns', {
+      const res = await csrfFetch('/api/returns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

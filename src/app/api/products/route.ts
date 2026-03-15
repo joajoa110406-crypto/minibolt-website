@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Product } from '@/types/product';
+import { allProducts } from '@/lib/products';
 
-// JSON 폴백용
-import productsData from '@/data/products.json';
-const jsonProducts = productsData as Product[];
+// JSON 폴백용 (모듈 캐시에서 참조)
+const jsonProducts = allProducts as Product[];
 
 /**
  * DB에서 제품 조회 시도, 실패 시 JSON 폴백

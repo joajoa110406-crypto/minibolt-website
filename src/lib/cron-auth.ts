@@ -16,7 +16,7 @@ import type { NextRequest } from 'next/server';
 export function verifyCronSecret(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
-    console.warn('[cron-auth] CRON_SECRET 환경변수가 설정되지 않았습니다');
+    console.warn('[cron-auth] 필수 환경변수 미설정');
     return false;
   }
 
@@ -52,7 +52,7 @@ export function verifyCronAuth(request: Request): boolean {
 
   // CRON_SECRET 미설정 → 보안을 위해 인증 실패로 처리
   if (!cronSecret) {
-    console.error('[Cron Auth] CRON_SECRET이 설정되지 않았습니다. 인증을 거부합니다.');
+    console.error('[Cron Auth] 필수 환경변수 미설정, 인증 거부');
     return false;
   }
 

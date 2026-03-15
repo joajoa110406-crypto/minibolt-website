@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 
 const CATEGORIES = ['바인드헤드', '팬헤드', '플랫헤드', '마이크로스크류/평머리'];
 const COLORS = ['블랙', '니켈'];
@@ -53,7 +54,7 @@ export default function BulkPricePage() {
 
     setPreviewLoading(true);
     try {
-      const res = await fetch('/api/admin/products/bulk-price', {
+      const res = await csrfFetch('/api/admin/products/bulk-price', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -94,7 +95,7 @@ export default function BulkPricePage() {
 
     setApplying(true);
     try {
-      const res = await fetch('/api/admin/products/bulk-price', {
+      const res = await csrfFetch('/api/admin/products/bulk-price', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

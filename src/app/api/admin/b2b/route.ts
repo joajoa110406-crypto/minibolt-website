@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG, DATA_SAVE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin B2B');
 
 /**
  * PostgREST 필터 문자열에 사용할 값을 이스케이프합니다.
@@ -22,6 +26,14 @@ function sanitizeFilterValue(value: string): string {
  * GET /api/admin/b2b?search=&tier=&page=1&limit=20
  */
 export async function GET(request: NextRequest) {
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ customers: [], total: 0, page: 1, limit: 20, _notice: SERVICE_UNAVAILABLE_MSG });
+  }
+
   try {
     const supabase = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
@@ -71,9 +83,9 @@ export async function GET(request: NextRequest) {
     const { data: customers, error: listError } = await listQuery;
 
     if (listError) {
-      console.error('[Admin B2B] 쿼리 오류:', listError.message);
+      log.error('거래처 목록 쿼리 실패', listError);
       return NextResponse.json(
-        { error: '거래처 목록을 불러오는 중 오류가 발생했습니다.' },
+        { error: DATA_FETCH_ERROR_MSG },
         { status: 500 }
       );
     }
@@ -85,9 +97,9 @@ export async function GET(request: NextRequest) {
       limit,
     });
   } catch (err) {
-    console.error('[Admin B2B] 오류:', err);
+    log.error('거래처 목록 조회 중 예외 발생', err);
     return NextResponse.json(
-      { error: '거래처 목록을 불러오는 중 오류가 발생했습니다.' },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }
@@ -98,6 +110,14 @@ export async function GET(request: NextRequest) {
  * POST /api/admin/b2b
  */
 export async function POST(request: NextRequest) {
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   try {
     const supabase = getSupabaseAdmin();
     const body = await request.json();
@@ -161,18 +181,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('[Admin B2B] 등록 오류:', insertError.message);
+      log.error('거래처 등록 실패', insertError);
       return NextResponse.json(
-        { error: '거래처 등록 중 오류가 발생했습니다.' },
+        { error: DATA_SAVE_ERROR_MSG },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ customer }, { status: 201 });
   } catch (err) {
-    console.error('[Admin B2B] 오류:', err);
+    log.error('거래처 등록 중 예외 발생', err);
     return NextResponse.json(
-      { error: '거래처 등록 중 오류가 발생했습니다.' },
+      { error: DATA_SAVE_ERROR_MSG },
       { status: 500 }
     );
   }

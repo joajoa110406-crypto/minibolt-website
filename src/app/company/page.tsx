@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '회사소개 | 미니볼트 - 39년 마이크로 스크류 제조 전문',
-  description: '1987년 창립, 39년 제조 경험의 성원특수금속이 직접 운영하는 마이크로 스크류 전문몰 미니볼트를 소개합니다.',
+  description: '1987년 창립, 39년 제조 경험의 성원특수금속이 직접 운영하는 마이크로 스크류 전문몰 미니볼트. 마이크로나사, 정밀나사 제조사 직접판매.',
+  alternates: {
+    canonical: '/company',
+  },
 };
 
 export default function CompanyPage() {

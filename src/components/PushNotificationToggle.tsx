@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 
 export default function PushNotificationToggle() {
   const [supported, setSupported] = useState(false);
@@ -74,7 +75,7 @@ export default function PushNotificationToggle() {
       });
 
       // 서버에 구독 정보 저장
-      const res = await fetch('/api/admin/push/subscribe', {
+      const res = await csrfFetch('/api/admin/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription: subscription.toJSON() }),
@@ -103,7 +104,7 @@ export default function PushNotificationToggle() {
 
       if (sub) {
         // 서버에서 구독 해제
-        await fetch('/api/admin/push/subscribe', {
+        await csrfFetch('/api/admin/push/subscribe', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ endpoint: sub.endpoint }),
@@ -123,7 +124,7 @@ export default function PushNotificationToggle() {
   const handleTest = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/push/test', { method: 'POST' });
+      const res = await csrfFetch('/api/admin/push/test', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
         alert(`테스트 실패: ${err.error}`);

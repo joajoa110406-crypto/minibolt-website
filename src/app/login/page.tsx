@@ -4,13 +4,82 @@ import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { NaverIcon, KakaoIcon } from '@/components/icons';
+
+const DEFAULT_CALLBACK = '/orders';
+
+// 허용된 콜백 경로 접두사 화이트리스트
+const ALLOWED_PATH_PREFIXES = [
+  '/orders',
+  '/products',
+  '/cart',
+  '/checkout',
+  '/company',
+  '/terms',
+  '/privacy',
+  '/',
+];
+
+/**
+ * callbackUrl을 안전하게 검증합니다.
+ * Open Redirect 공격을 방지하기 위해:
+ * 1. 반드시 `/`로 시작하고 `//`로 시작하지 않아야 함 (프로토콜 상대 경로 차단)
+ * 2. 경로 문자만 허용 (알파벳, 숫자, 하이픈, 언더스코어, 슬래시, 점)
+ * 3. 경로 조작 (`..`) 차단
+ * 4. 화이트리스트 접두사 검증
+ * 5. URL 파싱으로 외부 호스트 차단
+ */
+function sanitizeCallbackUrl(raw: string | null): string {
+  if (!raw) return DEFAULT_CALLBACK;
+
+  // 1. 반드시 `/`로 시작, `//`로 시작하면 거부 (프로토콜 상대 경로 차단)
+  if (!raw.startsWith('/') || raw.startsWith('//')) {
+    return DEFAULT_CALLBACK;
+  }
+
+  // 2. 쿼리스트링/프래그먼트 제거 후 경로만 검증
+  const pathOnly = raw.split('?')[0].split('#')[0];
+
+  // 3. 경로 조작 차단 (`..` 포함 여부)
+  if (pathOnly.includes('..')) {
+    return DEFAULT_CALLBACK;
+  }
+
+  // 4. 허용 문자만 포함하는지 검증 (알파벳, 숫자, 하이픈, 언더스코어, 슬래시, 점, 대괄호)
+  if (!/^\/[a-zA-Z0-9\-_/.\[\]]*$/.test(pathOnly)) {
+    return DEFAULT_CALLBACK;
+  }
+
+  // 5. 화이트리스트 접두사 검증
+  const isAllowed = ALLOWED_PATH_PREFIXES.some(prefix => {
+    if (prefix === '/') {
+      return pathOnly === '/';
+    }
+    return pathOnly === prefix || pathOnly.startsWith(prefix + '/');
+  });
+
+  if (!isAllowed) {
+    return DEFAULT_CALLBACK;
+  }
+
+  // 6. URL 파싱으로 외부 호스트 최종 차단 (pathOnly 사용)
+  try {
+    const parsed = new URL(pathOnly, 'http://localhost');
+    if (parsed.hostname !== 'localhost') {
+      return DEFAULT_CALLBACK;
+    }
+  } catch {
+    return DEFAULT_CALLBACK;
+  }
+
+  return pathOnly;
+}
 
 function LoginContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawCallback = searchParams.get('callbackUrl') || '/orders';
-  const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/orders';
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'));
   const error = searchParams.get('error');
 
   useEffect(() => {
@@ -109,9 +178,7 @@ function LoginContent() {
             onMouseOver={e => (e.currentTarget.style.opacity = '0.9')}
             onMouseOut={e => (e.currentTarget.style.opacity = '1')}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
-            </svg>
+            <NaverIcon size={20} />
             네이버로 로그인
           </button>
 
@@ -136,9 +203,7 @@ function LoginContent() {
             onMouseOver={e => (e.currentTarget.style.opacity = '0.9')}
             onMouseOut={e => (e.currentTarget.style.opacity = '1')}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
-              <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.5 1.477 4.722 3.734 6.063L4.75 20.25l4.438-2.688C9.689 17.844 10.836 18 12 18c5.523 0 10-3.477 10-7.5S17.523 3 12 3z"/>
-            </svg>
+            <KakaoIcon size={20} />
             카카오로 로그인
           </button>
         </div>

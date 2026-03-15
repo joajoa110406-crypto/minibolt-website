@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findBundleableOrders, bundleOrders, unbundleOrders } from '@/lib/shipment-bundler.server';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { supabaseConfigured } from '@/lib/supabase';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, INTERNAL_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Orders Bundle');
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +15,15 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * 묶음 가능한 주문 그룹 조회
  * 관리자 인증은 middleware에서 처리됨
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await checkAdminAuth(req);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ success: true, bundleGroups: [], totalGroups: 0, totalOrders: 0, _notice: SERVICE_UNAVAILABLE_MSG });
+  }
+
   try {
     const groups = await findBundleableOrders();
 
@@ -21,9 +34,9 @@ export async function GET() {
       totalOrders: groups.reduce((sum, g) => sum + g.orders.length, 0),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
+    log.error('묶음 배송 조회 실패', err);
     return NextResponse.json(
-      { error: '묶음 배송 조회 실패', detail: message },
+      { error: INTERNAL_ERROR_MSG },
       { status: 500 }
     );
   }
@@ -38,6 +51,14 @@ export async function GET() {
  * Body: { action: 'unbundle', bundleGroupId: string }
  */
 export async function POST(req: NextRequest) {
+  const auth = await checkAdminAuth(req);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   try {
     const body = await req.json();
 
@@ -99,9 +120,9 @@ export async function POST(req: NextRequest) {
       message: `${orderIds.length}건의 주문이 묶음 배송 처리되었습니다.`,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
+    log.error('묶음 배송 처리 실패', err);
     return NextResponse.json(
-      { error: '묶음 배송 처리 실패', detail: message },
+      { error: INTERNAL_ERROR_MSG },
       { status: 500 }
     );
   }

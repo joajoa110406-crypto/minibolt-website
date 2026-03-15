@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { calculateItemPrice, calculateTotals, addToCart, getCart } from '@/lib/cart';
+import { calculateItemPrice, calculateTotals, addToCart, getCart, _resetCartCache } from '@/lib/cart';
 import type { CartItem } from '@/lib/cart';
 import type { Product } from '@/types/product';
 

@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '결제대행서비스 이용약관 | 미니볼트',
-  description: '미니볼트 결제대행서비스(토스페이먼츠) 이용약관',
+  description: '미니볼트 결제대행서비스(토스페이먼츠) 이용약관 - 결제 처리, 취소, 환불 관련 약관 안내.',
+  alternates: {
+    canonical: '/payment-terms',
+  },
 };
 
 export default function PaymentTermsPage() {

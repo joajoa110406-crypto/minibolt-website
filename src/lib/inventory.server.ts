@@ -1,19 +1,11 @@
 import 'server-only';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendLowStockAlert } from '@/lib/mailer';
-import products from '@/data/products.json';
-import { generateProductName } from '@/lib/products';
-import type { Product } from '@/types/product';
+import { productNameMap } from '@/lib/products';
 
 interface StockItem {
   product_id: string;
   qty: number;
-}
-
-// 제품 ID → 이름 매핑 캐시
-const productNameMap = new Map<string, string>();
-for (const p of products as Product[]) {
-  productNameMap.set(p.id, generateProductName(p));
 }
 
 /**

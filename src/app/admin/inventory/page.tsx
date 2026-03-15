@@ -1,19 +1,23 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import products from '@/data/products.json';
+import { csrfFetch } from '@/lib/csrf-client';
 
-// 제품 ID → 이름 매핑 (정적)
-const productNameMap: Record<string, string> = {};
-for (const p of products as Array<{ id: string; name?: string; category?: string; sub_category?: string; type?: string; diameter?: string; length?: string; color?: string }>) {
-  // 간략 이름 생성
-  const parts: string[] = [];
-  if (p.category) parts.push(p.category);
-  if (p.type) parts.push(p.type);
-  if (p.diameter) parts.push(`M${p.diameter}`);
-  if (p.length) parts.push(`${p.length}mm`);
-  if (p.color) parts.push(p.color);
-  productNameMap[p.id] = parts.join(' ') || p.name || p.id;
+// 제품 ID → 이름 매핑 (lazy loaded to avoid 460KB products.json in initial bundle)
+type ProductNameMap = Record<string, string>;
+
+function buildProductNameMap(products: Array<{ id: string; name?: string; category?: string; sub_category?: string; type?: string; diameter?: string; length?: string; color?: string }>): ProductNameMap {
+  const map: ProductNameMap = {};
+  for (const p of products) {
+    const parts: string[] = [];
+    if (p.category) parts.push(p.category);
+    if (p.type) parts.push(p.type);
+    if (p.diameter) parts.push(`M${p.diameter}`);
+    if (p.length) parts.push(`${p.length}mm`);
+    if (p.color) parts.push(p.color);
+    map[p.id] = parts.join(' ') || p.name || p.id;
+  }
+  return map;
 }
 
 interface StockItem {
@@ -34,6 +38,14 @@ export default function AdminInventoryPage() {
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Lazy-loaded product name map (avoids 460KB products.json in initial bundle)
+  const [productNameMap, setProductNameMap] = useState<ProductNameMap>({});
+  useEffect(() => {
+    import('@/data/products.json').then((mod) => {
+      setProductNameMap(buildProductNameMap(mod.default as Array<{ id: string; name?: string; category?: string; sub_category?: string; type?: string; diameter?: string; length?: string; color?: string }>));
+    });
+  }, []);
 
   // 조정 모달
   const [adjustModal, setAdjustModal] = useState<{
@@ -159,7 +171,7 @@ export default function AdminInventoryPage() {
     setAdjusting(true);
     setAdjustError('');
     try {
-      const res = await fetch(
+      const res = await csrfFetch(
         `/api/admin/inventory/${encodeURIComponent(adjustModal.productId)}`,
         {
           method: 'PATCH',
@@ -198,7 +210,7 @@ export default function AdminInventoryPage() {
 
     setSavingThreshold(true);
     try {
-      const res = await fetch(
+      const res = await csrfFetch(
         `/api/admin/inventory/${encodeURIComponent(productId)}`,
         {
           method: 'PATCH',

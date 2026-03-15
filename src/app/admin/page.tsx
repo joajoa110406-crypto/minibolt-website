@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { STATUS_LABELS } from '@/lib/order-status';
-import PushNotificationToggle from '@/components/PushNotificationToggle';
+
+// Dynamic import - PushNotificationToggle is not needed for initial page render
+const PushNotificationToggle = dynamic(
+  () => import('@/components/PushNotificationToggle'),
+  { ssr: false, loading: () => <div style={{ padding: '1rem', color: '#999', fontSize: '0.85rem' }}>알림 설정 로딩 중...</div> }
+);
 
 interface RecentOrder {
   id: string;

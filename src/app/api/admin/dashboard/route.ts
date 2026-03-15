@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Dashboard');
 
 /**
  * 관리자 대시보드 API
@@ -12,14 +15,23 @@ export async function GET(request: NextRequest) {
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
 
+  // Supabase 미설정 시 빈 대시보드 반환
+  if (!supabaseConfigured) {
+    return NextResponse.json({
+      todayOrders: 0,
+      todayRevenue: 0,
+      unshipped: 0,
+      unpaid: 0,
+      recentOrders: [],
+      _notice: SERVICE_UNAVAILABLE_MSG,
+    });
+  }
+
   try {
     const supabase = getSupabaseAdmin();
 
-    // 오늘 날짜 (KST 기준)
-    const now = new Date();
-    const kstOffset = 9 * 60 * 60 * 1000;
-    const kstDate = new Date(now.getTime() + kstOffset);
-    const todayStr = kstDate.toISOString().slice(0, 10); // YYYY-MM-DD
+    // 오늘 날짜 (KST 기준 - 타임존 안전)
+    const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }); // YYYY-MM-DD
 
     // 2. 오늘 주문 수 / 매출 (paid 주문만)
     const { data: todayData } = await supabase
@@ -60,9 +72,9 @@ export async function GET(request: NextRequest) {
       recentOrders: recentOrders || [],
     });
   } catch (err) {
-    console.error('[Admin Dashboard] 오류:', err);
+    log.error('대시보드 데이터 조회 실패', err);
     return NextResponse.json(
-      { error: '대시보드 데이터를 불러오는 중 오류가 발생했습니다.' },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }

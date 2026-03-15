@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface ContactRecord {
   id: string;
@@ -122,7 +123,7 @@ export default function AdminContactsPage() {
     setReplyError('');
 
     try {
-      const res = await fetch(`/api/admin/contacts/${selectedContact.id}`, {
+      const res = await csrfFetch(`/api/admin/contacts/${selectedContact.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

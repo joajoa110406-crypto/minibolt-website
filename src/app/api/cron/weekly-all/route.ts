@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/cron-auth';
 import { withCronLogging } from '@/lib/cron-logger';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('cron/weekly-all');
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,7 +12,7 @@ export const maxDuration = 60;
 /**
  * 통합 주간 Cron
  * 1. weekly-report: 주간 매출 분석 리포트 이메일
- * 2. backup-data: Supabase Storage에 데이터 백업
+ * 2. backup-data: 클라우드 스토리지에 데이터 백업
  *
  * Schedule: 매주 일요일 KST 10:00 (UTC 01:00)
  */
@@ -48,7 +51,7 @@ export async function GET(request: Request) {
         const message = r.reason instanceof Error ? r.reason.message : String(r.reason);
         results[tasks[i]] = { status: 'error', message };
         allSuccess = false;
-        console.error(`[weekly-all] ${tasks[i]} 실행 실패:`, message);
+        log.error(`${tasks[i]} 실행 실패`, undefined, { task: tasks[i], errorMessage: message });
       }
     }
 

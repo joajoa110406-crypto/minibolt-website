@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import Script from 'next/script';
 import { getCart, calculateItemPrice, calculateTotals } from '@/lib/cart';
 import type { CartItem } from '@/lib/cart';
-import { generateProductName } from '@/lib/products';
+import { generateProductName } from '@/lib/products-utils';
 import { isIslandAddress } from '@/lib/island-postcodes';
 
 declare global {
@@ -218,8 +218,15 @@ export default function CheckoutPage() {
     if (!validate()) return;
     if (!paymentRef.current) { setFormError('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.'); return; }
 
+    // 결제 직전 장바구니 재확인 (다른 탭에서 변경 가능)
+    const currentCart = getCart();
+    if (currentCart.length === 0) {
+      setFormError('장바구니가 비었습니다. 상품을 다시 담아주세요.');
+      return;
+    }
+
     const b2bRate = b2bInfo.isB2B ? b2bInfo.discountRate : undefined;
-    const { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount } = calculateTotals(cart, isIsland, b2bRate);
+    const { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount } = calculateTotals(currentCart, isIsland, b2bRate);
     const orderId = `MB${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const orderName = cart.length > 1
       ? `${generateProductName(cart[0])} 외 ${cart.length - 1}건`
@@ -236,7 +243,7 @@ export default function CheckoutPage() {
       payMethod,
       needTaxInvoice, businessNumber,
       needCashReceipt, cashReceiptType, cashReceiptNumber,
-      items: cart,
+      items: currentCart,
       productAmount, shippingFee, islandFee, isIsland, b2bDiscount, b2bDiscountRate: b2bRate || 0, totalAmount,
     };
     sessionStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
@@ -259,6 +266,8 @@ export default function CheckoutPage() {
         failUrl: `${base}/checkout/fail`,
       });
     } catch (err: unknown) {
+      // 결제 실패/취소 시 pendingOrder 제거 (재시도 시 새로 생성)
+      sessionStorage.removeItem('pendingOrder');
       if (err && typeof err === 'object' && 'code' in err) {
         const e = err as { code: string; message: string };
         if (e.code !== 'USER_CANCEL') setFormError('결제 오류: ' + e.message);

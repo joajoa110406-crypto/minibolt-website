@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface AdminProduct {
   id: string;
@@ -106,7 +107,7 @@ export default function AdminProductsPage() {
 
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/products', {
+      const res = await csrfFetch('/api/admin/products', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId, priceUnit: newPrice }),

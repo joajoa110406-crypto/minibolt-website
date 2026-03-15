@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
 import { logAuditEvent } from '@/lib/audit-log';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_SAVE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Inventory Detail');
 
 /**
  * 관리자 재고 개별 수정 API
@@ -15,13 +18,18 @@ export async function PATCH(
 ) {
   const { id: productId } = await params;
 
-  if (!productId || productId.length > 100) {
+  if (!productId || productId.length > 100 || !/^[a-zA-Z0-9\-_]+$/.test(productId)) {
     return NextResponse.json({ error: '유효하지 않은 제품 ID입니다.' }, { status: 400 });
   }
 
   // 1. 관리자 인증
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
 
   try {
     const supabase = getSupabaseAdmin();
@@ -37,7 +45,7 @@ export async function PATCH(
         .eq('product_id', productId);
 
       if (updateError) {
-        console.error('[Admin Inventory] 임계값 변경 오류:', updateError.message);
+        log.error('임계값 변경 실패', updateError);
         return NextResponse.json(
           { error: '임계값 변경에 실패했습니다.' },
           { status: 500 }
@@ -100,7 +108,7 @@ export async function PATCH(
           });
 
         if (insertError) {
-          console.error('[Admin Inventory] 재고 생성 오류:', insertError.message);
+          log.error('재고 생성 실패', insertError);
           return NextResponse.json(
             { error: '재고 레코드 생성에 실패했습니다.' },
             { status: 500 }
@@ -151,7 +159,7 @@ export async function PATCH(
         .select('product_id');
 
       if (updateError) {
-        console.error('[Admin Inventory] 재고 조정 오류:', updateError.message);
+        log.error('재고 조정 실패', updateError);
         return NextResponse.json(
           { error: '재고 조정에 실패했습니다.' },
           { status: 500 }
@@ -195,9 +203,9 @@ export async function PATCH(
       { status: 400 }
     );
   } catch (err) {
-    console.error('[Admin Inventory] 오류:', err);
+    log.error('재고 수정 중 예외 발생', err);
     return NextResponse.json(
-      { error: '재고 수정 중 오류가 발생했습니다.' },
+      { error: DATA_SAVE_ERROR_MSG },
       { status: 500 }
     );
   }

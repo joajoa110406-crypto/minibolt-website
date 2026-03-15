@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart, saveCart, calculateItemPrice, calculateTotals, getItemDiscount } from '@/lib/cart';
 import type { CartItem } from '@/lib/cart';
-import { generateProductName } from '@/lib/products';
+import { generateProductName } from '@/lib/products-utils';
 
 const BLOCK_LABELS: Record<number, string> = {
   100: '100개',

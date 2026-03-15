@@ -4,10 +4,10 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 import { STATUS_LABELS } from '@/lib/order-status';
 import { reorderFromHistory } from '@/lib/cart';
 import type { Product } from '@/types/product';
-import productsData from '@/data/products.json';
 
 const STATUS_COLOR: Record<string, string> = {
   pending: '#ff6b35',
@@ -67,7 +67,7 @@ function GuestLookup() {
     setOrder(null);
 
     try {
-      const res = await fetch('/api/orders/lookup', {
+      const res = await csrfFetch('/api/orders/lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderNumber: on, phone: ph }),
@@ -222,9 +222,10 @@ function OrderDetail({ order }: { order: Order }) {
   const [reordering, setReordering] = useState(false);
   const [reorderDone, setReorderDone] = useState(false);
 
-  const handleReorder = () => {
+  const handleReorder = async () => {
     setReordering(true);
     try {
+      const { default: productsData } = await import('@/data/products.json');
       const allProducts = productsData as Product[];
       const items = order.order_items.map(item => ({
         product_id: item.product_id || '',

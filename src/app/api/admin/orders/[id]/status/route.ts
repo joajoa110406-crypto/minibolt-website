@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
 import { canTransition, STATUS_TIMESTAMP_COLUMN } from '@/lib/order-status';
 import { logAuditEvent } from '@/lib/audit-log';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_SAVE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Order Status');
 
 /**
  * 관리자 주문 상태 변경 API
@@ -24,6 +27,11 @@ export async function PATCH(
   // 1. 관리자 인증
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
 
   // 2. 요청 바디 파싱
   let body: { status?: string; tracking_number?: string };
@@ -57,109 +65,127 @@ export async function PATCH(
   }
 
   // 3. 현재 주문 조회
-  const supabase = getSupabaseAdmin();
+  try {
+    const supabase = getSupabaseAdmin();
 
-  const { data: order, error: fetchError } = await supabase
-    .from('orders')
-    .select('id, order_number, order_status, carrier, customer_name, customer_email')
-    .eq('id', orderId)
-    .single();
+    const { data: order, error: fetchError } = await supabase
+      .from('orders')
+      .select('id, order_number, order_status, carrier, customer_name, customer_email')
+      .eq('id', orderId)
+      .single();
 
-  if (fetchError || !order) {
-    return NextResponse.json({ error: '주문을 찾을 수 없습니다.' }, { status: 404 });
-  }
-
-  // 4. 상태 전환 유효성 검증
-  if (!canTransition(order.order_status, newStatus)) {
-    return NextResponse.json(
-      {
-        error: `상태 전환 불가: ${order.order_status} → ${newStatus}`,
-        currentStatus: order.order_status,
-      },
-      { status: 400 }
-    );
-  }
-
-  // 5. shipped 상태로 변경 시 tracking_number 필수
-  if (newStatus === 'shipped' && !tracking_number) {
-    return NextResponse.json(
-      { error: '배송 중 상태로 변경하려면 운송장번호(tracking_number)가 필요합니다.' },
-      { status: 400 }
-    );
-  }
-
-  // 6. 업데이트 데이터 구성
-  const updateData: Record<string, unknown> = {
-    order_status: newStatus,
-  };
-
-  // 상태별 타임스탬프 설정
-  const timestampCol = STATUS_TIMESTAMP_COLUMN[newStatus];
-  if (timestampCol) {
-    updateData[timestampCol] = new Date().toISOString();
-  }
-
-  // 운송장번호 설정
-  if (tracking_number) {
-    updateData.tracking_number = tracking_number;
-  }
-
-  // shipped일 때 carrier 기본값 설정
-  if (newStatus === 'shipped' && !order.carrier) {
-    updateData.carrier = 'CJ대한통운';
-  }
-
-  // 7. Supabase UPDATE
-  const { error: updateError } = await supabase
-    .from('orders')
-    .update(updateData)
-    .eq('id', orderId);
-
-  if (updateError) {
-    console.error(`[Admin] 주문 상태 변경 실패: ${updateError.message}`);
-    return NextResponse.json(
-      { error: '주문 상태 변경에 실패했습니다.' },
-      { status: 500 }
-    );
-  }
-
-  console.log(
-    `[Admin] 주문 상태 변경: ${order.order_number} (${order.order_status} → ${newStatus}) by ${auth.token.email}`
-  );
-
-  // 감사 로그 기록
-  await logAuditEvent({
-    admin_email: auth.token.email,
-    action_type: 'order_status',
-    target_type: 'order',
-    target_id: order.order_number,
-    description: `주문 상태 변경: ${order.order_status} → ${newStatus}${tracking_number ? `, 운송장: ${tracking_number}` : ''}`,
-    ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
-    metadata: { orderId, previousStatus: order.order_status, newStatus, tracking_number },
-  });
-
-  // 8. 상태 변경 이메일 발송 (preparing, shipped, delivered)
-  if (['preparing', 'shipped', 'delivered'].includes(newStatus) && order.customer_email) {
-    try {
-      const { sendStatusChangeEmail } = await import('@/lib/mailer');
-      await sendStatusChangeEmail({
-        orderNumber: order.order_number,
-        buyerName: order.customer_name || '고객',
-        buyerEmail: order.customer_email,
-        newStatus,
-        trackingNumber: newStatus === 'shipped' ? tracking_number : undefined,
-      });
-      console.log(`[Admin] 상태 변경 메일 발송 완료: ${order.order_number} → ${newStatus}`);
-    } catch (mailErr) {
-      console.warn('[Admin] 상태 변경 메일 발송 실패:', mailErr);
+    if (fetchError || !order) {
+      return NextResponse.json({ error: '주문을 찾을 수 없습니다.' }, { status: 404 });
     }
-  }
 
-  // 9. 성공 응답
-  return NextResponse.json({
-    success: true,
-    orderNumber: order.order_number,
-    previousStatus: order.order_status,
-    newStatus,
-  });
+    // 4. 상태 전환 유효성 검증
+    if (!canTransition(order.order_status, newStatus)) {
+      return NextResponse.json(
+        {
+          error: `상태 전환 불가: ${order.order_status} → ${newStatus}`,
+          currentStatus: order.order_status,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 5. shipped 상태로 변경 시 tracking_number 필수
+    if (newStatus === 'shipped' && !tracking_number) {
+      return NextResponse.json(
+        { error: '배송 중 상태로 변경하려면 운송장번호(tracking_number)가 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 6. 업데이트 데이터 구성
+    const updateData: Record<string, unknown> = {
+      order_status: newStatus,
+    };
+
+    // 상태별 타임스탬프 설정
+    const timestampCol = STATUS_TIMESTAMP_COLUMN[newStatus];
+    if (timestampCol) {
+      updateData[timestampCol] = new Date().toISOString();
+    }
+
+    // 운송장번호 설정
+    if (tracking_number) {
+      updateData.tracking_number = tracking_number;
+    }
+
+    // shipped일 때 carrier 기본값 설정
+    if (newStatus === 'shipped' && !order.carrier) {
+      updateData.carrier = 'CJ대한통운';
+    }
+
+    // 7. Supabase UPDATE (optimistic locking: 현재 상태가 변경되지 않았을 때만 업데이트)
+    const { data: updated, error: updateError } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId)
+      .eq('order_status', order.order_status)
+      .select('id');
+
+    if (updateError) {
+      log.error('주문 상태 변경 실패', updateError);
+      return NextResponse.json(
+        { error: DATA_SAVE_ERROR_MSG },
+        { status: 500 }
+      );
+    }
+
+    if (!updated || updated.length === 0) {
+      return NextResponse.json(
+        { error: '다른 관리자에 의해 주문 상태가 이미 변경되었습니다. 새로고침 후 다시 시도해주세요.' },
+        { status: 409 }
+      );
+    }
+
+    console.log(
+      `[Admin] 주문 상태 변경: ${order.order_number} (${order.order_status} → ${newStatus}) by ${auth.token.email}`
+    );
+
+    // 감사 로그 기록
+    try {
+      await logAuditEvent({
+        admin_email: auth.token.email,
+        action_type: 'order_status',
+        target_type: 'order',
+        target_id: order.order_number,
+        description: `주문 상태 변경: ${order.order_status} → ${newStatus}${tracking_number ? `, 운송장: ${tracking_number}` : ''}`,
+        ip_address: request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown',
+        metadata: { orderId, previousStatus: order.order_status, newStatus, tracking_number },
+      });
+    } catch (auditErr) {
+      log.warn('감사 로그 기록 실패', undefined);
+    }
+
+    // 8. 상태 변경 이메일 발송 (preparing, shipped, delivered)
+    if (['preparing', 'shipped', 'delivered'].includes(newStatus) && order.customer_email) {
+      try {
+        const { sendStatusChangeEmail } = await import('@/lib/mailer');
+        await sendStatusChangeEmail({
+          orderNumber: order.order_number,
+          buyerName: order.customer_name || '고객',
+          buyerEmail: order.customer_email,
+          newStatus,
+          trackingNumber: newStatus === 'shipped' ? tracking_number : undefined,
+        });
+        console.log(`[Admin] 상태 변경 메일 발송 완료: ${order.order_number} → ${newStatus}`);
+      } catch (mailErr) {
+        log.warn('상태 변경 메일 발송 실패', undefined);
+      }
+    }
+
+    // 9. 성공 응답
+    return NextResponse.json({
+      success: true,
+      orderNumber: order.order_number,
+      previousStatus: order.order_status,
+      newStatus,
+    });
+  } catch (err) {
+    log.error('주문 상태 변경 중 예외 발생', err);
+    return NextResponse.json({ error: DATA_SAVE_ERROR_MSG }, { status: 500 });
+  }
 }

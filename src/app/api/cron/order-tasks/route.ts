@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyCronAuth } from '@/lib/cron-auth';
 import { withCronLogging } from '@/lib/cron-logger';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('cron/order-tasks');
 
 /**
  * 주문 상태 자동 변경 Cron
@@ -92,7 +95,7 @@ export async function GET(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : '미결제 주문 취소 중 알 수 없는 오류';
     results.errors.push(message);
-    console.error(`[Order Tasks] ${message}`);
+    log.error('미결제 주문 취소 실패', err);
   }
 
   // 3. 배송완료 자동 전환 (shipped → delivered, 7일 경과)
@@ -131,7 +134,7 @@ export async function GET(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : '배송완료 전환 중 알 수 없는 오류';
     results.errors.push(message);
-    console.error(`[Order Tasks] ${message}`);
+    log.error('배송완료 전환 실패', err);
   }
 
   // 4. 거래완료 자동 전환 (delivered → completed, 7일 경과)
@@ -170,7 +173,7 @@ export async function GET(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : '거래완료 전환 중 알 수 없는 오류';
     results.errors.push(message);
-    console.error(`[Order Tasks] ${message}`);
+    log.error('거래완료 전환 실패', err);
   }
 
   // 5. 결과 응답

@@ -12,6 +12,7 @@ const store = new Map<string, RateLimitEntry>();
 
 let lastCleanup = Date.now();
 const CLEANUP_INTERVAL = 60_000;
+const MAX_STORE_SIZE = 10_000;
 
 function cleanup() {
   const now = Date.now();
@@ -19,6 +20,23 @@ function cleanup() {
   lastCleanup = now;
   for (const [key, entry] of store) {
     if (entry.resetAt < now) store.delete(key);
+  }
+}
+
+/**
+ * Map 크기가 MAX_STORE_SIZE를 초과하면 가장 오래된 항목부터 제거
+ * DDoS 시 메모리 고갈 방지
+ */
+function evictIfNeeded() {
+  if (store.size <= MAX_STORE_SIZE) return;
+
+  // Map은 삽입 순서를 유지하므로 앞쪽이 가장 오래된 항목
+  const entriesToRemove = store.size - MAX_STORE_SIZE;
+  let removed = 0;
+  for (const key of store.keys()) {
+    if (removed >= entriesToRemove) break;
+    store.delete(key);
+    removed++;
   }
 }
 
@@ -46,6 +64,7 @@ export function checkRateLimit(
 
   if (!entry || entry.resetAt < now) {
     store.set(ip, { count: 1, resetAt: now + windowMs });
+    evictIfNeeded();
     return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
   }
 

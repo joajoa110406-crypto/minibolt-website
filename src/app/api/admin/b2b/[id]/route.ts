@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG, DATA_SAVE_ERROR_MSG, DATA_DELETE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin B2B Detail');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -11,6 +15,13 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await checkAdminAuth(_request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   try {
     const { id } = await params;
     if (!id || !UUID_REGEX.test(id)) {
@@ -40,9 +51,9 @@ export async function GET(
 
     return NextResponse.json({ customer, orders: orders || [] });
   } catch (err) {
-    console.error('[Admin B2B Detail] 오류:', err);
+    log.error('거래처 상세 조회 실패', err);
     return NextResponse.json(
-      { error: '거래처 정보를 불러오는 중 오류가 발생했습니다.' },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }
@@ -56,6 +67,13 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   try {
     const { id } = await params;
     if (!id || !UUID_REGEX.test(id)) {
@@ -125,18 +143,18 @@ export async function PATCH(
       .single();
 
     if (updateError) {
-      console.error('[Admin B2B Update] 오류:', updateError.message);
+      log.error('거래처 수정 실패', updateError);
       return NextResponse.json(
-        { error: '거래처 수정 중 오류가 발생했습니다.' },
+        { error: DATA_SAVE_ERROR_MSG },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ customer });
   } catch (err) {
-    console.error('[Admin B2B Update] 오류:', err);
+    log.error('거래처 수정 중 예외 발생', err);
     return NextResponse.json(
-      { error: '거래처 수정 중 오류가 발생했습니다.' },
+      { error: DATA_SAVE_ERROR_MSG },
       { status: 500 }
     );
   }
@@ -150,6 +168,13 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await checkAdminAuth(_request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   try {
     const { id } = await params;
     if (!id || !UUID_REGEX.test(id)) {
@@ -163,18 +188,18 @@ export async function DELETE(
       .eq('id', id);
 
     if (deleteError) {
-      console.error('[Admin B2B Delete] 오류:', deleteError.message);
+      log.error('거래처 삭제 실패', deleteError);
       return NextResponse.json(
-        { error: '거래처 삭제 중 오류가 발생했습니다.' },
+        { error: DATA_DELETE_ERROR_MSG },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('[Admin B2B Delete] 오류:', err);
+    log.error('거래처 삭제 중 예외 발생', err);
     return NextResponse.json(
-      { error: '거래처 삭제 중 오류가 발생했습니다.' },
+      { error: DATA_DELETE_ERROR_MSG },
       { status: 500 }
     );
   }

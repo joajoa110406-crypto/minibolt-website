@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, INTERNAL_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Order Detail');
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/admin/orders/[id]
  * 주문 상세 조회 (주문 항목 포함)
- * 인증은 middleware에서 처리
  */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const auth = await checkAdminAuth(_request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
 
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(id)) {
@@ -34,7 +45,7 @@ export async function GET(
 
     return NextResponse.json({ order });
   } catch (err) {
-    console.error('[Admin Order Detail] 오류:', err);
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    log.error('주문 상세 조회 실패', err);
+    return NextResponse.json({ error: INTERNAL_ERROR_MSG }, { status: 500 });
   }
 }

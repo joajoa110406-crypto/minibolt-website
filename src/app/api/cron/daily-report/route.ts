@@ -5,6 +5,9 @@ import { withCronLogging } from '@/lib/cron-logger';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendDailyReportEmail } from '@/lib/mailer';
 import type { DailyReportData } from '@/lib/mailer-templates';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('cron/daily-report');
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -21,7 +24,7 @@ export async function GET(req: NextRequest) {
   // 인증 검증
   if (!verifyCronSecret(req)) {
     return NextResponse.json(
-      { error: '인증 실패: 유효하지 않은 CRON_SECRET' },
+      { error: '서비스를 이용할 수 없습니다' },
       { status: 401 }
     );
   }
@@ -141,8 +144,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    return NextResponse.json({ error: '리포트 생성 실패', detail: message }, { status: 500 });
+    log.error('리포트 생성 실패', err);
+    return NextResponse.json({ error: '리포트 생성 실패' }, { status: 500 });
   }
 }
 

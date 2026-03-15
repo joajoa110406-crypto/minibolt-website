@@ -7,6 +7,9 @@ import {
   sendDeliveryFollowUpEmail,
   sendDormantCustomerEmail,
 } from '@/lib/mailer';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('cron/reorder-reminder');
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,8 +34,8 @@ export async function GET(request: Request) {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.warn('[reorder-reminder] Supabase 설정 없음, 건너뜀');
-    return NextResponse.json({ success: true, message: 'Supabase not configured', sent: 0 });
+    log.warn('데이터베이스 설정 없음, 건너뜀');
+    return NextResponse.json({ success: true, message: 'Database not configured', sent: 0 });
   }
 
   const parentJob = new URL(request.url).searchParams.get('parent') || undefined;
@@ -187,7 +190,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json(cronResult);
   } catch (err) {
-    console.error('[reorder-reminder] 처리 중 오류:', err);
+    log.error('처리 중 오류', err);
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 });
   }
 }

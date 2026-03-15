@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
 
+// 정적 콘텐츠 페이지 - 항상 정적 생성 (SSR 불필요)
+export const dynamic = 'force-static';
+
 export const metadata: Metadata = {
   title: '개인정보처리방침 | 미니볼트',
   description: '미니볼트 개인정보처리방침 - 수집 항목, 이용 목적, 보유 기간, 제3자 제공 등 개인정보 보호 정책을 안내합니다.',
+  alternates: {
+    canonical: '/privacy',
+  },
 };
 
 export default function PrivacyPage() {

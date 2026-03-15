@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProductsFromDB, updateProductPrice } from '@/lib/products.db';
 import { checkAdminAuth } from '@/lib/admin-auth';
+import { supabaseConfigured } from '@/lib/supabase';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG, DATA_SAVE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Products');
 
 /**
  * GET /api/admin/products - 관리자용 제품 목록 (필터, 정렬, 페이지네이션)
  * 미들웨어에서 관리자 인증 처리됨
  */
 export async function GET(req: NextRequest) {
+  const auth = await checkAdminAuth(req);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ products: [], total: 0, page: 1, limit: 50, totalPages: 0, _notice: SERVICE_UNAVAILABLE_MSG });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
 
@@ -34,9 +46,9 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(result.total / limit),
     });
   } catch (err) {
-    console.error('[Admin Products GET]', err);
+    log.error('제품 목록 조회 실패', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '제품 목록 조회 실패' },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }
@@ -50,6 +62,12 @@ export async function PATCH(req: NextRequest) {
   try {
     const auth = await checkAdminAuth(req);
     if (auth.error) return auth.error;
+
+    if (!supabaseConfigured) {
+      log.warn('데이터베이스 미연결 상태');
+      return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+    }
+
     const changedBy = auth.token.email;
 
     const body = await req.json();
@@ -91,9 +109,9 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('[Admin Products PATCH]', err);
+    log.error('가격 수정 실패', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '가격 수정 실패' },
+      { error: DATA_SAVE_ERROR_MSG },
       { status: 500 }
     );
   }

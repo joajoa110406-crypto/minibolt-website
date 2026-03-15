@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { Product } from '@/types/product';
 import ScrewSVG from './ScrewSVG';
-import { generateProductName } from '@/lib/products';
+import { generateProductName } from '@/lib/products-utils';
 
 interface Props {
   product: Product;

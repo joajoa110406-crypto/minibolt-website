@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('b2b/discount');
 
 /**
  * B2B 할인율 조회 API
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
       companyName: b2bCustomer.company_name,
     });
   } catch (err) {
-    console.error('[B2B Discount] 오류:', err);
+    log.error('B2B 할인율 조회 오류', err);
     return NextResponse.json({ isB2B: false, tier: null, discountRate: 0 });
   }
 }

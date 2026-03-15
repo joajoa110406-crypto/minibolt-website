@@ -3,9 +3,9 @@ import { Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import NextAuthSessionProvider from '@/components/SessionProvider';
 import FloatingCartButton from '@/components/FloatingCartButton';
 import CartRecoveryBanner from '@/components/CartRecoveryBanner';
-import NextAuthSessionProvider from '@/components/SessionProvider';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 
 export const viewport: Viewport = {
@@ -19,6 +19,17 @@ const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
   weight: ['400', '600', '700'],
   display: 'swap',
+  preload: true,
+  fallback: [
+    '-apple-system',
+    'BlinkMacSystemFont',
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    'Arial',
+    'sans-serif',
+  ],
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
@@ -29,8 +40,8 @@ export const metadata: Metadata = {
   },
   description: '1987년부터 39년 제조 경험의 성원특수금속이 직접 운영하는 마이크로 스크류 전문몰. M1.2~M4 소형 정밀 나사 833종, 제조사 직접판매로 합리적인 가격. 안경나사, 노트북나사, SSD나사, 카메라나사, 드론나사, 라즈베리파이나사 등 소량 구매 가능. 나사 세트/키트 판매.',
   keywords: [
-    // 규격 직접 검색 (구매 의도 높음 ★★★)
-    'M2 나사', 'M1.6 나사', 'M2.5 나사', 'M1.4 나사', 'M1.2 나사', 'M3 나사', 'M2 나사 소량',
+    // 규격 직접 검색 (구매 의도 높음)
+    'M1.7 나사', 'M2 나사', 'M1.6 나사', 'M2.5 나사', 'M1.4 나사', 'M1.2 나사', 'M3 나사', 'M2.6 나사', 'M2.3 나사', 'M4 나사', 'M2 나사 소량',
     // 용도별 검색 (구매 의도 높음)
     '노트북 나사', '안경 나사', '안경나사', '카메라 나사', '시계 나사', '안경테 나사', 'SSD 나사', '노트북 수리 나사',
     // 메이커/DIY
@@ -42,22 +53,34 @@ export const metadata: Metadata = {
     // 일반 키워드
     '마이크로 스크류', '소형 나사', '정밀 나사', '미니볼트', '나사종류', '나사규격',
     '평머리나사', '머신스크류', '태핑스크류', '소형볼트',
+    // 네이버 검색 최적화 키워드
+    '마이크로나사', '정밀나사', '소형나사', '미니나사', '나사 소량구매', '나사 100개',
+    '마이크로나사 구매', '소형나사 판매', '나사 제조사', '나사 공장 직판',
     'micro screw', 'mini screw', 'precision screw',
   ],
   openGraph: {
-    title: '미니볼트 - 마이크로 스크류 전문 | 제조사 직접판매',
-    description: '39년 제조 경험, 833종 소형 정밀 나사 제조사 직접판매. 안경나사, 노트북나사, SSD나사, 카메라나사 등 소량 구매 가능.',
+    title: '미니볼트 - 마이크로 스크류 전문 | 39년 제조사 직접판매',
+    description: '39년 제조 경험의 성원특수금속 직접 운영. M1.2~M4 소형 정밀 나사 833종. 안경나사, 노트북나사, SSD나사, 카메라나사, 드론나사 등 100개부터 소량 구매 가능. 제조사 직판가격.',
     url: 'https://minibolt.co.kr',
-    siteName: '미니볼트',
-    images: [{ url: '/image-1.png', width: 1200, height: 630, alt: '미니볼트 - 마이크로 스크류 전문 제조사 직접판매' }],
+    siteName: '미니볼트 - 마이크로 스크류 전문',
+    images: [
+      {
+        url: '/image-1.png',
+        width: 1200,
+        height: 630,
+        alt: '미니볼트 - 39년 제조사 성원특수금속의 마이크로 스크류 전문 온라인몰',
+        type: 'image/png',
+      },
+    ],
     type: 'website',
     locale: 'ko_KR',
+    countryName: '대한민국',
   },
   twitter: {
     card: 'summary_large_image',
-    title: '미니볼트 - 마이크로 스크류 전문',
-    description: '39년 제조 경험, 833종 소형 정밀 나사 제조사 직접판매. 소량 구매 가능.',
-    images: ['/image-1.png'],
+    title: '미니볼트 - 마이크로 스크류 전문 | 제조사 직접판매',
+    description: '39년 제조 경험, M1.2~M4 소형 정밀 나사 833종 제조사 직접판매. 100개부터 소량 구매 가능.',
+    images: [{ url: '/image-1.png', alt: '미니볼트 마이크로 스크류' }],
   },
   robots: {
     index: true,
@@ -83,6 +106,22 @@ export const metadata: Metadata = {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
+  other: {
+    // 네이버 검색 최적화 메타 태그
+    'naverbot': 'all',
+    'yeti': 'all',
+    // 카카오톡 공유 최적화
+    'kakao:title': '미니볼트 - 마이크로 스크류 전문',
+    'kakao:description': '39년 제조사 직접판매, 833종 소형 정밀 나사. 100개 3,000원부터.',
+    'kakao:image': 'https://minibolt.co.kr/image-1.png',
+    // 네이버 블로그/카페 연동 힌트
+    'author': '성원특수금속(미니볼트)',
+    'copyright': '성원특수금속',
+    'distribution': 'global',
+    'rating': 'general',
+    'revisit-after': '3 days',
+    'content-language': 'ko',
+  },
 };
 
 const jsonLd = {
@@ -90,17 +129,27 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'Organization',
+      '@id': 'https://minibolt.co.kr/#organization',
       name: '미니볼트 (성원특수금속)',
       alternateName: ['MiniBolt', '미니볼트', '성원특수금속'],
       url: 'https://minibolt.co.kr',
-      logo: 'https://minibolt.co.kr/logo.png',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://minibolt.co.kr/logo.png',
+        width: 200,
+        height: 200,
+      },
+      image: 'https://minibolt.co.kr/image-1.png',
       foundingDate: '1987',
-      description: '1987년부터 39년 제조 경험의 마이크로 스크류 전문 제조사 직접판매',
+      description: '39년 제조 경험의 성원특수금속이 직접 운영하는 마이크로 스크류 전문 브랜드. M1.2~M4 소형 정밀 나사 833종 제조사 직접판매.',
+      telephone: '+82-10-9006-5846',
+      email: 'contact@minibolt.co.kr',
       address: {
         '@type': 'PostalAddress',
         streetAddress: '신현로38번길 23 태산아파트 3동 1108호',
         addressLocality: '시흥시',
         addressRegion: '경기도',
+        postalCode: '15072',
         addressCountry: 'KR',
       },
       contactPoint: {
@@ -109,18 +158,29 @@ const jsonLd = {
         email: 'contact@minibolt.co.kr',
         contactType: 'customer service',
         availableLanguage: 'Korean',
+        areaServed: 'KR',
       },
+      areaServed: {
+        '@type': 'Country',
+        name: 'KR',
+      },
+      knowsAbout: ['마이크로 스크류', '소형 정밀 나사', '머신스크류', '태핑스크류', '스테인리스 스틸 나사'],
       sameAs: [],
     },
     {
       '@type': 'WebSite',
+      '@id': 'https://minibolt.co.kr/#website',
       name: '미니볼트',
       url: 'https://minibolt.co.kr',
-      description: '마이크로 스크류 전문 온라인 쇼핑몰 — 제조사 직접판매',
+      description: '마이크로 스크류 전문 온라인 쇼핑몰 -- 제조사 직접판매',
       inLanguage: 'ko',
+      publisher: { '@id': 'https://minibolt.co.kr/#organization' },
       potentialAction: {
         '@type': 'SearchAction',
-        target: 'https://minibolt.co.kr/products?search={search_term_string}',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: 'https://minibolt.co.kr/products?search={search_term_string}',
+        },
         'query-input': 'required name=search_term_string',
       },
     },
@@ -164,6 +224,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="미니볼트" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* DNS prefetch for external services used during checkout/payment */}
+        <link rel="dns-prefetch" href="https://js.tosspayments.com" />
+        <link rel="dns-prefetch" href="https://api.tosspayments.com" />
+        {/* Preconnect for fonts (next/font handles this but explicit hint helps) */}
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* 네이버 검색 최적화: 사이트 소유 확인용 (Search Advisor) */}
+        {/* naver-site-verification은 metadata.verification.other에서 처리 */}
+        {/* 네이버/카카오 공유 시 이미지 최적화를 위한 프리로드 */}
+        <link rel="preload" href="/image-1.png" as="image" type="image/png" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Tax Invoices');
 
 /**
  * 관리자 세금계산서 목록 API
@@ -11,6 +14,11 @@ export async function GET(request: NextRequest) {
   // 1. 관리자 인증
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ items: [], total: 0, page: 1, limit: 20, _notice: SERVICE_UNAVAILABLE_MSG });
+  }
 
   try {
     const supabase = getSupabaseAdmin();
@@ -50,9 +58,9 @@ export async function GET(request: NextRequest) {
     const { data: items, error: listError } = await listQuery;
 
     if (listError) {
-      console.error('[Admin Tax Invoices] 쿼리 오류:', listError.message);
+      log.error('세금계산서 목록 쿼리 실패', listError);
       return NextResponse.json(
-        { error: '세금계산서 목록을 불러오는 중 오류가 발생했습니다.' },
+        { error: DATA_FETCH_ERROR_MSG },
         { status: 500 }
       );
     }
@@ -87,9 +95,9 @@ export async function GET(request: NextRequest) {
       limit,
     });
   } catch (err) {
-    console.error('[Admin Tax Invoices] 오류:', err);
+    log.error('세금계산서 목록 조회 중 예외 발생', err);
     return NextResponse.json(
-      { error: '세금계산서 목록을 불러오는 중 오류가 발생했습니다.' },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }

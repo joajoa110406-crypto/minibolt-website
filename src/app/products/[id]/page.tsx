@@ -1,12 +1,17 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import type { Metadata } from 'next';
-import type { Product } from '@/types/product';
-import { generateProductName, getCategoryImage, getStockStatus } from '@/lib/products';
-import productsData from '@/data/products.json';
+import { generateProductName, getCategoryImage, getStockStatus, allProducts } from '@/lib/products';
 import ScrewSVG from '@/components/ScrewSVG';
 import ProductDetailClient from './ProductDetailClient';
 
-const products = productsData as Product[];
+const products = allProducts;
+
+// ---------------------------------------------------------------------------
+// ISR: 1시간(3600초)마다 정적 페이지 재생성
+// 제품 재고/가격 변동을 반영하면서도 빌드 부하를 최소화
+// ---------------------------------------------------------------------------
+export const revalidate = 3600;
 
 // ---------------------------------------------------------------------------
 // Static params for SSG
@@ -28,19 +33,79 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!product) return { title: '제품을 찾을 수 없습니다 | 미니볼트' };
 
   const name = generateProductName(product);
+  const categoryLabel =
+    product.category === '마이크로스크류/평머리'
+      ? product.sub_category || '마이크로스크류'
+      : product.category || '기타';
+  const typeLabel = product.type === 'M' ? '머신스크류' : product.type === 'T' ? '태핑스크류' : '스크류';
   const price100 = Math.round((product.price_100_block ?? 3000) * 1.1).toLocaleString();
-  const description = `${name} - M${product.diameter}\u00d7${product.length}mm ${product.color} 마이크로 스크류. 100개 \u20a9${price100}부터. 미니볼트 제조사 직접판매.`;
+  const price5000Per = Math.round(product.price_5000_per * 1.1);
+  const productUrl = `https://minibolt.co.kr/products/${product.id}`;
+  const imageUrl = `https://minibolt.co.kr${getCategoryImage(product)}`;
+
+  // SEO 최적화: 규격 + 카테고리 + 용도 키워드를 포함한 타이틀
+  const title = `${name} ${categoryLabel} - 미니볼트 마이크로나사 | 소량구매 100개 ${price100}원`;
+
+  // 150자 내외의 풍부한 메타 디스크립션: 규격, 가격, 재질, 용도 포함
+  const description = `${name} ${typeLabel} - M${product.diameter}\u00d7${product.length}mm ${product.color} 스테인리스 스틸. 100개 \u20a9${price100}부터, 개당 ${price5000Per}원(5000개). 39년 제조사 성원특수금속 직접판매. 안경나사 노트북나사 SSD나사 카메라나사 소량 구매 가능.`;
+
+  // 제품별 동적 키워드 생성
+  const keywords = [
+    `M${product.diameter} 나사`,
+    `M${product.diameter} 스크류`,
+    `M${product.diameter}x${product.length} 나사`,
+    `${product.diameter}mm 나사`,
+    `${categoryLabel} 나사`,
+    `${categoryLabel} 스크류`,
+    `${product.color} 나사`,
+    `마이크로 나사 M${product.diameter}`,
+    '마이크로 스크류',
+    '소형 나사',
+    '정밀 나사',
+    '미니볼트',
+    '소량 나사 구매',
+    '나사 100개',
+  ];
 
   return {
-    title: `${name} | 미니볼트`,
+    title,
     description,
+    keywords: keywords.join(', '),
+    alternates: {
+      canonical: `/products/${product.id}`,
+    },
     openGraph: {
-      title: `${name} | 미니볼트`,
-      description,
+      title: `${name} - 미니볼트 | 100개 \u20a9${price100}부터`,
+      description: `${name} ${typeLabel} M${product.diameter}\u00d7${product.length}mm ${product.color}. 39년 제조사 직접판매. 100개 \u20a9${price100}부터 소량 구매 가능. 안경나사 노트북나사 SSD나사.`,
       type: 'website',
-      siteName: '미니볼트',
-      url: `https://minibolt.co.kr/products/${product.id}`,
-      images: [{ url: `https://minibolt.co.kr${getCategoryImage(product)}`, width: 400, height: 400 }],
+      siteName: '미니볼트 - 마이크로 스크류 전문',
+      url: productUrl,
+      locale: 'ko_KR',
+      countryName: '대한민국',
+      images: [{
+        url: imageUrl,
+        width: 400,
+        height: 400,
+        alt: `${name} ${categoryLabel} ${product.color} 마이크로 스크류 제품 이미지`,
+        type: 'image/png',
+      }],
+    },
+    twitter: {
+      card: 'summary',
+      title: `${name} - 미니볼트 | 100개 \u20a9${price100}~`,
+      description: `${typeLabel} M${product.diameter}\u00d7${product.length}mm ${product.color}. 39년 제조사 직접판매. 소량 구매 가능.`,
+      images: [{ url: imageUrl, alt: `${name} 마이크로 스크류` }],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+    other: {
+      'product:price:amount': String(Math.round((product.price_100_block ?? 3000) * 1.1)),
+      'product:price:currency': 'KRW',
+      'product:availability': product.stock > 0 ? 'instock' : 'oos',
+      'product:brand': '미니볼트',
+      'product:category': categoryLabel,
     },
   };
 }
@@ -70,39 +135,78 @@ export default async function ProductDetailPage({ params }: Props) {
   const price5000PerVat = Math.round(product.price_5000_per * 1.1);
   const price5000BlockVat = Math.round((product.price_5000_block ?? 0) * 1.1);
 
-  // JSON-LD Structured Data
+  // JSON-LD Structured Data - Product (Google Rich Results 대응)
   const lowPrice = Math.round(product.price_5000_per * 1.1);
   const highPrice = Math.round(((product.price_100_block ?? 3000) / 100) * 1.1);
+  const productUrl = `https://minibolt.co.kr/products/${product.id}`;
+  const imageUrl = `https://minibolt.co.kr${imgSrc}`;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name,
-    description: `${name} - M${product.diameter}\u00d7${product.length}mm ${product.color} 마이크로 스크류`,
+    description: `${name} - M${product.diameter}\u00d7${product.length}mm ${product.color} 스테인리스 스틸 마이크로 스크류. 39년 제조사 성원특수금속 직접판매.`,
+    image: imageUrl,
+    url: productUrl,
     sku: product.id,
+    mpn: product.id,
     brand: { '@type': 'Brand', name: '미니볼트' },
+    manufacturer: {
+      '@type': 'Organization',
+      name: '성원특수금속',
+      url: 'https://minibolt.co.kr',
+      foundingDate: '1987',
+    },
     offers: {
       '@type': 'AggregateOffer',
       lowPrice,
       highPrice,
       priceCurrency: 'KRW',
+      offerCount: 3,
       availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-      seller: { '@type': 'Organization', name: '성원특수금속(미니볼트)' },
+      priceValidUntil: `${new Date().getFullYear()}-12-31`,
+      seller: { '@type': 'Organization', name: '성원특수금속(미니볼트)', url: 'https://minibolt.co.kr' },
+      url: productUrl,
     },
     category: categoryLabel,
     material: '스테인리스 스틸',
+    color: product.color,
+    additionalProperty: [
+      { '@type': 'PropertyValue', name: '직경', value: `M${product.diameter}`, unitCode: 'MMT' },
+      { '@type': 'PropertyValue', name: '길이', value: product.length, unitCode: 'MMT' },
+      ...(product.head_width ? [{ '@type': 'PropertyValue', name: '헤드 지름', value: product.head_width, unitCode: 'MMT' }] : []),
+      ...(product.head_height ? [{ '@type': 'PropertyValue', name: '헤드 두께', value: product.head_height, unitCode: 'MMT' }] : []),
+      { '@type': 'PropertyValue', name: '타입', value: product.type === 'M' ? '머신스크류(M/C)' : product.type === 'T' ? '태핑스크류(T/C)' : product.type },
+    ],
   };
 
-  // Related products: same category, different id, max 4
+  // JSON-LD Breadcrumb (Google 검색결과 경로 노출)
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '홈', item: 'https://minibolt.co.kr' },
+      { '@type': 'ListItem', position: 2, name: '제품', item: 'https://minibolt.co.kr/products' },
+      { '@type': 'ListItem', position: 3, name: categoryLabel, item: `https://minibolt.co.kr/products?category=${encodeURIComponent(product.category)}` },
+      { '@type': 'ListItem', position: 4, name },
+    ],
+  };
+
+  // Related products: same category + sub_category, different id, max 4
   const related = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
+    .filter((p) => p.category === product.category && p.sub_category === product.sub_category && p.id !== product.id)
     .slice(0, 4);
 
   return (
     <>
-      {/* JSON-LD */}
+      {/* JSON-LD: Product */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {/* JSON-LD: BreadcrumbList */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       <div className="pdp-wrap">
@@ -122,11 +226,13 @@ export default async function ProductDetailPage({ params }: Props) {
           <div className="pdp-left">
             <div className="pdp-image-box">
               {/* ProductImage is client component, wrap in a div */}
-              <img
+              <Image
                 src={imgSrc}
-                alt={name}
+                alt={`${name} ${categoryLabel} ${product.color} 마이크로 스크류 - M${product.diameter}x${product.length}mm 스테인리스 스틸`}
                 width={280}
                 height={280}
+                priority
+                sizes="(max-width: 768px) 200px, 280px"
                 style={{ borderRadius: 12, border: '1px solid #e0e0e0', objectFit: 'cover', maxWidth: '100%', height: 'auto' }}
               />
               <span className={`pdp-stock-badge ${stockOk ? 'in-stock' : 'low-stock'}`}>
@@ -134,19 +240,24 @@ export default async function ProductDetailPage({ params }: Props) {
               </span>
             </div>
             <div className="pdp-svg-box">
-              <h3 className="pdp-section-title">제품 도면</h3>
+              <h2 className="pdp-section-title">제품 도면</h2>
               <ScrewSVG product={product} />
             </div>
           </div>
 
           {/* Right: Info + Order */}
           <div className="pdp-right">
-            <h1 className="pdp-product-name">{name}</h1>
+            <h1 className="pdp-product-name">
+              {name} <span className="pdp-product-category-badge">{categoryLabel}</span>
+            </h1>
+            <p className="pdp-product-subtitle">
+              M{product.diameter}\u00d7{product.length}mm {product.color} 스테인리스 스틸 {product.type === 'M' ? '머신' : product.type === 'T' ? '태핑' : ''}스크류 | 소량 100개부터 구매 가능
+            </p>
             <p className="pdp-product-id">품목코드: {product.id}</p>
 
             {/* Specs Table */}
             <div className="pdp-specs">
-              <h3 className="pdp-section-title">제품 사양</h3>
+              <h2 className="pdp-section-title">제품 사양</h2>
               <table className="pdp-specs-table">
                 <tbody>
                   <tr><th>카테고리</th><td>{categoryLabel}</td></tr>
@@ -175,7 +286,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
             {/* Price Table */}
             <div className="pdp-price-section">
-              <h3 className="pdp-section-title">가격표 <small style={{ fontWeight: 400, color: '#999', fontSize: '0.75rem' }}>(VAT 포함)</small></h3>
+              <h2 className="pdp-section-title">{name} 가격표 <small style={{ fontWeight: 400, color: '#999', fontSize: '0.75rem' }}>(VAT 포함)</small></h2>
               <table className="pdp-price-table">
                 <thead>
                   <tr>
@@ -215,7 +326,7 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* Related products */}
         {related.length > 0 && (
           <div className="pdp-related">
-            <h3 className="pdp-section-title">같은 카테고리 제품</h3>
+            <h2 className="pdp-section-title">같은 카테고리 {categoryLabel} 제품</h2>
             <div className="pdp-related-grid">
               {related.map((rp) => {
                 const rpName = generateProductName(rp);
@@ -223,11 +334,12 @@ export default async function ProductDetailPage({ params }: Props) {
                 const rpPrice = Math.round((rp.price_100_block ?? 3000) * 1.1);
                 return (
                   <a key={rp.id} href={`/products/${rp.id}`} className="pdp-related-card">
-                    <img
+                    <Image
                       src={rpImg}
-                      alt={rpName}
+                      alt={`${rpName} 마이크로나사 - MiniBolt`}
                       width={64}
                       height={64}
+                      sizes="(max-width: 768px) 48px, 64px"
                       style={{ borderRadius: 8, border: '1px solid #e0e0e0', objectFit: 'cover' }}
                     />
                     <div className="pdp-related-info">
@@ -249,13 +361,24 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
         )}
 
+        {/* SEO: 제품 설명 섹션 - 검색엔진이 페이지 컨텍스트를 이해하도록 */}
+        <section className="pdp-seo-description" aria-label="제품 상세 설명">
+          <h2 className="pdp-section-title">{name} 상세 정보</h2>
+          <p>
+            {name}은(는) M{product.diameter}\u00d7{product.length}mm 규격의 {product.color} 스테인리스 스틸 {categoryLabel} 제품입니다.
+            {product.type === 'M' ? ' 머신스크류(M/C) 타입으로 탭 가공된 암나사에 체결됩니다.' : product.type === 'T' ? ' 태핑스크류(T/C) 타입으로 별도 탭 가공 없이 직접 체결 가능합니다.' : ''}
+            {' '}미니볼트는 39년 전통 제조사 성원특수금속의 직접판매 브랜드로, M1.2~M3mm 마이크로 정밀나사를 소량 100개부터 구매하실 수 있습니다.
+            안경, 노트북, SSD, 카메라, 드론, 라즈베리파이 등 다양한 용도에 적합합니다.
+          </p>
+        </section>
+
         {/* Back to list */}
         <div className="pdp-back">
           <a href="/products" className="pdp-back-link">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ marginRight: 6 }}>
               <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            목록으로 돌아가기
+            전체 마이크로나사 목록 보기
           </a>
         </div>
       </div>
@@ -374,6 +497,23 @@ export default async function ProductDetailPage({ params }: Props) {
           color: #1a1a1a;
           line-height: 1.3;
           margin: 0;
+        }
+        .pdp-product-category-badge {
+          display: inline-block;
+          background: #f0f7ff;
+          color: #2c5282;
+          font-size: 0.75rem;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 4px;
+          vertical-align: middle;
+          margin-left: 4px;
+        }
+        .pdp-product-subtitle {
+          font-size: 0.9rem;
+          color: #666;
+          margin: 0;
+          line-height: 1.5;
         }
         .pdp-product-id {
           font-size: 0.85rem;
@@ -525,6 +665,21 @@ export default async function ProductDetailPage({ params }: Props) {
           color: #fff;
         }
 
+        /* SEO description */
+        .pdp-seo-description {
+          background: #fff;
+          border-radius: 16px;
+          padding: 1.5rem;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+          margin-bottom: 1.5rem;
+        }
+        .pdp-seo-description p {
+          font-size: 0.9rem;
+          color: #555;
+          line-height: 1.7;
+          margin: 0;
+        }
+
         /* Back link */
         .pdp-back {
           text-align: center;
@@ -576,6 +731,16 @@ export default async function ProductDetailPage({ params }: Props) {
           }
           .pdp-product-name {
             font-size: 1.25rem;
+          }
+          .pdp-product-subtitle {
+            font-size: 0.8rem;
+          }
+          .pdp-seo-description {
+            padding: 1rem;
+            border-radius: 12px;
+          }
+          .pdp-seo-description p {
+            font-size: 0.82rem;
           }
           .pdp-specs, .pdp-price-section {
             padding: 1rem;

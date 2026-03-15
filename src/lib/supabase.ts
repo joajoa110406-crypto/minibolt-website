@@ -4,8 +4,17 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 let _supabaseAdmin: SupabaseClient | null = null;
 
 /**
+ * Supabase 환경변수가 설정되어 있는지 확인
+ * API 라우트에서 fallback 처리에 사용
+ */
+export const supabaseConfigured: boolean = !!(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+/**
  * Supabase Admin 클라이언트 (서버 전용)
  * API Routes (/api/*) 에서만 사용하세요.
+ * 환경변수 미설정 시 throw
  */
 export function getSupabaseAdmin(): SupabaseClient {
   if (_supabaseAdmin) return _supabaseAdmin;
@@ -19,6 +28,19 @@ export function getSupabaseAdmin(): SupabaseClient {
 
   _supabaseAdmin = createClient(url, serviceKey);
   return _supabaseAdmin;
+}
+
+/**
+ * Supabase Admin 클라이언트 (안전 버전)
+ * 환경변수 미설정 시 null 반환 (throw하지 않음)
+ */
+export function getSupabaseAdminSafe(): SupabaseClient | null {
+  if (!supabaseConfigured) return null;
+  try {
+    return getSupabaseAdmin();
+  } catch {
+    return null;
+  }
 }
 
 // 하위 호환성 유지

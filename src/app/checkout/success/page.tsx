@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 import { saveCart, addToCart } from '@/lib/cart';
 import type { Product } from '@/types/product';
-import productsData from '@/data/products.json';
 
 interface OrderResult {
   orderNumber: string;
@@ -37,6 +37,19 @@ function SuccessContent() {
       return;
     }
 
+    // 브라우저 뒤로/앞으로 대비: 이미 confirm된 주문인지 확인
+    const alreadyConfirmed = sessionStorage.getItem(`confirmed_${orderId}`);
+    if (alreadyConfirmed) {
+      try {
+        setResult(JSON.parse(alreadyConfirmed));
+        setStatus('done');
+      } catch {
+        setErrorMsg('주문 정보가 손상되었습니다.');
+        setStatus('error');
+      }
+      return;
+    }
+
     // 중복 호출 방지 (새로고침/StrictMode)
     if (confirmInitiated.current) return;
     confirmInitiated.current = true;
@@ -51,6 +64,10 @@ function SuccessContent() {
     let orderInfo;
     try {
       orderInfo = JSON.parse(pending);
+      // 필수 필드 검증
+      if (!orderInfo.orderId || !Array.isArray(orderInfo.items) || orderInfo.items.length === 0 || !orderInfo.totalAmount) {
+        throw new Error('Invalid orderInfo');
+      }
     } catch {
       setErrorMsg('주문 정보가 손상되었습니다. 다시 주문해주세요.');
       setStatus('error');
@@ -58,7 +75,7 @@ function SuccessContent() {
       return;
     }
 
-    fetch('/api/payment/confirm', {
+    csrfFetch('/api/payment/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paymentKey, orderId, amount: parseInt(amount), orderInfo }),
@@ -68,6 +85,8 @@ function SuccessContent() {
         if (data.error) { setErrorMsg(data.error); setStatus('error'); return; }
         setResult(data);
         setStatus('done');
+        // confirm 성공 기록 (뒤로/앞으로 방지)
+        sessionStorage.setItem(`confirmed_${orderId}`, JSON.stringify(data));
         // 관련 상품 추천을 위해 주문 카테고리 저장
         try {
           const categories = orderInfo.items?.map((i: { category?: string }) => i.category).filter(Boolean);
@@ -195,18 +214,22 @@ function RelatedProductsSection() {
   useEffect(() => {
     // 최근 주문 정보에서 카테고리 추출
     const pending = sessionStorage.getItem('lastOrderCategory');
-    const allProducts = productsData as Product[];
 
-    // 랜덤 추천 (같은 카테고리 우선, 없으면 전체에서)
-    let candidates = allProducts;
-    if (pending) {
-      const catProducts = allProducts.filter(p => p.category === pending);
-      if (catProducts.length >= 4) candidates = catProducts;
-    }
+    // 동적 import로 products.json 로딩 (초기 번들 크기 절감)
+    import('@/data/products.json').then(({ default: productsData }) => {
+      const allProducts = productsData as Product[];
 
-    // 랜덤 셔플 후 6개 선택
-    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
-    setProducts(shuffled.slice(0, 6));
+      // 랜덤 추천 (같은 카테고리 우선, 없으면 전체에서)
+      let candidates = allProducts;
+      if (pending) {
+        const catProducts = allProducts.filter(p => p.category === pending);
+        if (catProducts.length >= 4) candidates = catProducts;
+      }
+
+      // 랜덤 셔플 후 6개 선택
+      const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+      setProducts(shuffled.slice(0, 6));
+    });
   }, []);
 
   const handleAdd = (product: Product) => {

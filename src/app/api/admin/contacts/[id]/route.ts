@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
 import { sendContactAdminReplyEmail } from '@/lib/mailer';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_SAVE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Contacts Detail');
 
 /**
  * 문의 답변 API (관리자)
@@ -21,6 +24,12 @@ export async function PATCH(
 
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   const adminEmail = auth.token.email;
 
   let body: { adminReply?: string; status?: string };
@@ -40,54 +49,59 @@ export async function PATCH(
     return NextResponse.json({ error: '답변은 5000자 이하로 입력해주세요.' }, { status: 400 });
   }
 
-  const supabase = getSupabaseAdmin();
-
-  // 문의 건 조회
-  const { data: contact, error: fetchError } = await supabase
-    .from('contacts')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (fetchError || !contact) {
-    return NextResponse.json({ error: '문의 건을 찾을 수 없습니다.' }, { status: 404 });
-  }
-
-  // 업데이트
-  const newStatus = status || 'resolved';
-  const validStatuses = ['pending', 'in_progress', 'resolved', 'closed'];
-  if (!validStatuses.includes(newStatus)) {
-    return NextResponse.json({ error: '유효하지 않은 상태입니다.' }, { status: 400 });
-  }
-
-  const { error: updateError } = await supabase
-    .from('contacts')
-    .update({
-      admin_reply: adminReply.trim(),
-      status: newStatus,
-      replied_by: adminEmail,
-      reply_date: new Date().toISOString(),
-    })
-    .eq('id', id);
-
-  if (updateError) {
-    console.error('[admin/contacts] 답변 업데이트 실패:', updateError.message);
-    return NextResponse.json({ error: '답변 등록에 실패했습니다.' }, { status: 500 });
-  }
-
-  // 고객에게 답변 메일 발송
   try {
-    await sendContactAdminReplyEmail(contact.customer_email, {
-      customerName: contact.customer_name,
-      subject: contact.subject,
-      adminReply: adminReply.trim(),
+    const supabase = getSupabaseAdmin();
+
+    // 문의 건 조회
+    const { data: contact, error: fetchError } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !contact) {
+      return NextResponse.json({ error: '문의 건을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 업데이트
+    const newStatus = status || 'resolved';
+    const validStatuses = ['pending', 'in_progress', 'resolved', 'closed'];
+    if (!validStatuses.includes(newStatus)) {
+      return NextResponse.json({ error: '유효하지 않은 상태입니다.' }, { status: 400 });
+    }
+
+    const { error: updateError } = await supabase
+      .from('contacts')
+      .update({
+        admin_reply: adminReply.trim(),
+        status: newStatus,
+        replied_by: adminEmail,
+        reply_date: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      log.error('답변 업데이트 실패', updateError);
+      return NextResponse.json({ error: DATA_SAVE_ERROR_MSG }, { status: 500 });
+    }
+
+    // 고객에게 답변 메일 발송
+    try {
+      await sendContactAdminReplyEmail(contact.customer_email, {
+        customerName: contact.customer_name,
+        subject: contact.subject,
+        adminReply: adminReply.trim(),
+      });
+    } catch (mailErr) {
+      log.warn('답변 메일 발송 오류', undefined);
+    }
+
+    return NextResponse.json({
+      success: true,
+      newStatus,
     });
   } catch (err) {
-    console.warn('[admin/contacts] 답변 메일 발송 오류:', err);
+    log.error('답변 처리 중 예외 발생', err);
+    return NextResponse.json({ error: DATA_SAVE_ERROR_MSG }, { status: 500 });
   }
-
-  return NextResponse.json({
-    success: true,
-    newStatus,
-  });
 }

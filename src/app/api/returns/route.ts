@@ -1,12 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendReturnRequestEmail } from '@/lib/mailer';
+import { createApiLogger } from '@/lib/logger';
+
+const log = createApiLogger('returns');
+
+// ── Rate Limiter (IP당 분당 5회 제한) ──
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 5;
+const RATE_WINDOW = 60_000; // 1분
+const MAX_MAP_SIZE = 10_000;
+
+function evictIfNeeded(): void {
+  if (rateLimitMap.size <= MAX_MAP_SIZE) return;
+  const entriesToRemove = rateLimitMap.size - MAX_MAP_SIZE;
+  let removed = 0;
+  for (const key of rateLimitMap.keys()) {
+    if (removed >= entriesToRemove) break;
+    rateLimitMap.delete(key);
+    removed++;
+  }
+}
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW });
+    evictIfNeeded();
+    return true;
+  }
+  if (record.count >= RATE_LIMIT) return false;
+  record.count++;
+  return true;
+}
+
+// 주기적으로 만료된 항목 정리 (메모리 누수 방지)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitMap) {
+    if (now > val.resetTime) rateLimitMap.delete(key);
+  }
+}, 60_000);
 
 /**
  * 반품/교환 신청 API
  * POST /api/returns
  */
 export async function POST(request: NextRequest) {
+  // Rate Limiting (IP당 분당 5회)
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다. 1분 후 다시 시도해주세요.' },
+      { status: 429 }
+    );
+  }
+
   let body: {
     orderNumber?: string;
     customerPhone?: string;
@@ -143,7 +193,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (insertError || !returnRecord) {
-    console.error('[returns] INSERT 실패:', insertError?.message);
+    log.error('INSERT 실패', undefined, { errorMessage: insertError?.message });
     return NextResponse.json({ error: '반품 신청 중 오류가 발생했습니다.' }, { status: 500 });
   }
 
@@ -161,7 +211,7 @@ export async function POST(request: NextRequest) {
       })),
     });
   } catch (err) {
-    console.warn('[returns] 메일 발송 오류:', err);
+    log.warn('메일 발송 오류', undefined);
   }
 
   return NextResponse.json({

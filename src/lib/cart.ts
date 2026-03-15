@@ -7,17 +7,38 @@ export interface CartItem extends Product {
   blockCount: number;   // 블록 수량 (예: 2 → 5000 × 2 = 10000)
 }
 
+// 메모리 캐시: localStorage 접근과 JSON 파싱 최소화
+let _cartCache: CartItem[] | null = null;
+
+// 다른 탭에서 cart가 변경되면 캐시 무효화
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'cart' || e.key === null) {
+      _cartCache = null;
+    }
+  });
+}
+
 export function getCart(): CartItem[] {
   if (typeof window === 'undefined') return [];
+  if (_cartCache !== null) return _cartCache;
   try {
-    return JSON.parse(localStorage.getItem('cart') || '[]');
+    _cartCache = JSON.parse(localStorage.getItem('cart') || '[]');
+    return _cartCache!;
   } catch {
+    _cartCache = [];
     return [];
   }
 }
 
 export function saveCart(cart: CartItem[]) {
+  _cartCache = cart;
   localStorage.setItem('cart', JSON.stringify(cart));
+}
+
+/** 테스트 전용: 캐시 초기화 */
+export function _resetCartCache() {
+  _cartCache = null;
 }
 
 export function getCartCount(): number {
@@ -129,7 +150,8 @@ export function calculateTotals(cart: CartItem[], isIsland: boolean = false, b2b
   const b2bDiscount = b2bDiscountRate ? Math.round(rawProductAmount * b2bDiscountRate / 100) : 0;
   const productAmount = rawProductAmount - b2bDiscount;
 
-  const shippingFee = productAmount >= PRICING.freeShippingThreshold ? 0 : PRICING.shippingFee;
+  // 무료배송 기준: B2B 할인 전 원가 기준 (할인받아도 원래 50,000원 이상이면 무료배송)
+  const shippingFee = rawProductAmount >= PRICING.freeShippingThreshold ? 0 : PRICING.shippingFee;
   const islandFee = isIsland ? PRICING.islandFee : 0;
   const totalAmount = productAmount + shippingFee + islandFee;
   return { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount };

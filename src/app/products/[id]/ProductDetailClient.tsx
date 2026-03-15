@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { Product } from '@/types/product';
 import { addToCart, getBulkDiscount, getTotalPrice } from '@/lib/cart';
-import { generateProductName } from '@/lib/products';
+import { generateProductName } from '@/lib/products-utils';
 
 const BLOCKS = [
   { size: 100, label: '100개' },

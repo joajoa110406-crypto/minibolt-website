@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { previewBulkPriceChange, applyBulkPriceChange } from '@/lib/products.db';
 import { checkAdminAuth } from '@/lib/admin-auth';
+import { supabaseConfigured } from '@/lib/supabase';
 import { logAuditEvent } from '@/lib/audit-log';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, INTERNAL_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Bulk Price');
 
 /**
  * POST /api/admin/products/bulk-price - 일괄 변경 미리보기
@@ -12,6 +16,13 @@ import { logAuditEvent } from '@/lib/audit-log';
  * }
  */
 export async function POST(req: NextRequest) {
+  const auth = await checkAdminAuth(req);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   try {
     const body = await req.json();
     const { filters, changeType, changeAmount } = body;
@@ -63,9 +74,9 @@ export async function POST(req: NextRequest) {
       changeAmount,
     });
   } catch (err) {
-    console.error('[Bulk Price Preview]', err);
+    log.error('일괄 가격 미리보기 실패', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '미리보기 실패' },
+      { error: INTERNAL_ERROR_MSG },
       { status: 500 }
     );
   }
@@ -84,6 +95,11 @@ export async function PUT(req: NextRequest) {
   try {
     const auth = await checkAdminAuth(req);
     if (auth.error) return auth.error;
+
+    if (!supabaseConfigured) {
+      return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+    }
+
     const changedBy = auth.token.email;
 
     const body = await req.json();
@@ -158,9 +174,9 @@ export async function PUT(req: NextRequest) {
       total: items.length,
     });
   } catch (err) {
-    console.error('[Bulk Price Apply]', err);
+    log.error('일괄 가격 변경 적용 실패', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '일괄 변경 실패' },
+      { error: INTERNAL_ERROR_MSG },
       { status: 500 }
     );
   }

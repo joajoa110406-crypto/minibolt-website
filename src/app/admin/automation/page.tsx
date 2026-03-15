@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface CronStatus {
   id: string;
@@ -76,7 +77,7 @@ export default function AutomationPage() {
     setTriggeringJob(jobName);
 
     try {
-      const res = await fetch('/api/admin/automation/trigger', {
+      const res = await csrfFetch('/api/admin/automation/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobName }),

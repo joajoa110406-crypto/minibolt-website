@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { createApiLogger, INTERNAL_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Automation Trigger');
 
 export const dynamic = 'force-dynamic';
 
@@ -9,11 +11,9 @@ export const dynamic = 'force-dynamic';
  * 수동으로 크론 작업을 실행합니다.
  * body: { jobName: 'order-tasks' | 'shipping-tracker' | ... }
  */
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!(session?.user as { isAdmin?: boolean })?.isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export async function POST(request: NextRequest) {
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
   try {
     const { jobName } = await request.json();
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       result: data,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    return NextResponse.json({ error: message }, { status: 500 });
+    log.error('크론 수동 실행 실패', err);
+    return NextResponse.json({ error: INTERNAL_ERROR_MSG }, { status: 500 });
   }
 }

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
 import { checkAdminAuth } from '@/lib/admin-auth';
 import { isValidEmail } from '@/lib/validation';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Customer Detail');
 
 /**
  * 고객 상세 조회 API
@@ -15,6 +18,11 @@ export async function GET(
   // 관리자 인증
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
 
   try {
     const { email } = await params;
@@ -59,9 +67,9 @@ export async function GET(
       b2b: b2bCustomer || null,
     });
   } catch (err) {
-    console.error('[Admin Customer Detail] 오류:', err);
+    log.error('고객 상세 조회 실패', err);
     return NextResponse.json(
-      { error: '고객 정보를 불러오는 중 오류가 발생했습니다.' },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }

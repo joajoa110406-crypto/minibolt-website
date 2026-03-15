@@ -14,6 +14,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
     "@types/nodemailer": "^7.0.11",
+    "critters": "^0.0.23",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",

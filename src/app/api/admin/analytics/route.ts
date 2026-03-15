@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_FETCH_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Analytics');
 
 export const dynamic = 'force-dynamic';
 
@@ -122,6 +126,18 @@ function getDateRange(period: Period): DateRange {
  * 관리자 인증은 middleware에서 처리됨
  */
 export async function GET(req: NextRequest) {
+  const auth = await checkAdminAuth(req);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    return NextResponse.json({
+      success: true, period: 'this_week', label: '', totalRevenue: 0, orderCount: 0,
+      avgOrderAmount: 0, prevRevenue: 0, prevOrderCount: 0, revenueChange: 0,
+      orderCountChange: 0, categoryBreakdown: [], topProducts: [],
+      _notice: SERVICE_UNAVAILABLE_MSG,
+    });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const period = (searchParams.get('period') || 'this_week') as Period;
@@ -145,8 +161,9 @@ export async function GET(req: NextRequest) {
       .lt('created_at', range.end);
 
     if (ordersError) {
+      log.error('주문 데이터 조회 실패', ordersError);
       return NextResponse.json(
-        { error: '주문 데이터 조회 실패', detail: ordersError.message },
+        { error: DATA_FETCH_ERROR_MSG },
         { status: 500 }
       );
     }
@@ -245,9 +262,9 @@ export async function GET(req: NextRequest) {
       topProducts,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
+    log.error('분석 데이터 조회 중 예외 발생', err);
     return NextResponse.json(
-      { error: '분석 데이터 조회 실패', detail: message },
+      { error: DATA_FETCH_ERROR_MSG },
       { status: 500 }
     );
   }

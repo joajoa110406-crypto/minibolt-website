@@ -1,20 +1,21 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminAuth } from '@/lib/admin-auth';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, INTERNAL_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Push Subscribe');
 
 /**
  * POST /api/admin/push/subscribe
  * 푸시 알림 구독을 저장합니다.
  */
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as { email?: string; phone?: string; isAdmin?: boolean } | undefined;
-  if (!user?.isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export async function POST(request: NextRequest) {
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
 
-  const adminIdentifier = user.email || user.phone || 'unknown';
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
 
   try {
     const { subscription } = await request.json();
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '유효하지 않은 구독 정보' }, { status: 400 });
     }
 
+    const adminIdentifier = auth.token.email;
     const supabase = getSupabaseAdmin();
 
     // 이미 존재하는 구독인지 확인 (endpoint 기준)
@@ -58,8 +60,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    return NextResponse.json({ error: message }, { status: 500 });
+    log.error('푸시 구독 저장 실패', err);
+    return NextResponse.json({ error: INTERNAL_ERROR_MSG }, { status: 500 });
   }
 }
 
@@ -67,10 +69,12 @@ export async function POST(request: Request) {
  * DELETE /api/admin/push/subscribe
  * 푸시 알림 구독을 해제합니다.
  */
-export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!(session?.user as { isAdmin?: boolean })?.isAdmin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function DELETE(request: NextRequest) {
+  const auth = await checkAdminAuth(request);
+  if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
   }
 
   try {
@@ -88,7 +92,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    return NextResponse.json({ error: message }, { status: 500 });
+    log.error('푸시 구독 해제 실패', err);
+    return NextResponse.json({ error: INTERNAL_ERROR_MSG }, { status: 500 });
   }
 }

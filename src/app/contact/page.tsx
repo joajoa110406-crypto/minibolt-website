@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { csrfFetch } from '@/lib/csrf-client';
 
 const CATEGORY_OPTIONS = [
   { value: 'shipping', label: '배송 관련' },
@@ -31,7 +32,7 @@ export default function ContactPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/contact', {
+      const res = await csrfFetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

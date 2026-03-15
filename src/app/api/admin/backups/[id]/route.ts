@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
+import { supabaseConfigured } from '@/lib/supabase';
 import { downloadBackup, deleteBackup } from '@/lib/backup.server';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, INTERNAL_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Backups File');
 
 /**
  * 관리자 백업 개별 파일 API
@@ -35,6 +39,10 @@ export async function GET(
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
 
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   const { id } = await params;
   const filename = validateFilename(id);
   if (!filename) {
@@ -52,9 +60,8 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    console.error('[Admin Backups] 다운로드 오류:', message);
-    return NextResponse.json({ error: '백업 다운로드 실패', detail: message }, { status: 500 });
+    log.error('백업 다운로드 실패', err);
+    return NextResponse.json({ error: INTERNAL_ERROR_MSG }, { status: 500 });
   }
 }
 
@@ -67,6 +74,10 @@ export async function DELETE(
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
 
+  if (!supabaseConfigured) {
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
+
   const { id } = await params;
   const filename = validateFilename(id);
   if (!filename) {
@@ -77,8 +88,7 @@ export async function DELETE(
     await deleteBackup(filename);
     return NextResponse.json({ success: true, deleted: filename });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '알 수 없는 오류';
-    console.error('[Admin Backups] 삭제 오류:', message);
-    return NextResponse.json({ error: '백업 삭제 실패', detail: message }, { status: 500 });
+    log.error('백업 삭제 실패', err);
+    return NextResponse.json({ error: INTERNAL_ERROR_MSG }, { status: 500 });
   }
 }

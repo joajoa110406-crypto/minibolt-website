@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 
 interface ReturnRecord {
   id: string;
@@ -120,7 +121,7 @@ export default function AdminReturnsPage() {
     setActionError('');
 
     try {
-      const res = await fetch(`/api/admin/returns/${selectedReturn.id}`, {
+      const res = await csrfFetch(`/api/admin/returns/${selectedReturn.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

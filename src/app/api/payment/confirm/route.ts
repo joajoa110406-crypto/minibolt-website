@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import type { CartItem } from '@/lib/cart';
 import { calculateTotals, calculateItemPrice, getBlockPrice } from '@/lib/cart';
 import { verifyItemPrices } from '@/lib/price-verification.server';
@@ -58,22 +59,66 @@ export async function POST(req: NextRequest) {
     if (typeof paymentKey !== 'string' || !paymentKey.trim()) {
       return NextResponse.json({ error: 'paymentKey가 필요합니다.' }, { status: 400 });
     }
+    // paymentKey 형식 검증: 영숫자 및 일부 특수문자만 허용, 20~200자
+    const PAYMENT_KEY_REGEX = /^[a-zA-Z0-9_\-=.]+$/;
+    if (paymentKey.length < 20 || paymentKey.length > 200 || !PAYMENT_KEY_REGEX.test(paymentKey)) {
+      logPayment('warn', 'invalid_payment_key_format', { orderId: orderId || 'unknown', keyLength: paymentKey.length });
+      return NextResponse.json({ error: 'paymentKey 형식이 올바르지 않습니다.' }, { status: 400 });
+    }
+
     if (typeof orderId !== 'string' || !orderId.trim()) {
       return NextResponse.json({ error: 'orderId가 필요합니다.' }, { status: 400 });
     }
-    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+    // orderId 형식 검증: MB로 시작, 10~50자, 영숫자 및 하이픈만 허용
+    const ORDER_ID_REGEX = /^MB[a-zA-Z0-9\-]{8,48}$/;
+    if (!ORDER_ID_REGEX.test(orderId)) {
+      logPayment('warn', 'invalid_order_id_format', { orderId, length: orderId.length });
+      return NextResponse.json({ error: 'orderId 형식이 올바르지 않습니다.' }, { status: 400 });
+    }
+
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || !Number.isInteger(amount)) {
       return NextResponse.json({ error: '유효하지 않은 결제 금액입니다.' }, { status: 400 });
+    }
+    // 최대 결제 금액 제한: 1억원 (100,000,000원)
+    const MAX_PAYMENT_AMOUNT = 100_000_000;
+    if (amount > MAX_PAYMENT_AMOUNT) {
+      logPayment('warn', 'amount_exceeds_limit', { orderId, amount, maxAmount: MAX_PAYMENT_AMOUNT });
+      return NextResponse.json({ error: `결제 금액이 최대 한도(${MAX_PAYMENT_AMOUNT.toLocaleString()}원)를 초과합니다.` }, { status: 400 });
     }
     if (!orderInfo || !Array.isArray(orderInfo.items) || orderInfo.items.length === 0) {
       return NextResponse.json({ error: '주문 상품이 없습니다.' }, { status: 400 });
     }
     // 각 아이템 필수 필드 검증
+    const MAX_ITEM_QTY = 1_000_000;       // 개별 상품 수량 상한: 100만개
+    const MAX_BLOCK_COUNT = 10_000;        // 블록 수량 상한: 10,000
     for (const item of orderInfo.items) {
       if (!item.id || typeof item.qty !== 'number' || item.qty <= 0) {
         return NextResponse.json({ error: '주문 상품 정보가 올바르지 않습니다.' }, { status: 400 });
       }
       if (![100, 1000, 5000].includes(item.blockSize) || typeof item.blockCount !== 'number' || item.blockCount < 1) {
         return NextResponse.json({ error: '주문 수량 단위가 올바르지 않습니다.' }, { status: 400 });
+      }
+      // 개별 상품 수량 상한선 검증
+      if (item.qty > MAX_ITEM_QTY) {
+        logPayment('warn', 'item_qty_exceeds_limit', { orderId, productId: item.id, qty: item.qty, maxQty: MAX_ITEM_QTY });
+        return NextResponse.json({ error: `개별 상품 수량은 ${MAX_ITEM_QTY.toLocaleString()}개를 초과할 수 없습니다.` }, { status: 400 });
+      }
+      // blockCount 상한선 검증
+      if (item.blockCount > MAX_BLOCK_COUNT) {
+        logPayment('warn', 'block_count_exceeds_limit', { orderId, productId: item.id, blockCount: item.blockCount, maxBlockCount: MAX_BLOCK_COUNT });
+        return NextResponse.json({ error: `블록 수량은 ${MAX_BLOCK_COUNT.toLocaleString()}개를 초과할 수 없습니다.` }, { status: 400 });
+      }
+      // qty === blockSize * blockCount 일치 검증 (수량 조작 방지)
+      if (item.qty !== item.blockSize * item.blockCount) {
+        logPayment('error', 'qty_blocksize_mismatch', {
+          orderId,
+          productId: item.id,
+          qty: item.qty,
+          blockSize: item.blockSize,
+          blockCount: item.blockCount,
+          expected: item.blockSize * item.blockCount,
+        });
+        return NextResponse.json({ error: '주문 수량이 블록 단위와 일치하지 않습니다.' }, { status: 400 });
       }
     }
 
@@ -86,32 +131,101 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '상품 가격 정보가 변경되었습니다. 장바구니를 새로고침 후 다시 시도해주세요.' }, { status: 400 });
     }
 
-    // 0-2. B2B 할인율 서버 검증 (클라이언트 할인율 조작 방지)
+    // 0-2. B2B 할인율 서버 검증 (클라이언트 할인율 조작 방지 + 이메일 위변조 방지)
     let verifiedB2bRate: number | undefined;
+    let verifiedB2bEmail: string | undefined; // B2B 통계 업데이트용 인증된 이메일
     if (orderInfo.b2bDiscountRate && orderInfo.b2bDiscountRate > 0) {
       try {
+        // (1) 로그인 세션 확인: 비로그인 사용자는 B2B 할인 적용 불가
+        const token = await getToken({ req });
+        if (!token?.email) {
+          logPayment('warn', 'b2b_no_session', {
+            orderId,
+            requestedRate: orderInfo.b2bDiscountRate,
+            buyerEmail: orderInfo.buyerEmail,
+          });
+          return NextResponse.json(
+            { error: 'B2B 할인을 적용하려면 로그인이 필요합니다.' },
+            { status: 401 }
+          );
+        }
+
+        const sessionEmail = (token.email as string).toLowerCase();
+
+        // (2) 로그인 이메일과 buyerEmail 일치 검증: 다른 거래처 이메일 위변조 차단
+        if (sessionEmail !== orderInfo.buyerEmail.toLowerCase()) {
+          logPayment('error', 'b2b_email_spoofing_attempt', {
+            orderId,
+            sessionEmail,
+            buyerEmail: orderInfo.buyerEmail,
+            requestedRate: orderInfo.b2bDiscountRate,
+          });
+          return NextResponse.json(
+            { error: '로그인 계정과 주문자 이메일이 일치하지 않습니다. B2B 할인을 적용할 수 없습니다.' },
+            { status: 403 }
+          );
+        }
+
+        // (3) 로그인 이메일(서버 인증됨) 기반으로 B2B 거래처 조회
         const { getSupabaseAdmin } = await import('@/lib/supabase');
         const supabase = getSupabaseAdmin();
         const { data: b2bCustomer } = await supabase
           .from('b2b_customers')
           .select('discount_rate')
-          .eq('contact_email', orderInfo.buyerEmail.toLowerCase())
+          .eq('contact_email', sessionEmail)
           .eq('status', 'active')
           .single();
 
-        if (b2bCustomer && b2bCustomer.discount_rate === orderInfo.b2bDiscountRate) {
-          verifiedB2bRate = b2bCustomer.discount_rate;
-        } else if (b2bCustomer) {
-          logPayment('warn', 'b2b_rate_mismatch', { orderId, clientRate: orderInfo.b2bDiscountRate, serverRate: b2bCustomer?.discount_rate });
-          verifiedB2bRate = b2bCustomer.discount_rate; // 서버 값 사용
-        }
         if (!b2bCustomer) {
-          logPayment('warn', 'b2b_unauthorized', { orderId, email: orderInfo.buyerEmail, requestedRate: orderInfo.b2bDiscountRate });
-          return NextResponse.json({ error: 'B2B 거래처로 등록되지 않은 계정입니다. 할인을 적용할 수 없습니다.' }, { status: 403 });
+          logPayment('warn', 'b2b_unauthorized', {
+            orderId,
+            email: sessionEmail,
+            requestedRate: orderInfo.b2bDiscountRate,
+          });
+          return NextResponse.json(
+            { error: 'B2B 거래처로 등록되지 않은 계정입니다. 할인을 적용할 수 없습니다.' },
+            { status: 403 }
+          );
         }
+
+        // (4) 클라이언트가 서버보다 높은 할인율을 요청한 경우 거부 (조작 시도)
+        if (orderInfo.b2bDiscountRate > b2bCustomer.discount_rate) {
+          logPayment('error', 'b2b_rate_inflation_attempt', {
+            orderId,
+            email: sessionEmail,
+            clientRate: orderInfo.b2bDiscountRate,
+            serverRate: b2bCustomer.discount_rate,
+          });
+          return NextResponse.json(
+            { error: 'B2B 할인율이 올바르지 않습니다. 페이지를 새로고침 후 다시 시도해주세요.' },
+            { status: 403 }
+          );
+        }
+
+        // (5) 할인율 불일치(클라이언트 < 서버): 결제 금액이 이미 잘못된 할인율로 계산되었으므로
+        //     올바른 할인율로 재결제하도록 안내 (Toss 결제 위젯의 amount를 변경할 수 없음)
+        if (b2bCustomer.discount_rate !== orderInfo.b2bDiscountRate) {
+          logPayment('warn', 'b2b_rate_mismatch_rejected', {
+            orderId,
+            email: sessionEmail,
+            clientRate: orderInfo.b2bDiscountRate,
+            serverRate: b2bCustomer.discount_rate,
+          });
+          return NextResponse.json(
+            { error: 'B2B 할인율이 변경되었습니다. 페이지를 새로고침 후 다시 결제해주세요.' },
+            { status: 400 }
+          );
+        }
+        verifiedB2bRate = b2bCustomer.discount_rate;
+        verifiedB2bEmail = sessionEmail;
       } catch (b2bErr) {
-        logPayment('warn', 'b2b_verify_failed', { orderId, error: String(b2bErr) });
-        // B2B 검증 실패 시 할인 없이 진행
+        // getToken 실패나 DB 연결 에러 등 — B2B 할인 요청이 있었으므로 할인 없이 진행하면 금액 불일치
+        // 따라서 안전하게 에러 반환
+        logPayment('error', 'b2b_verify_failed', { orderId, error: String(b2bErr) });
+        return NextResponse.json(
+          { error: 'B2B 할인 검증 중 오류가 발생했습니다. 다시 시도해주세요.' },
+          { status: 500 }
+        );
       }
     }
 
@@ -152,10 +266,16 @@ export async function POST(req: NextRequest) {
 
     const payment = await tossRes.json();
 
-    // 1-1. Toss 결제 응답 금액 재검증
-    if (payment.totalAmount !== undefined && payment.totalAmount !== amount) {
+    // 1-1. Toss 결제 응답 금액 재검증 (undefined이면 검증 실패 처리)
+    if (!payment.totalAmount || payment.totalAmount !== amount) {
       logPayment('error', 'toss_amount_mismatch', { orderId, requested: amount, tossConfirmed: payment.totalAmount });
       return NextResponse.json({ error: '결제 금액 검증에 실패했습니다.' }, { status: 400 });
+    }
+
+    // 1-2. Toss 결제 응답 orderId 일치 검증 (요청 위변조 방지)
+    if (!payment.orderId || payment.orderId !== orderId) {
+      logPayment('error', 'toss_orderId_mismatch', { orderId, tossOrderId: payment.orderId });
+      return NextResponse.json({ error: '주문번호 검증에 실패했습니다.' }, { status: 400 });
     }
 
     logPayment('info', 'toss_confirmed', { orderId, method: payment.method });
@@ -192,11 +312,11 @@ export async function POST(req: NextRequest) {
             shipping_zipcode: orderInfo.shippingZipcode,
             shipping_memo: orderInfo.shippingMemo,
             is_island: !!orderInfo.isIsland,
-            product_amount: orderInfo.productAmount,
-            shipping_fee: orderInfo.shippingFee,
-            island_fee: orderInfo.islandFee || 0,
-            vat: orderInfo.productAmount - Math.round(orderInfo.productAmount * 10 / 11),
-            total_amount: orderInfo.totalAmount,
+            product_amount: serverTotals.productAmount,
+            shipping_fee: serverTotals.shippingFee,
+            island_fee: serverTotals.islandFee,
+            vat: serverTotals.productAmount - Math.round(serverTotals.productAmount * 10 / 11),
+            total_amount: serverTotals.totalAmount,
             payment_key: paymentKey,
             payment_method: payment.method || orderInfo.payMethod,
             payment_status: 'paid',
@@ -235,8 +355,8 @@ export async function POST(req: NextRequest) {
         // 3-0. 세금계산서 자동 생성
         if (orderInfo.needTaxInvoice && orderInfo.businessNumber) {
           try {
-            const supplyAmount = Math.round(orderInfo.productAmount * 10 / 11);
-            const vatAmount = orderInfo.productAmount - supplyAmount;
+            const supplyAmount = Math.round(serverTotals.productAmount * 10 / 11);
+            const vatAmount = serverTotals.productAmount - supplyAmount;
 
             await supabaseAdmin.from('tax_invoices').insert({
               order_id: order.id,
@@ -244,7 +364,7 @@ export async function POST(req: NextRequest) {
               business_number: orderInfo.businessNumber,
               supply_amount: supplyAmount,
               vat_amount: vatAmount,
-              total_amount: orderInfo.productAmount,
+              total_amount: serverTotals.productAmount,
               status: 'pending',
             });
             logPayment('info', 'tax_invoice_created', { orderId, orderNumber });
@@ -266,15 +386,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3-0.5. B2B 거래처 통계 업데이트
-    if (verifiedB2bRate && dbSaveSuccess) {
+    // 3-0.5. B2B 거래처 통계 업데이트 (인증된 이메일 사용)
+    if (verifiedB2bRate && verifiedB2bEmail && dbSaveSuccess) {
       try {
         const { getSupabaseAdmin } = await import('@/lib/supabase');
         const supabase = getSupabaseAdmin();
         const { data: b2bRecord } = await supabase
           .from('b2b_customers')
           .select('id, total_orders, total_spent')
-          .eq('contact_email', orderInfo.buyerEmail.toLowerCase())
+          .eq('contact_email', verifiedB2bEmail)
           .eq('status', 'active')
           .single();
 
@@ -283,7 +403,7 @@ export async function POST(req: NextRequest) {
             .from('b2b_customers')
             .update({
               total_orders: (b2bRecord.total_orders || 0) + 1,
-              total_spent: (b2bRecord.total_spent || 0) + orderInfo.totalAmount,
+              total_spent: (b2bRecord.total_spent || 0) + serverTotals.totalAmount,
               last_order_date: new Date().toISOString(),
             })
             .eq('id', b2bRecord.id);
@@ -322,9 +442,9 @@ export async function POST(req: NextRequest) {
         shippingMemo: orderInfo.shippingMemo,
         payMethod: payment.method || orderInfo.payMethod,
         items: orderInfo.items,
-        productAmount: orderInfo.productAmount,
-        shippingFee: orderInfo.shippingFee,
-        totalAmount: orderInfo.totalAmount,
+        productAmount: serverTotals.productAmount,
+        shippingFee: serverTotals.shippingFee,
+        totalAmount: serverTotals.totalAmount,
       });
       logPayment('info', 'email_sent', { orderId, orderNumber, email: orderInfo.buyerEmail });
     } catch (mailErr) {
@@ -334,7 +454,7 @@ export async function POST(req: NextRequest) {
     // 5. 관리자 푸시 알림 (새 주문)
     try {
       const { notifyNewOrder } = await import('@/lib/push-notification');
-      await notifyNewOrder(orderNumber, orderInfo.totalAmount);
+      await notifyNewOrder(orderNumber, serverTotals.totalAmount);
     } catch {
       // 푸시 실패해도 무시
     }

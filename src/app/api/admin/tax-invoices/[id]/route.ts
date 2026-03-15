@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/admin-auth';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseConfigured, getSupabaseAdmin } from '@/lib/supabase';
+import { createApiLogger, SERVICE_UNAVAILABLE_MSG, DATA_SAVE_ERROR_MSG } from '@/lib/logger';
+
+const log = createApiLogger('Admin Tax Invoice Detail');
 
 /**
  * 관리자 세금계산서 상태 변경 API
@@ -22,6 +25,11 @@ export async function PATCH(
   // 1. 관리자 인증
   const auth = await checkAdminAuth(request);
   if (auth.error) return auth.error;
+
+  if (!supabaseConfigured) {
+    log.warn('데이터베이스 미연결 상태');
+    return NextResponse.json({ error: SERVICE_UNAVAILABLE_MSG }, { status: 503 });
+  }
 
   // 2. 요청 바디 파싱
   let body: { status?: string; issuedBy?: string; notes?: string };
@@ -85,9 +93,9 @@ export async function PATCH(
       .eq('id', invoiceId);
 
     if (updateError) {
-      console.error(`[Admin Tax Invoice] 상태 변경 실패: ${updateError.message}`);
+      log.error('세금계산서 상태 변경 실패', updateError);
       return NextResponse.json(
-        { error: '세금계산서 상태 변경에 실패했습니다.' },
+        { error: DATA_SAVE_ERROR_MSG },
         { status: 500 }
       );
     }
@@ -119,7 +127,7 @@ export async function PATCH(
         });
       }
     } catch (mailErr) {
-      console.warn('[Admin Tax Invoice] 발행 완료 메일 발송 오류:', mailErr instanceof Error ? mailErr.message : '알 수 없는 오류');
+      log.warn('발행 완료 메일 발송 오류', undefined);
       // 이메일 실패해도 상태 변경은 이미 완료되었으므로 계속 진행
     }
 
@@ -131,9 +139,9 @@ export async function PATCH(
       issuedDate: today,
     });
   } catch (err) {
-    console.error('[Admin Tax Invoice] 오류:', err);
+    log.error('세금계산서 처리 중 예외 발생', err);
     return NextResponse.json(
-      { error: '세금계산서 처리 중 오류가 발생했습니다.' },
+      { error: DATA_SAVE_ERROR_MSG },
       { status: 500 }
     );
   }

@@ -11,6 +11,18 @@ export function getAdminEmails(): string[] {
 }
 
 /**
+ * 전화번호를 숫자만 남기고 국제번호(+82) → 0 변환하여 정규화
+ */
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  // +82로 시작하면 0으로 변환 (예: 821012345678 → 01012345678)
+  if (digits.startsWith('82') && digits.length >= 11) {
+    return '0' + digits.slice(2);
+  }
+  return digits;
+}
+
+/**
  * 관리자 전화번호 목록 (환경변수에서 파싱)
  * 네이버 로그인 시 이메일 없이 전화번호만 반환되는 경우 대비
  */
@@ -18,7 +30,7 @@ export function getAdminPhones(): string[] {
   const raw = process.env.ADMIN_PHONES || '';
   return raw
     .split(',')
-    .map((p) => p.trim().replace(/-/g, ''))
+    .map((p) => normalizePhone(p.trim()))
     .filter(Boolean);
 }
 
@@ -34,8 +46,8 @@ export function isAdmin(email?: string | null, phone?: string | null): boolean {
   }
   if (phone) {
     const adminPhones = getAdminPhones();
-    const normalizedPhone = phone.replace(/-/g, '');
-    if (adminPhones.length > 0 && adminPhones.includes(normalizedPhone)) {
+    const normalized = normalizePhone(phone);
+    if (adminPhones.length > 0 && adminPhones.includes(normalized)) {
       return true;
     }
   }

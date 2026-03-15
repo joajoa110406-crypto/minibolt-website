@@ -1,9 +1,5 @@
 import 'server-only';
-import productsData from '@/data/products.json';
-import type { Product } from '@/types/product';
-
-const productMap = new Map<string, Product>();
-(productsData as Product[]).forEach(p => productMap.set(p.id, p));
+import { productMap } from '@/lib/products';
 
 /**
  * 클라이언트가 보낸 items의 가격 필드를 products.json 원본과 대조하여
