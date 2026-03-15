@@ -199,7 +199,8 @@ function ProductsContent() {
   }, []);
 
   const handleBlockCountChange = useCallback((productId: string, count: number) => {
-    setQuantities(prev => ({ ...prev, [`${productId}_count`]: Math.max(1, count) }));
+    const parsed = Number.isFinite(count) ? Math.floor(count) : 1;
+    setQuantities(prev => ({ ...prev, [`${productId}_count`]: Math.min(Math.max(1, parsed), 9999) }));
   }, []);
 
   const handleAddToCart = useCallback((product: Product) => {

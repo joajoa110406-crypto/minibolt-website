@@ -75,13 +75,15 @@ export async function middleware(req: NextRequest) {
     const method = req.method;
 
     // CSRF 토큰 검증 (상태 변경 API 요청)
-    // CSRF 면제 경로를 인라인으로 체크하여 함수 호출 오버헤드 제거
+    // /api/auth/: NextAuth가 자체 CSRF 보호(csrfToken) 처리
+    // /api/webhooks/: 외부 서비스 콜백 (서명 검증으로 보호)
+    // /api/cron/: CRON_SECRET Bearer 토큰으로 보호
+    // /api/admin/*: CSRF 검증 필수 (환불, 상태변경 등 state-changing 작업 보호)
     if (
       CSRF_PROTECTED_METHODS.has(method) &&
       !pathname.startsWith('/api/auth/') &&
       !pathname.startsWith('/api/webhooks/') &&
-      !pathname.startsWith('/api/cron/') &&
-      !pathname.startsWith('/api/admin/')
+      !pathname.startsWith('/api/cron/')
     ) {
       const cookieToken = req.cookies.get(CSRF_COOKIE_NAME)?.value;
       const headerToken = req.headers.get(CSRF_HEADER_NAME);

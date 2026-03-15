@@ -219,11 +219,16 @@ export async function POST(req: NextRequest) {
     const supabaseAdminClient = getSupabaseAdmin();
 
     // DB에 전화번호가 하이픈 포함/미포함으로 저장될 수 있으므로 둘 다 매칭
+    // .in()을 사용하여 PostgREST 필터 문자열 직접 보간을 회피 (인젝션 방지)
+    const phoneVariants = [normalizedPhone];
+    if (formattedPhone !== normalizedPhone) {
+      phoneVariants.push(formattedPhone);
+    }
     const { data: order, error } = await supabaseAdminClient
       .from('orders')
       .select(`*, order_items (*)`)
       .eq('order_number', orderNumber.trim().toUpperCase())
-      .or(`customer_phone.eq.${normalizedPhone},customer_phone.eq.${formattedPhone}`)
+      .in('customer_phone', phoneVariants)
       .single();
 
     if (error || !order) {

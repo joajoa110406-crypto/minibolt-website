@@ -33,7 +33,12 @@ export function getCart(): CartItem[] {
 
 export function saveCart(cart: CartItem[]) {
   _cartCache = cart;
-  localStorage.setItem('cart', JSON.stringify(cart));
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  } catch {
+    // localStorage가 가득 찼거나 사용 불가 시 무시 (캐시는 유지)
+  }
 }
 
 /** 테스트 전용: 캐시 초기화 */
@@ -46,9 +51,12 @@ export function getCartCount(): number {
 }
 
 export function addToCart(product: Product, qty: number, blockSize: number = 100, blockCount: number = 1) {
-  // 방어적 검증: 최소 1 보장
-  if (blockCount < 1) blockCount = 1;
-  if (blockSize < 100) blockSize = 100;
+  // 방어적 검증: 유효 범위 보장
+  if (!Number.isFinite(blockCount) || blockCount < 1) blockCount = 1;
+  if (blockCount > 9999) blockCount = 9999;
+  if (!Number.isFinite(blockSize) || blockSize < 100) blockSize = 100;
+  blockCount = Math.floor(blockCount);
+  blockSize = Math.floor(blockSize);
 
   const cart = getCart();
   // 같은 제품 + 같은 블록사이즈면 수량 합산

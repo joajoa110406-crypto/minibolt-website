@@ -47,7 +47,9 @@ export default function CartPage() {
   };
 
   const setBlockCount = (id: string, blockSize: number, val: number) => {
-    const count = Math.max(1, val);
+    // 유효하지 않은 값 방어: NaN, Infinity, 소수점, 음수, 과도하게 큰 값
+    const parsed = Number.isFinite(val) ? Math.floor(val) : 1;
+    const count = Math.min(Math.max(1, parsed), 9999);
     const next = cart.map(item =>
       (item.id === id && item.blockSize === blockSize)
         ? { ...item, blockCount: count, qty: item.blockSize * count }

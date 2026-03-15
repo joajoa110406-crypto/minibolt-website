@@ -71,7 +71,11 @@ export default function ProductDetailClient({ product }: Props) {
             type="number"
             value={blockCount}
             min={1}
-            onChange={(e) => setBlockCount(Math.max(1, parseInt(e.target.value) || 1))}
+            max={9999}
+            onChange={(e) => {
+              const v = parseInt(e.target.value);
+              setBlockCount(Number.isFinite(v) ? Math.min(Math.max(1, v), 9999) : 1);
+            }}
             aria-label="묶음 수량"
             className="pdpc-qty-input"
           />

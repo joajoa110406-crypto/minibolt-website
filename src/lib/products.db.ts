@@ -86,19 +86,24 @@ export async function getProductsFromDB(filters?: ProductFilters): Promise<{ pro
   }
 
   if (filters?.search) {
-    // PostgREST 필터 인젝션 방지: 특수문자 이스케이프
+    // PostgREST 필터 인젝션 방지:
+    // .or() 문자열에서 의미를 갖는 모든 특수문자 제거/이스케이프
+    // - 쉼표: 조건 구분자, 마침표: 연산자 구분자, 괄호: 논리 그룹핑
+    // - 따옴표: 문자열 리터럴 래핑, 콜론: 일부 연산자 구문
     const sanitized = filters.search
       .replace(/\\/g, '\\\\')
       .replace(/%/g, '\\%')
       .replace(/_/g, '\\_')
-      .replace(/,/g, '')
-      .replace(/\./g, '')
-      .replace(/\(/g, '')
-      .replace(/\)/g, '')
+      .replace(/[,.()"':!]/g, '')
+      .replace(/[\r\n\0]/g, '')
       .slice(0, 100);
-    const searchFilter = `product_id.ilike.%${sanitized}%,name.ilike.%${sanitized}%,diameter.ilike.%${sanitized}%,color.ilike.%${sanitized}%`;
-    countQuery = countQuery.or(searchFilter);
-    dataQuery = dataQuery.or(searchFilter);
+
+    if (sanitized.trim().length > 0) {
+      const s = sanitized.trim();
+      const searchFilter = `product_id.ilike.%${s}%,name.ilike.%${s}%,diameter.ilike.%${s}%,color.ilike.%${s}%`;
+      countQuery = countQuery.or(searchFilter);
+      dataQuery = dataQuery.or(searchFilter);
+    }
   }
 
   // 정렬

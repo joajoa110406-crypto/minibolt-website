@@ -5,10 +5,12 @@ import { NextRequest } from 'next/server';
 // supabase mock
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
+const mockIn = vi.fn();
 const mockSingle = vi.fn();
 
 vi.mock('@/lib/supabase', () => ({
-  supabaseAdmin: {
+  supabaseConfigured: true,
+  getSupabaseAdmin: () => ({
     from: () => ({
       select: (...args: unknown[]) => {
         mockSelect(...args);
@@ -16,6 +18,10 @@ vi.mock('@/lib/supabase', () => ({
           eq: (...eqArgs: unknown[]) => {
             mockEq(...eqArgs);
             return {
+              in: (...inArgs: unknown[]) => {
+                mockIn(...inArgs);
+                return { single: () => mockSingle() };
+              },
               eq: (...eq2Args: unknown[]) => {
                 mockEq(...eq2Args);
                 return { single: () => mockSingle() };
@@ -25,7 +31,7 @@ vi.mock('@/lib/supabase', () => ({
         };
       },
     }),
-  },
+  }),
 }));
 
 // server-only mock (서버 전용 import 에러 방지)
@@ -107,6 +113,7 @@ describe('POST /api/orders/lookup', () => {
   it('전화번호 하이픈 제거 + 82→0 변환', async () => {
     mockSingle.mockReturnValue({ data: null, error: { message: 'not found' } });
     await POST(makeRequest({ orderNumber: 'MB20260308-001', phone: '010-1234-5678' }));
-    expect(mockEq).toHaveBeenCalledWith('customer_phone', '01012345678');
+    // route now uses .in() with phone variants (normalized + formatted)
+    expect(mockIn).toHaveBeenCalledWith('customer_phone', ['01012345678', '010-1234-5678']);
   });
 });

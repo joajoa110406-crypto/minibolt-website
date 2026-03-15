@@ -1,6 +1,22 @@
 /**
  * 인메모리 레이트 리미터 (Edge Runtime 호환)
  * IP 기반 요청 제한
+ *
+ * ⚠️  프로덕션 환경(Vercel) 제한 사항:
+ * 이 구현은 프로세스 메모리 내 Map을 사용합니다.
+ * Vercel Edge Middleware는 리전별로 인스턴스가 유지될 수 있어
+ * 동일 인스턴스 내에서는 동작하지만, 다음 상황에서 카운터가 초기화됩니다:
+ *   - 콜드 스타트 (새 인스턴스 생성)
+ *   - 트래픽 증가로 인한 스케일 아웃 (복수 인스턴스)
+ *   - 배포 시 전체 초기화
+ *
+ * 따라서 이 레이트 리미터는 "최선 노력(best-effort)" 수준이며,
+ * 결정적(deterministic) 보호를 보장하지 않습니다.
+ *
+ * 프로덕션 권장 사항:
+ *   Upstash Redis (@upstash/ratelimit) 또는 Vercel KV를 사용하여
+ *   분산 환경에서도 정확한 레이트 리미팅을 구현하세요.
+ *   참고: https://upstash.com/docs/redis/sdks/ratelimit-ts/overview
  */
 
 interface RateLimitEntry {

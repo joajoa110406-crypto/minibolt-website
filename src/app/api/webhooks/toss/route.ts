@@ -266,6 +266,40 @@ async function handlePaymentStatusChanged(
 }
 
 // ────────────────────────────────────────────────────────
+// Toss API를 통한 결제 상태 검증 (서명 없는 이벤트 대응)
+// Toss는 PAYMENT_STATUS_CHANGED에 서명 헤더를 보내지 않으므로,
+// 웹훅 데이터를 신뢰하지 않고 Toss API로 실제 결제 상태를 조회하여
+// 위변조를 방지한다.
+// ────────────────────────────────────────────────────────
+async function verifyPaymentWithTossAPI(
+  paymentKey: string,
+  secretKey: string
+): Promise<{ verified: boolean; actualStatus?: string; error?: string; retryable?: boolean }> {
+  try {
+    const res = await fetch(
+      `https://api.tosspayments.com/v1/payments/${encodeURIComponent(paymentKey)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      // 5xx = Toss 서버 일시 장애 → 재시도 가능, 4xx = 영구 실패
+      return { verified: false, error: `Toss API ${res.status}`, retryable: res.status >= 500 };
+    }
+
+    const payment = await res.json();
+    return { verified: true, actualStatus: payment.status };
+  } catch (e) {
+    // 네트워크 오류 → 재시도 가능
+    return { verified: false, error: e instanceof Error ? e.message : String(e), retryable: true };
+  }
+}
+
+// ────────────────────────────────────────────────────────
 // POST 핸들러 (Toss Payments 웹훅 수신)
 // ────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -293,7 +327,12 @@ export async function POST(req: NextRequest) {
       createdAt: body.createdAt,
     });
 
-    // 3. 서명 검증 (API 시크릿 키 사용, Toss 공식 스펙)
+    // 3. 인증: 이벤트 유형에 따라 서명 검증 또는 API 콜백 검증
+    //
+    // Toss 공식 스펙상 tosspayments-webhook-signature 헤더는
+    // payout.changed, seller.changed 이벤트에만 포함된다.
+    // PAYMENT_STATUS_CHANGED에는 서명이 없으므로, 서명이 없는 경우
+    // Toss 결제 조회 API로 실제 상태를 확인하여 위변조를 방지한다.
     const signatureHeader = req.headers.get('tosspayments-webhook-signature') || '';
     const transmissionTime = req.headers.get('tosspayments-webhook-transmission-time') || '';
     const secretKey = process.env.TOSS_API_SECRET_KEY || process.env.TOSS_SECRET_KEY;
@@ -303,16 +342,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Webhook secret not configured' });
     }
 
-    if (!signatureHeader || !transmissionTime) {
-      logWebhook('warn', 'missing_signature_headers', { eventType: body.eventType });
-      return NextResponse.json({ success: false, message: 'Missing signature' });
-    }
+    const eventType = String(body.eventType || '');
+    const eventData = (body.data || {}) as Record<string, unknown>;
 
-    if (!verifySignature(rawBody, signatureHeader, transmissionTime, secretKey)) {
-      logWebhook('warn', 'signature_mismatch', { eventType: body.eventType });
-      return NextResponse.json({ success: false, message: 'Invalid signature' });
+    if (signatureHeader && transmissionTime) {
+      // 서명 헤더가 있으면 HMAC 검증 (payout.changed, seller.changed)
+      if (!verifySignature(rawBody, signatureHeader, transmissionTime, secretKey)) {
+        logWebhook('warn', 'signature_mismatch', { eventType: body.eventType });
+        return NextResponse.json({ success: false, message: 'Invalid signature' });
+      }
+      logWebhook('info', 'signature_verified');
+    } else if (eventType === 'PAYMENT_STATUS_CHANGED') {
+      // PAYMENT_STATUS_CHANGED: 서명 없음 — Toss API 콜백으로 실제 상태 검증
+      const webhookPaymentKey = eventData.paymentKey as string | undefined;
+      const webhookStatus = eventData.status as string | undefined;
+
+      if (!webhookPaymentKey) {
+        logWebhook('warn', 'missing_payment_key_for_verification', { eventType });
+        return NextResponse.json({ success: false, message: 'Missing paymentKey' });
+      }
+
+      const verification = await verifyPaymentWithTossAPI(webhookPaymentKey, secretKey);
+      if (!verification.verified) {
+        logWebhook('error', 'toss_api_verification_failed', {
+          eventType,
+          paymentKey: webhookPaymentKey,
+          error: verification.error,
+          retryable: verification.retryable,
+        });
+        if (verification.retryable) {
+          // 네트워크/서버 일시 장애 → 500 반환하여 Toss가 재시도하도록 함
+          return NextResponse.json(
+            { success: false, message: 'Temporary verification failure' },
+            { status: 500 }
+          );
+        }
+        // 영구 실패 (4xx 등) → 200 반환하여 재시도 방지
+        return NextResponse.json({ success: false, message: 'Verification failed' });
+      }
+
+      // 웹훅이 보낸 status와 Toss API 실제 status가 다르면 위변조 의심
+      if (webhookStatus && verification.actualStatus !== webhookStatus) {
+        logWebhook('error', 'webhook_status_spoofing_detected', {
+          eventType,
+          paymentKey: webhookPaymentKey,
+          webhookStatus,
+          actualStatus: verification.actualStatus,
+        });
+        return NextResponse.json({ success: false, message: 'Status mismatch' });
+      }
+
+      logWebhook('info', 'toss_api_verified', {
+        paymentKey: webhookPaymentKey,
+        status: verification.actualStatus,
+      });
+    } else {
+      // 알 수 없는 이벤트 타입이면서 서명도 없음 — 거부
+      logWebhook('warn', 'unverifiable_event', { eventType });
+      return NextResponse.json({ success: false, message: 'Cannot verify event' });
     }
-    logWebhook('info', 'signature_verified');
 
     // 4. Supabase 클라이언트 초기화
     let supabase;
@@ -371,10 +459,7 @@ export async function POST(req: NextRequest) {
       // 기록 실패해도 이벤트 처리는 진행
     }
 
-    // 7. 이벤트 타입별 처리
-    const eventType = String(body.eventType || '');
-    const eventData = (body.data || {}) as Record<string, unknown>;
-
+    // 7. 이벤트 타입별 처리 (eventType, eventData는 3단계에서 이미 선언됨)
     switch (eventType) {
       case 'PAYMENT_STATUS_CHANGED':
         await handlePaymentStatusChanged(eventData);

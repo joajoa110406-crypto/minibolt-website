@@ -228,9 +228,10 @@ export default function CheckoutPage() {
     const b2bRate = b2bInfo.isB2B ? b2bInfo.discountRate : undefined;
     const { productAmount, shippingFee, islandFee, b2bDiscount, totalAmount } = calculateTotals(currentCart, isIsland, b2bRate);
     const orderId = `MB${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    const orderName = cart.length > 1
-      ? `${generateProductName(cart[0])} 외 ${cart.length - 1}건`
-      : generateProductName(cart[0]);
+    // currentCart 기반으로 주문명 생성 (다른 탭에서 cart 변경 시 불일치 방지)
+    const orderName = currentCart.length > 1
+      ? `${generateProductName(currentCart[0])} 외 ${currentCart.length - 1}건`
+      : generateProductName(currentCart[0]);
     const fullAddress = address + (addressDetail ? ' ' + addressDetail : '');
 
     // 주문 임시 저장 (success 페이지에서 사용)

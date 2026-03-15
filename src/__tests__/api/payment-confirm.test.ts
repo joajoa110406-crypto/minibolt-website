@@ -47,6 +47,16 @@ vi.mock('@/lib/supabase', () => ({
   generateOrderNumber: vi.fn().mockResolvedValue('MB20260308-001'),
 }));
 
+// inventory.server mock
+vi.mock('@/lib/inventory.server', () => ({
+  deductStock: vi.fn().mockResolvedValue(undefined),
+}));
+
+// push-notification mock
+vi.mock('@/lib/push-notification', () => ({
+  notifyNewOrder: vi.fn().mockResolvedValue(undefined),
+}));
+
 // mailer mock
 vi.mock('@/lib/mailer', () => ({
   sendOrderNotification: vi.fn().mockResolvedValue(undefined),
@@ -105,17 +115,17 @@ describe('POST /api/payment/confirm', () => {
     // 기본 가격 검증 통과
     mockVerifyItemPrices.mockReturnValue({ valid: true, errors: [] });
 
-    // 기본 Toss API 성공 응답
+    // 기본 Toss API 성공 응답 (totalAmount, orderId 포함 - 서버 검증용)
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ method: 'CARD', status: 'DONE' }),
+      json: async () => ({ method: 'CARD', status: 'DONE', totalAmount: 6300, orderId: 'MB1234567890' }),
     });
   });
 
   it('정상 결제 승인 → 200 + orderNumber', async () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -130,7 +140,7 @@ describe('POST /api/payment/confirm', () => {
   it('금액 불일치 (amount != 서버 계산) → 400', async () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 9999, // 서버 계산값 6300과 불일치
       orderInfo,
@@ -144,7 +154,7 @@ describe('POST /api/payment/confirm', () => {
   it('금액 불일치 (amount != orderInfo.totalAmount) → 400', async () => {
     const orderInfo = makeOrderInfo({ totalAmount: 9999 });
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300, // 서버 계산값과 같지만 orderInfo.totalAmount과 불일치
       orderInfo,
@@ -157,7 +167,7 @@ describe('POST /api/payment/confirm', () => {
     delete process.env.TOSS_SECRET_KEY;
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -176,7 +186,7 @@ describe('POST /api/payment/confirm', () => {
 
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -194,7 +204,7 @@ describe('POST /api/payment/confirm', () => {
 
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -207,7 +217,7 @@ describe('POST /api/payment/confirm', () => {
   it('반환 필드에 orderNumber, buyerName, totalAmount 포함', async () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -228,7 +238,7 @@ describe('POST /api/payment/confirm', () => {
 
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -247,7 +257,7 @@ describe('POST /api/payment/confirm', () => {
 
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,
@@ -264,7 +274,7 @@ describe('POST /api/payment/confirm', () => {
 
     const orderInfo = makeOrderInfo();
     await POST(makeRequest({
-      paymentKey: 'pk_test_123',
+      paymentKey: 'pk_test_1234567890abcdef',
       orderId: 'MB1234567890',
       amount: 6300,
       orderInfo,

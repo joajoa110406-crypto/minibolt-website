@@ -7,6 +7,7 @@ import {
   sendContactAdminNotification,
 } from '@/lib/mailer';
 import { createApiLogger } from '@/lib/logger';
+import { stripEmailHeaderChars, sanitizeTextInput } from '@/lib/validation';
 
 const log = createApiLogger('contact');
 
@@ -130,20 +131,28 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
+  // 1-b. 입력 살균 (email header injection 방지 + 제어문자 제거)
+  const safeName = stripEmailHeaderChars(sanitizeTextInput(customerName.trim()));
+  const safeEmail = customerEmail.trim(); // 이메일은 regex로 이미 검증됨 (\s 불허)
+  const safeSubject = stripEmailHeaderChars(sanitizeTextInput(subject.trim()));
+  const safeMessage = sanitizeTextInput(message.trim());
+  const safePhone = customerPhone?.replace(/\D/g, '') || null;
+  const safeOrderNumber = orderNumber?.trim() || null;
+
   // 2. FAQ 키워드 매칭
-  const faqResult = matchFAQ(subject.trim(), message.trim());
+  const faqResult = matchFAQ(safeSubject, safeMessage);
 
   // 3. contacts 테이블 INSERT
   const { data: contactRecord, error: insertError } = await supabase
     .from('contacts')
     .insert({
-      customer_name: customerName.trim(),
-      customer_email: customerEmail.trim(),
-      customer_phone: customerPhone?.replace(/\D/g, '') || null,
+      customer_name: safeName,
+      customer_email: safeEmail,
+      customer_phone: safePhone,
       category,
-      subject: subject.trim(),
-      message: message.trim(),
-      order_number: orderNumber?.trim() || null,
+      subject: safeSubject,
+      message: safeMessage,
+      order_number: safeOrderNumber,
       auto_reply_sent: faqResult.matched,
       status: 'pending',
     })
@@ -159,24 +168,24 @@ export async function POST(request: NextRequest) {
   try {
     if (faqResult.matched && faqResult.reply) {
       // 자동 응답 메일
-      await sendContactAutoReplyEmail(customerEmail.trim(), {
-        customerName: customerName.trim(),
-        subject: subject.trim(),
+      await sendContactAutoReplyEmail(safeEmail, {
+        customerName: safeName,
+        subject: safeSubject,
         autoReply: faqResult.reply,
       });
     } else {
       // 일반 접수 확인 메일
-      await sendContactReceivedEmail(customerEmail.trim(), {
-        customerName: customerName.trim(),
-        subject: subject.trim(),
+      await sendContactReceivedEmail(safeEmail, {
+        customerName: safeName,
+        subject: safeSubject,
       });
     }
 
     // 관리자 알림
     await sendContactAdminNotification(
       category,
-      subject.trim(),
-      customerName.trim()
+      safeSubject,
+      safeName
     );
   } catch (err) {
     log.warn('메일 발송 오류', undefined);

@@ -194,6 +194,7 @@ describe('calculateTotals', () => {
 describe('addToCart', () => {
   beforeEach(() => {
     setupLocalStorageMock();
+    _resetCartCache();
   });
 
   it('빈 장바구니에 상품 추가', () => {

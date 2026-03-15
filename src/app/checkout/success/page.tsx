@@ -117,14 +117,38 @@ function SuccessContent() {
   }
 
   if (status === 'error') {
+    // 결제는 완료되었을 수 있으므로 paymentKey/orderId를 사용자에게 보여줌
+    const hasPaymentInfo = !!(paymentKey && orderId);
     return (
       <div className="success-error" style={{ textAlign: 'center', padding: '5rem 1rem' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>&#10060;</div>
         <h2 style={{ marginBottom: '0.5rem' }}>결제 확인 실패</h2>
-        <p style={{ color: '#666', marginBottom: '2rem', wordBreak: 'keep-all' }}>{errorMsg}</p>
-        <Link href="/checkout" style={{ background: '#ff6b35', color: '#fff', padding: '0.9rem 2rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600, display: 'inline-block', minHeight: 48 }}>
-          다시 시도
-        </Link>
+        <p style={{ color: '#666', marginBottom: '1rem', wordBreak: 'keep-all' }}>{errorMsg}</p>
+        {hasPaymentInfo && (
+          <div style={{ background: '#fff3f3', border: '1px solid #e0c0c0', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left', fontSize: '0.85rem', color: '#555', maxWidth: 440, marginLeft: 'auto', marginRight: 'auto' }}>
+            <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: '#c0392b' }}>
+              결제가 이미 완료되었을 수 있습니다
+            </div>
+            <p style={{ marginBottom: '0.5rem', lineHeight: 1.6 }}>
+              아래 정보를 고객센터에 전달해 주시면 확인 후 처리해 드리겠습니다.
+            </p>
+            <div style={{ background: '#f8f8f8', borderRadius: 6, padding: '0.6rem 0.8rem', fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all', lineHeight: 1.6 }}>
+              <div>주문번호: {orderId}</div>
+              <div>결제키: {paymentKey}</div>
+            </div>
+            <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#888' }}>
+              고객센터: <a href="tel:01090065846" style={{ color: '#ff6b35', textDecoration: 'none' }}>010-9006-5846</a> (평일 09:00~18:00)
+            </p>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link href="/orders" style={{ background: '#2c3e50', color: '#fff', padding: '0.9rem 1.5rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600, display: 'inline-block', minHeight: 48 }}>
+            주문내역 확인
+          </Link>
+          <Link href="/products" style={{ background: '#ff6b35', color: '#fff', padding: '0.9rem 1.5rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600, display: 'inline-block', minHeight: 48 }}>
+            쇼핑 계속하기
+          </Link>
+        </div>
       </div>
     );
   }

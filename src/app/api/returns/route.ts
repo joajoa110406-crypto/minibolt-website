@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendReturnRequestEmail } from '@/lib/mailer';
 import { createApiLogger } from '@/lib/logger';
+import { sanitizeTextInput, stripEmailHeaderChars } from '@/lib/validation';
 
 const log = createApiLogger('returns');
 
@@ -125,10 +126,10 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   const phoneDigits = customerPhone.replace(/\D/g, '');
 
-  // 2. 주문 조회
+  // 2. 주문 조회 (order_items 포함하여 반품 상품 검증에 활용)
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('id, order_number, customer_name, customer_phone, customer_email, order_status, payment_status')
+    .select('id, order_number, customer_name, customer_phone, customer_email, order_status, payment_status, order_items (*)')
     .eq('order_number', orderNumber.trim())
     .single();
 
@@ -159,6 +160,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // 3-b. 반품 상품이 실제 주문에 포함된 상품인지 검증 (IDOR/위조 방지)
+  // 동일 product_id가 다른 블록사이즈로 여러 번 주문될 수 있으므로 수량 합산
+  const orderItemQtyMap = new Map<string, number>();
+  for (const oi of (order.order_items || []) as { product_id: string; quantity: number }[]) {
+    orderItemQtyMap.set(oi.product_id, (orderItemQtyMap.get(oi.product_id) || 0) + oi.quantity);
+  }
+
+  for (const item of returnItems) {
+    if (!orderItemQtyMap.has(item.product_id)) {
+      return NextResponse.json(
+        { error: '해당 주문에 포함되지 않은 상품입니다.' },
+        { status: 400 }
+      );
+    }
+    const orderedQty = orderItemQtyMap.get(item.product_id) || 0;
+    if (item.qty > orderedQty) {
+      return NextResponse.json(
+        { error: '반품 수량이 주문 수량을 초과할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+  }
+
+  // 3-c. 입력값 살균 (stored XSS 방지)
+  const sanitizedReturnItems = returnItems.map((item) => ({
+    product_id: sanitizeTextInput(item.product_id),
+    product_name: sanitizeTextInput(item.product_name),
+    qty: item.qty,
+  }));
+  const safeReasonDetail = reasonDetail
+    ? sanitizeTextInput(reasonDetail.trim())
+    : null;
+
   // 4. 중복 신청 방지
   const { data: existingReturn } = await supabase
     .from('returns')
@@ -174,7 +208,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. returns 테이블 INSERT
+  // 5. returns 테이블 INSERT (살균된 값 사용)
   const { data: returnRecord, error: insertError } = await supabase
     .from('returns')
     .insert({
@@ -185,8 +219,8 @@ export async function POST(request: NextRequest) {
       customer_email: order.customer_email,
       return_type: returnType,
       reason,
-      reason_detail: reasonDetail?.trim() || null,
-      return_items: returnItems,
+      reason_detail: safeReasonDetail,
+      return_items: sanitizedReturnItems,
       status: 'requested',
     })
     .select('id')
@@ -197,15 +231,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '반품 신청 중 오류가 발생했습니다.' }, { status: 500 });
   }
 
-  // 6. 메일 발송 (실패해도 신청 자체는 성공)
+  // 6. 메일 발송 (실패해도 신청 자체는 성공, 살균된 값 사용)
   try {
     await sendReturnRequestEmail(order.customer_email, {
       orderNumber: order.order_number,
-      customerName: order.customer_name,
+      customerName: stripEmailHeaderChars(order.customer_name),
       returnType,
       reason,
-      reasonDetail: reasonDetail?.trim(),
-      items: returnItems.map((item) => ({
+      reasonDetail: safeReasonDetail ?? undefined,
+      items: sanitizedReturnItems.map((item) => ({
         product_name: item.product_name,
         qty: item.qty,
       })),

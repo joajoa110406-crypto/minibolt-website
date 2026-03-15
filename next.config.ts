@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { validateBuildEnv } from "./src/lib/env";
+
+// 빌드 타임 환경변수 검증 - 프로덕션 빌드 시 필수 변수 누락이면 빌드 실패
+validateBuildEnv();
 
 const nextConfig: NextConfig = {
   // ---------------------------------------------------------------------------
