@@ -115,7 +115,7 @@ const nextConfig: NextConfig = {
               "worker-src 'self'",
               "connect-src 'self' https://api.tosspayments.com https://*.supabase.co https://t1.daumcdn.net",
               // frame-src: X-Frame-Options SAMEORIGIN과 일관되게 self 포함
-              "frame-src 'self' https://js.tosspayments.com https://pgapi.tosspayments.com https://nid.naver.com https://kauth.kakao.com https://t1.daumcdn.net https://postcode.map.daum.net",
+              "frame-src 'self' https://js.tosspayments.com https://pgapi.tosspayments.com https://nid.naver.com https://kauth.kakao.com https://t1.daumcdn.net https://postcode.map.daum.net https://postcode.map.kakao.com",
               // frame-ancestors: X-Frame-Options의 CSP 대체 - 동일 출처만 허용
               "frame-ancestors 'self'",
               // base-uri: <base> 태그 삽입 공격 방지
