@@ -48,7 +48,7 @@ export async function GET(
     // 주문 이력
     const { data: orders } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, total_amount, order_status, payment_status, tracking_number, created_at')
+      .select('id, order_number, customer_name, total_amount, order_status, payment_status, tracking_number, shipping_address, shipping_zipcode, created_at')
       .eq('customer_email', decodedEmail)
       .order('created_at', { ascending: false })
       .limit(50);

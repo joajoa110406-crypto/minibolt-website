@@ -24,6 +24,8 @@ interface CustomerDetail {
     order_status: string;
     payment_status: string;
     tracking_number: string | null;
+    shipping_address: string | null;
+    shipping_zipcode: string | null;
     created_at: string;
   }[];
   b2b: {
@@ -299,6 +301,21 @@ export default function AdminCustomersPage() {
                   </div>
                 )}
 
+                {/* 최근 배송지 */}
+                {(() => {
+                  const latestAddr = detail.orders.find(o => o.shipping_address);
+                  if (!latestAddr) return null;
+                  return (
+                    <div style={{ background: '#f0f7ff', border: '1px solid #bbdefb', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.88rem' }}>
+                      <span style={{ fontWeight: 600, color: '#1565c0' }}>최근 배송지:</span>{' '}
+                      <span style={{ color: '#333' }}>
+                        {latestAddr.shipping_zipcode && `(${latestAddr.shipping_zipcode}) `}
+                        {latestAddr.shipping_address}
+                      </span>
+                    </div>
+                  );
+                })()}
+
                 {/* 가입일/마지막 주문 */}
                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', fontSize: '0.85rem', color: '#666' }}>
                   <span>첫 주문: {new Date(detail.stats.first_order_date).toLocaleDateString('ko-KR')}</span>
@@ -317,6 +334,7 @@ export default function AdminCustomersPage() {
                       <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #eee' }}>
                         <th style={thStyle}>주문번호</th>
                         <th style={thStyle}>금액</th>
+                        <th style={thStyle}>배송지</th>
                         <th style={thStyle}>상태</th>
                         <th style={thStyle}>결제</th>
                         <th style={thStyle}>날짜</th>
@@ -327,6 +345,9 @@ export default function AdminCustomersPage() {
                         <tr key={o.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
                           <td style={tdStyle}>{o.order_number}</td>
                           <td style={{ ...tdStyle, fontWeight: 600 }}>{o.total_amount.toLocaleString()}</td>
+                          <td style={{ ...tdStyle, fontSize: '0.8rem', maxWidth: 180, whiteSpace: 'normal', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                            {o.shipping_address || '-'}
+                          </td>
                           <td style={tdStyle}>{ORDER_STATUS_LABEL[o.order_status] || o.order_status}</td>
                           <td style={tdStyle}>
                             <span style={{
