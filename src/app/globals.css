@@ -127,13 +127,13 @@ input[type="checkbox"] {
   contain-intrinsic-size: auto 400px;
 }
 
-/* Main content padding to offset fixed header */
+/* Main content padding to offset fixed header (includes safe-area for notched devices) */
 .main-content {
-  padding-top: 66px;
+  padding-top: calc(66px + env(safe-area-inset-top, 0px));
 }
 @media (max-width: 768px) {
   .main-content {
-    padding-top: 56px;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
   }
 }
 

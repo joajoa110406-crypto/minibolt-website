@@ -276,7 +276,10 @@ export default function Header() {
           position: fixed;
           width: 100%;
           top: 0;
+          left: 0;
+          right: 0;
           z-index: 999;
+          padding-top: env(safe-area-inset-top, 0px);
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           will-change: transform;
         }
@@ -478,7 +481,7 @@ export default function Header() {
           transform: translateX(0);
         }
         .mobile-menu-content {
-          padding: 80px 0 32px;
+          padding: calc(80px + env(safe-area-inset-top, 0px)) 0 32px;
           display: flex;
           flex-direction: column;
         }
