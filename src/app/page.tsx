@@ -211,7 +211,7 @@ export default function HomePage() {
           </p>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, calc(50% - 8px)), 1fr))',
             gap: 'clamp(0.75rem, 2vw, 1.5rem)',
           }}>
             {categories.map(cat => (
@@ -244,15 +244,15 @@ export default function HomePage() {
                       주력
                     </span>
                   )}
-                  <div style={{ aspectRatio: '400 / 180', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ aspectRatio: '4 / 3', overflow: 'hidden', position: 'relative', background: '#f9f9f9' }}>
                     <Image
                       src={cat.img}
                       alt={cat.alt}
                       width={400}
-                      height={180}
+                      height={300}
                       priority={cat.featured}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 280px"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      sizes="(max-width: 640px) 45vw, (max-width: 1024px) 50vw, 280px"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 'clamp(6px, 2vw, 12px)' }}
                     />
                   </div>
                   <div style={{ padding: 'clamp(0.875rem, 2vw, 1.2rem)' }}>
