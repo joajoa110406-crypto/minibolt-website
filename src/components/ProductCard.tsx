@@ -29,7 +29,6 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
   const displayName = generateProductName(product);
   const discount = getBulkDiscount(blockSize, blockCount);
 
-  // 상품 상호작용 시 최근 본 상품에 기록
   const recordView = useCallback(() => {
     addRecentlyViewed({
       id: product.id,
@@ -46,7 +45,7 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
   const handleAddToCart = useCallback(() => {
     recordView();
     onAddToCart(product);
-  }, [recordView, onAddToCart, product]);
+  }, [recordView, onAddToCart, product.id]);
 
   const handleBlockChange = useCallback((size: number) => {
     onBlockChange(product.id, size);
@@ -63,17 +62,8 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
         {stockLabel}
       </span>
 
-      {/* 상단: 제품명 + 이미지 + 상세보기 */}
+      {/* 상단: 이미지 + 제품명 */}
       <div className="card-header">
-        <div className="card-header-info">
-          <h3 className="card-title">{displayName}</h3>
-          {/* 스펙 - 모바일에서 간결하게 */}
-          <div className="card-specs">
-            <span className="spec-tag">M{product.diameter}</span>
-            <span className="spec-tag">{product.length}mm</span>
-            <span className="spec-tag">{product.color}</span>
-          </div>
-        </div>
         <div className="card-image-area">
           <ProductImage src={getCategoryImage(product)} alt={`${displayName} ${product.category || '기타'} 마이크로나사 - MiniBolt`} size={80} />
           <Link
@@ -85,6 +75,14 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
           >
             +
           </Link>
+        </div>
+        <div className="card-header-info">
+          <h3 className="card-title">{displayName}</h3>
+          <div className="card-specs">
+            <span className="spec-tag">M{product.diameter}</span>
+            <span className="spec-tag">{product.length}mm</span>
+            <span className="spec-tag">{product.color}</span>
+          </div>
         </div>
       </div>
 
@@ -122,8 +120,8 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
         </div>
       </div>
 
-      {/* 블록 선택 + 수량 */}
-      <div className="order-section">
+      {/* 주문 액션 (블록 + 수량 + 장바구니) */}
+      <div className="card-actions">
         <div className="block-btns">
           {BLOCKS.map(b => (
             <button
@@ -166,17 +164,16 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
             </span>
           </div>
         </div>
+
+        {/* 장바구니 버튼 */}
+        <button
+          onClick={handleAddToCart}
+          disabled={product.stock === 0}
+          className={`add-cart-btn ${product.stock === 0 ? 'disabled' : ''}`}
+        >
+          {product.stock === 0 ? '품절' : '장바구니 담기'}
+        </button>
       </div>
-
-      {/* 장바구니 버튼 */}
-      <button
-        onClick={handleAddToCart}
-        disabled={product.stock === 0}
-        className={`add-cart-btn ${product.stock === 0 ? 'disabled' : ''}`}
-      >
-        {product.stock === 0 ? '품절' : '장바구니 담기'}
-      </button>
-
     </div>
   );
 }

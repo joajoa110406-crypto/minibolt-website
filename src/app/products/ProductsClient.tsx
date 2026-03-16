@@ -25,11 +25,17 @@ interface FilterOptions {
   types: string[];
 }
 
+interface ProductsClientProps {
+  initialCategory: string;
+  initialProducts: Product[];
+  initialFilterOptions: FilterOptions;
+}
+
 const PRODUCTS_PER_PAGE = 50;
 
-function ProductsContent() {
+function ProductsContent({ initialCategory, initialProducts, initialFilterOptions }: ProductsClientProps) {
   const [mounted, setMounted] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(CATEGORY_TABS[0].key);
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filterDiameter, setFilterDiameter] = useState('');
@@ -42,19 +48,31 @@ function ProductsContent() {
   const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_PAGE);
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  // API 응답 상태
-  const [apiProducts, setApiProducts] = useState<Product[] | null>(null);
-  const [apiFilterOptions, setApiFilterOptions] = useState<FilterOptions | null>(null);
+  // API 응답 상태 — 서버 초기 데이터로 시작 (API 대기 불필요)
+  const [apiProducts, setApiProducts] = useState<Product[] | null>(initialProducts);
+  const [apiFilterOptions, setApiFilterOptions] = useState<FilterOptions | null>(initialFilterOptions);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const skipInitialFetch = useRef(true);
 
   // JSON 폴백 데이터 (lazy-loaded)
   const [fallbackProducts, setFallbackProducts] = useState<Product[]>([]);
 
-  // API에서 제품 조회
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // API에서 제품 조회 — 첫 렌더는 서버 데이터 사용, 이후 필터 변경 시 API
   useEffect(() => {
     if (!mounted) return;
+
+    // 서버 초기 데이터와 일치하면 API 호출 스킵
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      if (activeCategory === initialCategory && !search && !filterType && !filterDiameter && !filterLength && !filterColor) {
+        return;
+      }
+    }
 
     // 이전 요청 취소
     if (abortRef.current) abortRef.current.abort();
@@ -76,9 +94,12 @@ function ProductsContent() {
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     fetch(`/api/products?${params.toString()}`, { signal: controller.signal })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && Array.isArray(data.products)) {
           setApiProducts(data.products);
           setApiFilterOptions(data.filterOptions);
           setApiError(false);
@@ -109,11 +130,8 @@ function ProductsContent() {
   }, [searchInput]);
 
   // 클라이언트 마운트 후에만 렌더링 (한글 데이터 SSR -> ByteString 이슈 방지)
+  // URL ?category는 서버 컴포넌트 searchParams에서 이미 처리 → initialCategory prop으로 전달됨
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get('category');
-    if (param && CATEGORY_TABS.some(t => t.key === param)) {
-      setActiveCategory(param);
-    }
     setMounted(true);
   }, []);
 
@@ -140,7 +158,7 @@ function ProductsContent() {
     if (filterLength) P = P.filter(p => p.length === filterLength);
     if (filterColor) P = P.filter(p => p.color === filterColor);
     return P;
-  }, [apiProducts, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
+  }, [apiProducts, fallbackProducts, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
 
   // 필터 옵션 (API 또는 폴백)
   const filterOptions = useMemo(() => {
@@ -156,7 +174,7 @@ function ProductsContent() {
     const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
     const types = [...new Set(fallbackProducts.filter(p => p.category === activeCategory).map(p => p.type).filter(Boolean))].sort();
     return { diameters, lengths, colors, types };
-  }, [apiFilterOptions, activeCategory, filterType, filterDiameter, filterLength]);
+  }, [apiFilterOptions, fallbackProducts, activeCategory, filterType, filterDiameter, filterLength]);
 
   // 카테고리 변경 시 필터 초기화 + 페이지 리셋
   useEffect(() => {
@@ -185,14 +203,26 @@ function ProductsContent() {
     setVisibleCount(prev => prev + PRODUCTS_PER_PAGE);
   }, []);
 
+  // IntersectionObserver 무한스크롤 (쿠팡 스타일)
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
+
   const getBlock = useCallback((id: string) => quantities[id] ?? 100, [quantities]);
   const getBlockCount = useCallback((id: string) => (quantities[`${id}_count`] ?? 1), [quantities]);
-  const setBlock = useCallback((id: string, size: number) => {
-    setQuantities(prev => ({ ...prev, [id]: size, [`${id}_count`]: 1 }));
-  }, []);
-  const setBlockCount = useCallback((id: string, count: number) => {
-    setQuantities(prev => ({ ...prev, [`${id}_count`]: count }));
-  }, []);
 
   const handleBlockChange = useCallback((productId: string, size: number) => {
     setQuantities(prev => ({ ...prev, [productId]: size, [`${productId}_count`]: 1 }));
@@ -203,6 +233,7 @@ function ProductsContent() {
     setQuantities(prev => ({ ...prev, [`${productId}_count`]: Math.min(Math.max(1, parsed), 9999) }));
   }, []);
 
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const handleAddToCart = useCallback((product: Product) => {
     if (product.stock === 0) return;
     const blockSize = quantities[product.id] ?? 100;
@@ -213,39 +244,14 @@ function ProductsContent() {
     addToCart(product, totalQty, blockSize, count);
     window.dispatchEvent(new Event('cart-updated'));
     const discountText = discount > 0 ? ` (${discount}% 할인)` : '';
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(`${generateProductName(product)} ${totalQty.toLocaleString()}개 ₩${totalPrice.toLocaleString()}${discountText}`);
-    setTimeout(() => setToast(''), 3500);
+    toastTimer.current = setTimeout(() => setToast(''), 3500);
   }, [quantities]);
 
   // 모든 Hooks 선언 완료 후 조기 반환
   if (!mounted) return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
-      {/* JSON-LD: ItemList (검색 카테고리 페이지 구조화 데이터) */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'CollectionPage',
-          name: '마이크로나사 전체 상품 762종',
-          description: '39년 제조사 성원특수금속 직접판매. M1.2~M3 마이크로 스크류 762종. 마이크로스크류, 평머리, 바인드헤드, 팬헤드, 플랫헤드.',
-          url: 'https://minibolt.co.kr/products',
-          provider: {
-            '@type': 'Organization',
-            name: '성원특수금속(미니볼트)',
-            url: 'https://minibolt.co.kr',
-          },
-          mainEntity: {
-            '@type': 'ItemList',
-            numberOfItems: 762,
-            itemListElement: CATEGORY_TABS.map((tab, idx) => ({
-              '@type': 'ListItem',
-              position: idx + 1,
-              name: tab.label,
-              url: `https://minibolt.co.kr/products?category=${encodeURIComponent(tab.key)}`,
-            })),
-          },
-        }) }}
-      />
       <div className="products-hero" style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>마이크로나사 전체 상품 762종</h1>
         <p style={{ fontSize: '0.95rem', color: '#ccc', marginTop: '0.5rem', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
@@ -254,19 +260,29 @@ function ProductsContent() {
       </div>
       <div className="products-container" style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
         <div className="skeleton-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} style={{ width: 120, height: 44, background: '#e9ecef', borderRadius: 10, animation: 'pulse 1.5s ease-in-out infinite' }} />
+          {CATEGORY_TABS.map((tab, i) => (
+            <div key={tab.key} style={{ width: 120, height: 44, background: i === 0 ? '#ff6b35' : '#e9ecef', borderRadius: 10, animation: 'pulse 1.5s ease-in-out infinite', opacity: i === 0 ? 0.7 : 1 }} />
           ))}
         </div>
         <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
+          {/* 검색 스켈레톤 */}
+          <div style={{ maxWidth: 500, margin: '0 auto 1.5rem', height: 48, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
           <div className="skeleton-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1rem', height: 280 }}>
-                <div style={{ width: '60%', height: 20, background: '#e9ecef', borderRadius: 4, marginBottom: '0.75rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '40%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '50%', height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: '1rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '100%', height: 60, background: '#f8f9fa', borderRadius: 8, marginBottom: '0.75rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '100%', height: 44, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} className="skeleton-card" style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1rem', height: 220 }}>
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{ width: 56, height: 56, background: '#e9ecef', borderRadius: 8, flexShrink: 0, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ width: '80%', height: 16, background: '#e9ecef', borderRadius: 4, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ width: 36, height: 18, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      <div style={{ width: 40, height: 18, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      <div style={{ width: 32, height: 18, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ width: '100%', height: 50, background: '#f8f9fa', borderRadius: 8, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ width: '100%', height: 38, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
               </div>
             ))}
           </div>
@@ -278,6 +294,7 @@ function ProductsContent() {
           .skeleton-tabs { flex-wrap: nowrap !important; overflow-x: auto; justify-content: flex-start !important; padding-bottom: 8px; scrollbar-width: none; }
           .skeleton-tabs::-webkit-scrollbar { display: none; }
           .skeleton-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
+          .skeleton-card { height: 180px !important; padding: 0.75rem !important; }
           .products-container { padding: 1rem 12px !important; }
           .products-hero { padding: 48px 16px 32px !important; }
         }
@@ -414,8 +431,15 @@ function ProductsContent() {
             )}
           </div>
 
+          {/* 로딩 오버레이 */}
+          {loading && (
+            <div className="loading-overlay">
+              <div className="loading-spinner" />
+            </div>
+          )}
+
           {/* 제품 그리드 */}
-          {filtered.length === 0 ? (
+          {filtered.length === 0 && !loading ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#666' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#x1F50D;</div>
               <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>검색 결과가 없습니다</p>
@@ -434,30 +458,19 @@ function ProductsContent() {
                     product={product}
                     blockSize={getBlock(product.id)}
                     blockCount={getBlockCount(product.id)}
-                    onBlockChange={setBlock}
-                    onBlockCountChange={setBlockCount}
-                    onAddToCart={() => handleAddToCart(product)}
+                    onBlockChange={handleBlockChange}
+                    onBlockCountChange={handleBlockCountChange}
+                    onAddToCart={handleAddToCart}
                   />
                 ))}
               </div>
+
+              {/* 무한스크롤 sentinel */}
               {hasMore && (
-                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                  <button
-                    onClick={loadMore}
-                    style={{
-                      background: '#ff6b35',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '0.8rem 2.5rem',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      minHeight: 48,
-                    }}
-                  >
-                    더 보기 ({filtered.length - visibleCount}개 남음)
-                  </button>
+                <div ref={sentinelRef} className="infinite-scroll-sentinel">
+                  <div className="loading-dots">
+                    <span /><span /><span />
+                  </div>
                 </div>
               )}
             </>
@@ -516,6 +529,7 @@ function ProductsContent() {
           border-radius: 15px;
           padding: 2rem;
           box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+          position: relative;
         }
 
         /* ===== 검색 ===== */
@@ -603,6 +617,52 @@ function ProductsContent() {
           cursor: pointer;
           font-size: 0.8rem;
           font-weight: 600;
+        }
+
+        /* ===== 로딩 오버레이 ===== */
+        .loading-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(255, 255, 255, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          border-radius: 15px;
+        }
+        .loading-spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid #e0e0e0;
+          border-top-color: #ff6b35;
+          border-radius: 50%;
+          animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== 무한스크롤 sentinel ===== */
+        .infinite-scroll-sentinel {
+          display: flex;
+          justify-content: center;
+          padding: 2rem 0;
+        }
+        .loading-dots {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+        }
+        .loading-dots span {
+          width: 8px;
+          height: 8px;
+          background: #ff6b35;
+          border-radius: 50%;
+          animation: dotPulse 1.2s ease-in-out infinite;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1); }
         }
 
         /* ===== 제품 그리드 ===== */
@@ -728,7 +788,7 @@ function ProductsContent() {
           /* 제품 그리드: 모바일 2열 */
           .product-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 0.75rem !important;
+            gap: 0.5rem !important;
           }
 
           /* 토스트 */
@@ -743,10 +803,10 @@ function ProductsContent() {
         @media (max-width: 360px) {
           .product-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 0.5rem !important;
+            gap: 0.35rem !important;
           }
           .products-container {
-            padding: 0.75rem 8px !important;
+            padding: 0.75rem 6px !important;
           }
         }
       `}</style>
@@ -754,6 +814,6 @@ function ProductsContent() {
   );
 }
 
-export default function ProductsClient() {
-  return <ProductsContent />;
+export default function ProductsClient(props: ProductsClientProps) {
+  return <ProductsContent {...props} />;
 }

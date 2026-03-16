@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { allProducts } from '@/lib/products';
 import { generateProductName, CATEGORY_TABS } from '@/lib/products-utils';
 import ProductsClient from './ProductsClient';
+import type { Product } from '@/types/product';
 
 // BreadcrumbList JSON-LD
 const breadcrumbJsonLd = {
@@ -39,7 +40,7 @@ const collectionJsonLd = {
 
 // 카테고리별 제품 그룹화 (서버에서 한 번만 실행)
 function getProductsByCategory() {
-  const groups: Record<string, typeof allProducts[number][]> = {};
+  const groups: Record<string, (typeof allProducts)[number][]> = {};
   for (const tab of CATEGORY_TABS) {
     groups[tab.key] = [];
   }
@@ -52,7 +53,26 @@ function getProductsByCategory() {
   return groups;
 }
 
-export default function ProductsPage() {
+// 초기 필터 옵션 계산 (서버에서 한 번)
+function computeFilterOptions(products: readonly Product[]) {
+  return {
+    diameters: [...new Set(products.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b)),
+    lengths: [...new Set(products.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b)),
+    colors: [...new Set(products.map(p => p.color).filter(Boolean))].sort(),
+    types: [...new Set(products.map(p => p.type).filter(Boolean))].sort(),
+  };
+}
+
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const params = await searchParams;
+  const initialCategory = (params.category && CATEGORY_TABS.some(t => t.key === params.category))
+    ? params.category
+    : CATEGORY_TABS[0].key;
+
+  // 서버에서 초기 카테고리 제품 + 필터 옵션 미리 계산 (API 호출 불필요)
+  const initialProducts = allProducts.filter(p => p.category === initialCategory);
+  const initialFilterOptions = computeFilterOptions(initialProducts);
+
   const productsByCategory = getProductsByCategory();
 
   return (
@@ -93,8 +113,12 @@ export default function ProductsPage() {
         })}
       </section>
 
-      {/* 인터랙티브 클라이언트 컴포넌트 */}
-      <ProductsClient />
+      {/* 인터랙티브 클라이언트 컴포넌트 (서버 초기 데이터 포함) */}
+      <ProductsClient
+        initialCategory={initialCategory}
+        initialProducts={initialProducts}
+        initialFilterOptions={initialFilterOptions}
+      />
     </>
   );
 }
