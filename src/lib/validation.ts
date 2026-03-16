@@ -37,9 +37,16 @@ export function isValidPhone(phone: string): boolean {
   return digits.length >= 10 && digits.length <= 11;
 }
 
+/**
+ * 주문번호 정규식 (단일 정의)
+ * 형식: MB + YYYYMMDD(8자리 숫자) + "-" + 3~6자리 대문자 영숫자
+ * 예: MB20260308-A1B2C3 (generateOrderNumber), MB20260308-123 (타임스탬프 폴백)
+ */
+export const ORDER_NUMBER_REGEX = /^MB\d{8}-[A-Z0-9]{3,6}$/;
+
 /** 주문번호 형식 검증 (MB로 시작) */
 export function isValidOrderNumber(orderNumber: string): boolean {
-  return /^MB\d{8}-\d{3,}$/.test(orderNumber);
+  return ORDER_NUMBER_REGEX.test(orderNumber.trim().toUpperCase());
 }
 
 /** 날짜 형식 검증 (YYYY-MM-DD) */

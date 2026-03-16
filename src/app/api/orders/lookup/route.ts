@@ -3,45 +3,25 @@ import { createApiLogger } from '@/lib/logger';
 
 const log = createApiLogger('orders/lookup');
 
-// ── Rate Limiter (IP당 분당 3회 제한) ──
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 3;
-const RATE_WINDOW = 60_000; // 1분
-const MAX_MAP_SIZE = 10_000; // 최대 엔트리 수 (메모리 보호)
-
-/**
- * Map 크기가 MAX_MAP_SIZE를 초과하면 가장 오래된 항목부터 제거
- * Map은 삽입 순서를 유지하므로 앞쪽이 가장 오래된 항목
- */
-function evictIfNeeded<T>(map: Map<string, T>): void {
-  if (map.size <= MAX_MAP_SIZE) return;
-  const entriesToRemove = map.size - MAX_MAP_SIZE;
-  let removed = 0;
-  for (const key of map.keys()) {
-    if (removed >= entriesToRemove) break;
-    map.delete(key);
-    removed++;
-  }
-}
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(ip);
-  if (!record || now > record.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW });
-    evictIfNeeded(rateLimitMap);
-    return true;
-  }
-  if (record.count >= RATE_LIMIT) return false;
-  record.count++;
-  return true;
-}
+// Rate limiting은 middleware.ts에서 통합 처리 (Edge Runtime, 3 req/60s)
 
 // ── 연속 실패 추적 (IP별 실패 카운트 및 지연 시간 부여) ──
 const failCountMap = new Map<string, { count: number; lastFailTime: number }>();
 const FAIL_COOLDOWN_BASE = 5_000; // 기본 대기 5초
 const FAIL_COOLDOWN_MAX = 60_000; // 최대 대기 60초
 const FAIL_COUNT_RESET = 300_000; // 5분 이내 실패 없으면 초기화
+const MAX_FAIL_MAP_SIZE = 10_000;
+
+function evictFailMapIfNeeded(): void {
+  if (failCountMap.size <= MAX_FAIL_MAP_SIZE) return;
+  const entriesToRemove = failCountMap.size - MAX_FAIL_MAP_SIZE;
+  let removed = 0;
+  for (const key of failCountMap.keys()) {
+    if (removed >= entriesToRemove) break;
+    failCountMap.delete(key);
+    removed++;
+  }
+}
 
 function checkFailCooldown(ip: string): { allowed: boolean; retryAfterMs: number } {
   const now = Date.now();
@@ -74,7 +54,7 @@ function recordFailure(ip: string): void {
   const record = failCountMap.get(ip);
   if (!record) {
     failCountMap.set(ip, { count: 1, lastFailTime: now });
-    evictIfNeeded(failCountMap);
+    evictFailMapIfNeeded();
   } else {
     record.count++;
     record.lastFailTime = now;
@@ -85,12 +65,8 @@ function clearFailure(ip: string): void {
   failCountMap.delete(ip);
 }
 
-// ── 입력 검증 ──
-const ORDER_NUMBER_REGEX = /^MB[A-Z0-9\-]{6,20}$/;
-
-function validateOrderNumber(orderNumber: string): boolean {
-  return ORDER_NUMBER_REGEX.test(orderNumber.trim().toUpperCase());
-}
+// ── 입력 검증 (주문번호 정규식은 validation.ts에서 단일 관리) ──
+import { isValidOrderNumber as validateOrderNumber } from '@/lib/validation';
 
 function validatePhone(phone: string): boolean {
   const digits = phone.replace(/\D/g, '');
@@ -119,31 +95,14 @@ function maskAddress(address: string | null | undefined): string {
   return '***';
 }
 
-// 주기적으로 만료된 항목 정리 (메모리 누수 방지)
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of rateLimitMap) {
-    if (now > val.resetTime) rateLimitMap.delete(key);
-  }
-  for (const [key, val] of failCountMap) {
-    if (now - val.lastFailTime > FAIL_COUNT_RESET) failCountMap.delete(key);
-  }
-}, 60_000);
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
   try {
-    // 1) Rate Limiting (IP당 분당 3회)
-    if (!checkRateLimit(ip)) {
-      log.warn('Rate limit 초과', { ip });
-      return NextResponse.json(
-        { error: '요청이 너무 많습니다. 1분 후 다시 시도해주세요.' },
-        { status: 429 }
-      );
-    }
+    // Rate limiting은 middleware.ts에서 처리 (3 req/60s)
 
-    // 2) 연속 실패 대기 시간 확인
+    // 1) 연속 실패 대기 시간 확인
     const cooldownCheck = checkFailCooldown(ip);
     if (!cooldownCheck.allowed) {
       const retrySeconds = Math.ceil(cooldownCheck.retryAfterMs / 1000);

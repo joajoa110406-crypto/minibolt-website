@@ -26,10 +26,13 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 /**
  * 클라이언트 IP 추출
+ * 우선순위: x-real-ip > x-vercel-forwarded-for > x-forwarded-for 첫번째 > 'unknown'
+ * Vercel 프록시가 설정하는 x-real-ip / x-vercel-forwarded-for는 스푸핑 불가
  */
 function getClientIp(req: NextRequest): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0].trim()
-    || req.headers.get('x-real-ip')
+  return req.headers.get('x-real-ip')
+    || req.headers.get('x-vercel-forwarded-for')?.split(',')[0].trim()
+    || req.headers.get('x-forwarded-for')?.split(',')[0].trim()
     || 'unknown';
 }
 
@@ -137,6 +140,24 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith('/api/auth/')) {
       const ip = getClientIp(req);
       const rl = checkRateLimit(`auth:${ip}`, 20, 60_000);
+      if (!rl.allowed) {
+        return rateLimitResponse(rl.resetAt);
+      }
+    }
+
+    // /api/contact 경로: 문의 레이트 리미트 (5 req/60s)
+    if (pathname === '/api/contact') {
+      const ip = getClientIp(req);
+      const rl = checkRateLimit(`contact:${ip}`, 5, 60_000);
+      if (!rl.allowed) {
+        return rateLimitResponse(rl.resetAt);
+      }
+    }
+
+    // /api/orders/lookup 경로: 주문 조회 레이트 리미트 (3 req/60s)
+    if (pathname === '/api/orders/lookup') {
+      const ip = getClientIp(req);
+      const rl = checkRateLimit(`orders-lookup:${ip}`, 3, 60_000);
       if (!rl.allowed) {
         return rateLimitResponse(rl.resetAt);
       }

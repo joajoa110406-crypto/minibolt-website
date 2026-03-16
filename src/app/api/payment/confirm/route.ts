@@ -69,9 +69,9 @@ export async function POST(req: NextRequest) {
     if (typeof orderId !== 'string' || !orderId.trim()) {
       return NextResponse.json({ error: 'orderId가 필요합니다.' }, { status: 400 });
     }
-    // orderId 형식 검증: MB로 시작, 10~50자, 영숫자 및 하이픈만 허용
-    const ORDER_ID_REGEX = /^MB[a-zA-Z0-9\-]{8,48}$/;
-    if (!ORDER_ID_REGEX.test(orderId)) {
+    // orderId 형식 검증: 통일된 주문번호 정규식 사용
+    const { ORDER_NUMBER_REGEX } = await import('@/lib/validation');
+    if (!ORDER_NUMBER_REGEX.test(orderId.trim().toUpperCase())) {
       logPayment('warn', 'invalid_order_id_format', { orderId, length: orderId.length });
       return NextResponse.json({ error: 'orderId 형식이 올바르지 않습니다.' }, { status: 400 });
     }
@@ -475,6 +475,40 @@ export async function POST(req: NextRequest) {
     };
 
     if (!dbSaveSuccess) {
+      // Dead letter queue: failed_orders 테이블에 최소 정보 기록 (폴백)
+      try {
+        const { getSupabaseAdmin } = await import('@/lib/supabase');
+        const supabase = getSupabaseAdmin();
+        await supabase.from('failed_orders').insert({
+          payment_key: paymentKey,
+          order_id: orderId,
+          order_number: orderNumber,
+          amount: serverTotals.totalAmount,
+          buyer_name: orderInfo.buyerName,
+          buyer_phone: orderInfo.buyerPhone,
+          buyer_email: orderInfo.buyerEmail,
+          shipping_address: orderInfo.shippingAddress,
+          items_json: JSON.stringify(orderInfo.items),
+          error_reason: 'DB save failed after all retries',
+          created_at: new Date().toISOString(),
+          resolved: false,
+        });
+        logPayment('warn', 'failed_order_recorded_to_dlq', {
+          orderId, orderNumber, paymentKey: paymentKey.substring(0, 10) + '***',
+        });
+      } catch (dlqErr) {
+        // DLQ 저장도 실패하면 로그에 전체 정보를 남김 (최후의 수단)
+        logPayment('error', 'dlq_save_also_failed', {
+          orderId, orderNumber, amount: serverTotals.totalAmount,
+          paymentKey: paymentKey.substring(0, 10) + '***',
+          buyerPhone: orderInfo.buyerPhone,
+          buyerName: orderInfo.buyerName,
+          buyerEmail: orderInfo.buyerEmail,
+          itemCount: orderInfo.items.length,
+          dlqError: String(dlqErr),
+        });
+      }
+
       response.dbSaveError = true;
       response.warning = '결제는 완료되었으나 주문 등록 중 일시적인 오류가 발생했습니다. 고객센터(010-9006-5846)로 연락 부탁드립니다.';
       logPayment('error', 'db_save_all_retries_failed', {

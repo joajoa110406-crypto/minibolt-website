@@ -50,9 +50,14 @@ export const supabaseAdmin = new Proxy({} as SupabaseClient, {
   },
 });
 
-// 주문번호 생성: MB + YYYYMMDD + "-" + 랜덤 6자리 (예측 불가)
+// 주문번호 생성: MB + YYYYMMDD + "-" + 랜덤 6자리 (암호학적으로 안전)
 export async function generateOrderNumber(): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const randomBytes = new Uint8Array(6);
+  crypto.getRandomValues(randomBytes);
+  const random = Array.from(randomBytes)
+    .map((b) => chars[b % chars.length])
+    .join('');
   return `MB${today}-${random}`;
 }

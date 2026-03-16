@@ -513,7 +513,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Toss에 항상 200 반환 (재시도 방지)
+    // retryable 에러 판별: DB/네트워크 일시적 오류면 500 → Toss 재시도
+    // 영구적 에러(파싱, 검증 등)면 200 → 재시도 방지
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const isRetryable =
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ETIMEDOUT') ||
+      errorMessage.includes('ENOTFOUND') ||
+      errorMessage.includes('socket') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('Database') ||
+      errorMessage.includes('database') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('PGRST') ||
+      errorMessage.includes('supabase') ||
+      errorMessage.includes('Supabase');
+
+    if (isRetryable) {
+      logWebhook('warn', 'returning_500_for_retry', { eventId, errorMessage });
+      return NextResponse.json(
+        { success: false, message: 'Temporary error, please retry' },
+        { status: 500 }
+      );
+    }
+
+    // 영구적 에러: 200 반환하여 Toss가 재시도하지 않도록 함
     return NextResponse.json({ success: false, message: 'Internal error' });
   }
 }

@@ -39,6 +39,9 @@ scripts/auto-delivery/screenshots
 scripts/auto-delivery/*.log
 scripts/auto-delivery/report-*.json
 
+# legacy HTML files (pre-Next.js)
+/legacy
+
 # vercel
 .vercel
 

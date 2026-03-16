@@ -588,3 +588,32 @@ CREATE INDEX IF NOT EXISTS idx_price_history_bulk_id ON price_history(bulk_chang
 -- ============================================================
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS bundle_group_id VARCHAR(50);
 CREATE INDEX IF NOT EXISTS idx_orders_bundle_group ON orders(bundle_group_id) WHERE bundle_group_id IS NOT NULL;
+
+-- ============================================================
+-- failed_orders 테이블 (Dead Letter Queue)
+-- 결제 승인 후 DB 저장이 모두 실패한 경우 최소 정보를 기록
+-- 관리자가 수동으로 확인 후 resolved = true 처리
+-- ============================================================
+CREATE TABLE IF NOT EXISTS failed_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payment_key VARCHAR(200) NOT NULL,
+  order_id VARCHAR(100) NOT NULL,
+  order_number VARCHAR(20) NOT NULL,
+  amount INTEGER NOT NULL,
+  buyer_name VARCHAR(100),
+  buyer_phone VARCHAR(20),
+  buyer_email VARCHAR(255),
+  shipping_address VARCHAR(500),
+  items_json TEXT,
+  error_reason TEXT,
+  resolved BOOLEAN DEFAULT FALSE,
+  resolved_at TIMESTAMPTZ,
+  resolved_by VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_failed_orders_resolved ON failed_orders(resolved) WHERE resolved = FALSE;
+CREATE INDEX IF NOT EXISTS idx_failed_orders_created_at ON failed_orders(created_at);
+
+-- RLS 활성화 (Service Role Key로만 접근)
+ALTER TABLE failed_orders ENABLE ROW LEVEL SECURITY;

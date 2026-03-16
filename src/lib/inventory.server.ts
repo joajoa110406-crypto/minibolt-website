@@ -96,30 +96,24 @@ export async function restoreStock(
         `[inventory] 재고 복구 실패 [${item.product_id}]:`,
         error.message
       );
-      continue; // 복구 실패해도 나머지 계속 진행
+      continue;
     }
-    // 로그 기록은 RPC 내에서 처리됨
   }
 
-  // 전체 실패한 경우에는 stock_restored를 true로 표시하지 않음
-  if (failedCount === items.length) {
-    console.error(
-      `[inventory] 전체 재고 복구 실패 (${failedCount}/${items.length}):`,
-      orderId,
-      failedProducts.join(', ')
-    );
-    throw new Error(`전체 재고 복구 실패: ${orderId}`);
-  }
-
+  // 하나라도 실패하면 stock_restored를 true로 표시하지 않음 (불일치 방지)
   if (failedCount > 0) {
-    console.warn(
-      `[inventory] 일부 재고 복구 실패 (${failedCount}/${items.length}):`,
+    console.error(
+      `[inventory] 재고 복구 부분/전체 실패 (${failedCount}/${items.length}):`,
       orderId,
       failedProducts.join(', ')
     );
+    // stock_restored = false 유지 → 관리자가 수동 확인 필요
+    throw new Error(
+      `재고 복구 실패 (${failedCount}/${items.length}): ${orderId} — ${failedProducts.join(', ')}`
+    );
   }
 
-  // 복구 완료 플래그 (중복 복구 방지 - 일부라도 복구 성공하면 표시)
+  // 전체 복구 성공한 경우에만 플래그 설정
   await supabase
     .from('orders')
     .update({ stock_restored: true })
