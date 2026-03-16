@@ -201,72 +201,73 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile overlay */}
-        <div
-          className={`mobile-overlay ${menuOpen ? 'mobile-overlay-active' : ''}`}
-          onClick={() => setMenuOpen(false)}
-          aria-hidden="true"
-        />
-
-        {/* Mobile slide-in menu */}
-        <div
-          ref={menuRef}
-          id="mobile-nav"
-          role="navigation"
-          aria-label="모바일 메뉴"
-          className={`mobile-menu ${menuOpen ? 'mobile-menu-open' : ''}`}
-        >
-          <div className="mobile-menu-content">
-            {navItems.map(({ href, label, icon, badge }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMenuOpen(false)}
-                className={`mobile-menu-item ${pathname === href ? 'mobile-menu-item-active' : ''}`}
-              >
-                {icon && <span className="mobile-menu-icon">{icon}</span>}
-                <span className="mobile-menu-label">{label}</span>
-                {typeof badge === 'number' && badge > 0 && (
-                  <span className="mobile-menu-badge">{badge}</span>
-                )}
-                {pathname === href && <span className="mobile-active-indicator" />}
-              </Link>
-            ))}
-
-            {/* Divider */}
-            <div className="mobile-menu-divider" />
-
-            {/* Auth section */}
-            {session ? (
-              <div className="mobile-auth-section">
-                <div className="mobile-user-info">
-                  <div className="mobile-user-avatar">
-                    {session.user?.name?.[0] || '?'}
-                  </div>
-                  <span className="mobile-user-name">{session.user?.name}</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    signOut({ callbackUrl: '/' });
-                  }}
-                  className="mobile-logout-btn"
-                >
-                  로그아웃
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                onClick={() => setMenuOpen(false)}
-                className="mobile-login-btn"
-              >
-                로그인
-              </Link>
-            )}
-          </div>
-        </div>
       </nav>
+
+      {/* Mobile overlay - nav 바깥에 위치 (will-change: transform containing block 회피) */}
+      <div
+        className={`mobile-overlay ${menuOpen ? 'mobile-overlay-active' : ''}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Mobile slide-in menu */}
+      <div
+        ref={menuRef}
+        id="mobile-nav"
+        role="navigation"
+        aria-label="모바일 메뉴"
+        className={`mobile-menu ${menuOpen ? 'mobile-menu-open' : ''}`}
+      >
+        <div className="mobile-menu-content">
+          {navItems.map(({ href, label, icon, badge }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMenuOpen(false)}
+              className={`mobile-menu-item ${pathname === href ? 'mobile-menu-item-active' : ''}`}
+            >
+              {icon && <span className="mobile-menu-icon">{icon}</span>}
+              <span className="mobile-menu-label">{label}</span>
+              {typeof badge === 'number' && badge > 0 && (
+                <span className="mobile-menu-badge">{badge}</span>
+              )}
+              {pathname === href && <span className="mobile-active-indicator" />}
+            </Link>
+          ))}
+
+          {/* Divider */}
+          <div className="mobile-menu-divider" />
+
+          {/* Auth section */}
+          {session ? (
+            <div className="mobile-auth-section">
+              <div className="mobile-user-info">
+                <div className="mobile-user-avatar">
+                  {session.user?.name?.[0] || '?'}
+                </div>
+                <span className="mobile-user-name">{session.user?.name}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  signOut({ callbackUrl: '/' });
+                }}
+                className="mobile-logout-btn"
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="mobile-login-btn"
+            >
+              로그인
+            </Link>
+          )}
+        </div>
+      </div>
 
       <style>{`
         /* ===== Header base ===== */
@@ -449,14 +450,16 @@ export default function Header() {
           position: fixed;
           inset: 0;
           background: rgba(0, 0, 0, 0.5);
-          z-index: 999;
+          z-index: 998;
           opacity: 0;
+          pointer-events: none;
           transition: opacity 0.3s ease;
           -webkit-backdrop-filter: blur(2px);
           backdrop-filter: blur(2px);
         }
         .mobile-overlay-active {
           opacity: 1;
+          pointer-events: auto;
         }
 
         /* ===== Mobile slide-in menu ===== */
