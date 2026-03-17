@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import { generateProductName, getCategoryImage, getStockStatus, allProducts } from '@/lib/products';
 import ScrewSVG from '@/components/ScrewSVG';
@@ -224,9 +225,9 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* Breadcrumb */}
         <nav aria-label="breadcrumb" className="pdp-breadcrumb">
           <ol>
-            <li><a href="/">홈</a></li>
-            <li><a href="/products">제품</a></li>
-            <li><a href={`/products?category=${encodeURIComponent(product.category)}`}>{categoryLabel}</a></li>
+            <li><Link href="/">홈</Link></li>
+            <li><Link href="/products">제품</Link></li>
+            <li><Link href={`/products?category=${encodeURIComponent(product.category)}`}>{categoryLabel}</Link></li>
             <li aria-current="page">{name}</li>
           </ol>
         </nav>
@@ -344,7 +345,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 const rpImg = getCategoryImage(rp);
                 const rpPrice = Math.round((rp.price_100_block ?? 3000) * 1.1);
                 return (
-                  <a key={rp.id} href={`/products/${rp.id}`} className="pdp-related-card">
+                  <Link key={rp.id} href={`/products/${rp.id}`} className="pdp-related-card">
                     <Image
                       src={rpImg}
                       alt={`${rpName} 마이크로나사 - MiniBolt`}
@@ -357,17 +358,17 @@ export default async function ProductDetailPage({ params }: Props) {
                       <span className="pdp-related-name">{rpName}</span>
                       <span className="pdp-related-price">100개 {rpPrice.toLocaleString()}원~</span>
                     </div>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
             <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-              <a
+              <Link
                 href={`/products?category=${encodeURIComponent(product.category)}`}
                 className="pdp-view-all-btn"
               >
                 {categoryLabel} 전체 보기
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -403,12 +404,12 @@ export default async function ProductDetailPage({ params }: Props) {
 
         {/* Back to list */}
         <div className="pdp-back">
-          <a href="/products" className="pdp-back-link">
+          <Link href="/products" className="pdp-back-link">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ marginRight: 6 }}>
               <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             전체 마이크로나사 목록 보기
-          </a>
+          </Link>
         </div>
       </div>
 

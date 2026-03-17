@@ -9,6 +9,19 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/terms',
   },
+  openGraph: {
+    title: '이용약관 | 미니볼트',
+    description: '미니볼트 이용약관 - 서비스 이용 조건, 주문/결제, 배송, 청약철회 등에 관한 약관입니다.',
+    url: 'https://minibolt.co.kr/terms',
+    siteName: '미니볼트 - 마이크로 스크류 전문',
+    type: 'website',
+    locale: 'ko_KR',
+  },
+  twitter: {
+    card: 'summary',
+    title: '이용약관 | 미니볼트',
+    description: '미니볼트 이용약관 - 서비스 이용 조건, 주문/결제, 배송, 청약철회 등에 관한 약관입니다.',
+  },
 };
 
 export default function TermsPage() {

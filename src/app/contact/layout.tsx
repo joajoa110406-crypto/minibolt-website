@@ -6,6 +6,19 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/contact',
   },
+  openGraph: {
+    title: '문의하기 | 미니볼트 - 마이크로 스크류 주문/견적 상담',
+    description: '마이크로 스크류 주문, 견적, 맞춤 제작 상담. 39년 제조사 성원특수금속 직접 운영.',
+    url: 'https://minibolt.co.kr/contact',
+    siteName: '미니볼트 - 마이크로 스크류 전문',
+    type: 'website',
+    locale: 'ko_KR',
+  },
+  twitter: {
+    card: 'summary',
+    title: '문의하기 | 미니볼트 - 마이크로 스크류 주문/견적 상담',
+    description: '마이크로 스크류 주문, 견적, 맞춤 제작 상담. 39년 제조사 직접 운영.',
+  },
 };
 
 export default function ContactLayout({ children }: { children: React.ReactNode }) {

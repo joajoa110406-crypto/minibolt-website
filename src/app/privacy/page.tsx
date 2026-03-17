@@ -9,6 +9,19 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/privacy',
   },
+  openGraph: {
+    title: '개인정보처리방침 | 미니볼트',
+    description: '미니볼트 개인정보처리방침 - 개인정보 수집 항목, 이용 목적, 보유 기간, 제3자 제공 등을 안내합니다.',
+    url: 'https://minibolt.co.kr/privacy',
+    siteName: '미니볼트 - 마이크로 스크류 전문',
+    type: 'website',
+    locale: 'ko_KR',
+  },
+  twitter: {
+    card: 'summary',
+    title: '개인정보처리방침 | 미니볼트',
+    description: '미니볼트 개인정보처리방침 - 개인정보 보호 정책을 안내합니다.',
+  },
 };
 
 export default function PrivacyPage() {

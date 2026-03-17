@@ -6,6 +6,26 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/company',
   },
+  openGraph: {
+    title: '회사소개 | 미니볼트 - 39년 마이크로 스크류 제조 전문',
+    description: '1987년 창립 성원특수금속이 직접 운영하는 마이크로 스크류 전문몰. 833종 이상 마이크로나사 제조사 직접판매.',
+    url: 'https://minibolt.co.kr/company',
+    siteName: '미니볼트 - 마이크로 스크류 전문',
+    type: 'website',
+    locale: 'ko_KR',
+    images: [{
+      url: 'https://minibolt.co.kr/images/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: '미니볼트 회사소개 - 39년 마이크로 스크류 제조 전문',
+    }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '회사소개 | 미니볼트 - 39년 마이크로 스크류 제조 전문',
+    description: '1987년 창립 성원특수금속 직접 운영 마이크로 스크류 전문몰.',
+    images: ['https://minibolt.co.kr/images/og-image.png'],
+  },
 };
 
 export default function CompanyPage() {
