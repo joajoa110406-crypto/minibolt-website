@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Product } from '@/types/product';
 import { addToCart, getBulkDiscount, getTotalPrice } from '@/lib/cart';
-import { generateProductName, getCategoryImage, getStockStatus, CATEGORY_TABS } from '@/lib/products-utils';
+import { generateProductName, CATEGORY_TABS } from '@/lib/products-utils';
 import ProductCard from '@/components/ProductCard';
 
 
@@ -37,20 +37,28 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
   const [mounted, setMounted] = useState(false);
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [filterDiameter, setFilterDiameter] = useState('');
-  const [filterLength, setFilterLength] = useState('');
-  const [filterColor, setFilterColor] = useState('');
-  const [filterType, setFilterType] = useState('');
+
+  // 대기 필터 (드롭다운 표시값, 아직 적용 안 됨)
+  const [pendingType, setPendingType] = useState('');
+  const [pendingDiameter, setPendingDiameter] = useState('');
+  const [pendingLength, setPendingLength] = useState('');
+  const [pendingColor, setPendingColor] = useState('');
+
+  // 적용된 필터 (실제 제품 목록 필터링에 사용)
+  const [appliedType, setAppliedType] = useState('');
+  const [appliedDiameter, setAppliedDiameter] = useState('');
+  const [appliedLength, setAppliedLength] = useState('');
+  const [appliedColor, setAppliedColor] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [toast, setToast] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_PAGE);
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  // API 응답 상태 — 서버 초기 데이터로 시작 (API 대기 불필요)
-  const [apiProducts, setApiProducts] = useState<Product[] | null>(initialProducts);
-  const [apiFilterOptions, setApiFilterOptions] = useState<FilterOptions | null>(initialFilterOptions);
+  // 현재 카테고리의 전체 제품 (필터 미적용)
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -62,34 +70,24 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // API에서 제품 조회 — 첫 렌더는 서버 데이터 사용, 이후 필터 변경 시 API
+  // 카테고리 변경 시에만 API 호출 (필터 없이 전체 제품 로드)
   useEffect(() => {
     if (!mounted) return;
 
-    // 서버 초기 데이터와 일치하면 API 호출 스킵
     if (skipInitialFetch.current) {
       skipInitialFetch.current = false;
-      if (activeCategory === initialCategory && !search && !filterType && !filterDiameter && !filterLength && !filterColor) {
-        return;
-      }
+      if (activeCategory === initialCategory) return;
     }
 
-    // 이전 요청 취소
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setLoading(true);
+    setApiError(false);
 
     const params = new URLSearchParams();
-    if (activeCategory) params.set('category', activeCategory);
-    if (search) params.set('search', search);
-    if (filterType) params.set('type', filterType);
-    if (filterDiameter) params.set('diameter', filterDiameter);
-    if (filterLength) params.set('length', filterLength);
-    if (filterColor) params.set('color', filterColor);
-
-    setApiError(false);
+    params.set('category', activeCategory);
 
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -100,97 +98,110 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
       })
       .then(data => {
         if (!controller.signal.aborted && Array.isArray(data.products)) {
-          setApiProducts(data.products);
-          setApiFilterOptions(data.filterOptions);
+          setCategoryProducts(data.products);
           setApiError(false);
           setLoading(false);
         }
       })
       .catch(err => {
         if (err.name !== 'AbortError') {
-          setApiProducts(null);
-          setApiFilterOptions(null);
           setApiError(true);
           setLoading(false);
           // API 실패 시 JSON 폴백 lazy-load
-          if (fallbackProducts.length === 0) {
-            loadFallbackProducts().then(setFallbackProducts);
+          if (fallbackProducts.length > 0) {
+            setCategoryProducts(fallbackProducts.filter(p => p.category === activeCategory));
+          } else {
+            loadFallbackProducts().then(products => {
+              setFallbackProducts(products);
+              setCategoryProducts(products.filter(p => p.category === activeCategory));
+            });
           }
         }
       })
       .finally(() => clearTimeout(timeoutId));
 
     return () => controller.abort();
-  }, [mounted, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
+  }, [mounted, activeCategory]);
 
-  // 검색 debounce (300ms)
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  // 클라이언트 마운트 후에만 렌더링 (한글 데이터 SSR -> ByteString 이슈 방지)
-  // URL ?category는 서버 컴포넌트 searchParams에서 이미 처리 → initialCategory prop으로 전달됨
+  // 클라이언트 마운트
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // API 결과 또는 JSON 폴백
+  // 클라이언트 사이드 필터링 (적용된 필터 기준)
   const filtered = useMemo(() => {
-    if (apiProducts !== null) return apiProducts;
+    let P = categoryProducts;
 
-    // JSON 폴백: 기존 로직 유지
-    let P = fallbackProducts.filter(p => {
-      if (activeCategory === '마이크로스크류/평머리') {
-        return p.category === '마이크로스크류/평머리';
-      }
-      return p.category === activeCategory;
-    });
-    if (search) {
-      const q = search.toLowerCase();
+    if (appliedSearch) {
+      const q = appliedSearch.toLowerCase();
       P = P.filter(p =>
         [p.id, p.name, p.diameter, p.length, p.color, `m${p.diameter}`, `${p.length}mm`, p.sub_category]
           .filter(Boolean).join(' ').toLowerCase().includes(q)
       );
     }
-    if (filterType) P = P.filter(p => p.type === filterType);
-    if (filterDiameter) P = P.filter(p => p.diameter === filterDiameter);
-    if (filterLength) P = P.filter(p => p.length === filterLength);
-    if (filterColor) P = P.filter(p => p.color === filterColor);
+    if (appliedType) P = P.filter(p => p.type === appliedType);
+    if (appliedDiameter) P = P.filter(p => p.diameter === appliedDiameter);
+    if (appliedLength) P = P.filter(p => p.length === appliedLength);
+    if (appliedColor) P = P.filter(p => p.color === appliedColor);
+
     return P;
-  }, [apiProducts, fallbackProducts, activeCategory, search, filterType, filterDiameter, filterLength, filterColor]);
+  }, [categoryProducts, appliedSearch, appliedType, appliedDiameter, appliedLength, appliedColor]);
 
-  // 필터 옵션 (API 또는 폴백)
+  // 필터 옵션 — 대기 필터 기반 캐스케이딩 (드롭다운 UX)
   const filterOptions = useMemo(() => {
-    if (apiFilterOptions) return apiFilterOptions;
-
-    // JSON 폴백
-    let base = fallbackProducts.filter(p => p.category === activeCategory);
-    if (filterType) base = base.filter(p => p.type === filterType);
+    let base = categoryProducts;
+    const types = [...new Set(categoryProducts.map(p => p.type).filter(Boolean))].sort();
+    if (pendingType) base = base.filter(p => p.type === pendingType);
     const diameters = [...new Set(base.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
-    if (filterDiameter) base = base.filter(p => p.diameter === filterDiameter);
+    if (pendingDiameter) base = base.filter(p => p.diameter === pendingDiameter);
     const lengths = [...new Set(base.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
-    if (filterLength) base = base.filter(p => p.length === filterLength);
     const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
-    const types = [...new Set(fallbackProducts.filter(p => p.category === activeCategory).map(p => p.type).filter(Boolean))].sort();
     return { diameters, lengths, colors, types };
-  }, [apiFilterOptions, fallbackProducts, activeCategory, filterType, filterDiameter, filterLength]);
+  }, [categoryProducts, pendingType, pendingDiameter]);
 
-  // 카테고리 변경 시 필터 초기화 + 페이지 리셋
+  // 카테고리 변경 시 필터 초기화
   useEffect(() => {
-    setFilterDiameter('');
-    setFilterLength('');
-    setFilterColor('');
-    setFilterType('');
-    setSearchInput('');
-    setSearch('');
+    setPendingType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
+    setAppliedType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
+    setSearchInput(''); setAppliedSearch('');
     setVisibleCount(PRODUCTS_PER_PAGE);
   }, [activeCategory]);
 
-  // 필터/검색 변경 시 visibleCount 리셋
+  // 적용된 필터 변경 시 visibleCount 리셋
   useEffect(() => {
     setVisibleCount(PRODUCTS_PER_PAGE);
-  }, [search, filterType, filterDiameter, filterLength, filterColor]);
+  }, [appliedSearch, appliedType, appliedDiameter, appliedLength, appliedColor]);
+
+  // 검색 버튼 핸들러: 대기 필터 → 적용
+  const handleSearch = useCallback(() => {
+    setAppliedType(pendingType);
+    setAppliedDiameter(pendingDiameter);
+    setAppliedLength(pendingLength);
+    setAppliedColor(pendingColor);
+    setAppliedSearch(searchInput);
+    setFilterOpen(false);
+  }, [pendingType, pendingDiameter, pendingLength, pendingColor, searchInput]);
+
+  // 초기화 핸들러
+  const handleReset = useCallback(() => {
+    setPendingType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
+    setAppliedType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
+    setSearchInput(''); setAppliedSearch('');
+  }, []);
+
+  // Enter 키로 검색
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSearch();
+  }, [handleSearch]);
+
+  // 대기 필터와 적용 필터가 다른지 체크 (검색 버튼 강조용)
+  const hasUnappliedChanges = useMemo(() => {
+    return pendingType !== appliedType ||
+           pendingDiameter !== appliedDiameter ||
+           pendingLength !== appliedLength ||
+           pendingColor !== appliedColor ||
+           searchInput !== appliedSearch;
+  }, [pendingType, appliedType, pendingDiameter, appliedDiameter, pendingLength, appliedLength, pendingColor, appliedColor, searchInput, appliedSearch]);
 
   // 현재 화면에 보여줄 제품 (점진적 로딩)
   const visibleProducts = useMemo(() => {
@@ -203,7 +214,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     setVisibleCount(prev => prev + PRODUCTS_PER_PAGE);
   }, []);
 
-  // IntersectionObserver 무한스크롤 (쿠팡 스타일)
+  // IntersectionObserver 무한스크롤
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore) return;
@@ -265,7 +276,6 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           ))}
         </div>
         <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
-          {/* 검색 스켈레톤 */}
           <div style={{ maxWidth: 500, margin: '0 auto 1.5rem', height: 48, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
           <div className="skeleton-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {[1, 2, 3, 4, 5, 6].map(i => (
@@ -302,7 +312,8 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     </div>
   );
 
-  const activeFilterCount = [filterDiameter, filterLength, filterColor, filterType, search].filter(Boolean).length;
+  const pendingFilterCount = [pendingDiameter, pendingLength, pendingColor, pendingType, searchInput].filter(Boolean).length;
+  const appliedFilterCount = [appliedDiameter, appliedLength, appliedColor, appliedType, appliedSearch].filter(Boolean).length;
 
   return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
@@ -315,7 +326,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
       </div>
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }} className="products-container">
-        {/* 카테고리 탭 (h2 시맨틱 섹션) */}
+        {/* 카테고리 탭 */}
         <h2 className="sr-only">카테고리별 마이크로나사 검색</h2>
         <div
           className="category-tabs"
@@ -345,6 +356,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             <input
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="검색... (예: M2, 블랙, S20)"
               className="search-input"
             />
@@ -358,8 +370,8 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             aria-controls="filter-section"
           >
             <span>필터</span>
-            {activeFilterCount > 0 && (
-              <span className="filter-badge">{activeFilterCount}</span>
+            {pendingFilterCount > 0 && (
+              <span className="filter-badge">{pendingFilterCount}</span>
             )}
             <svg
               width="16"
@@ -378,7 +390,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             {activeCategory === '마이크로스크류/평머리' && filterOptions.types.length > 0 && (
               <div>
                 <label className="filter-label">타입</label>
-                <select value={filterType} onChange={e => { setFilterType(e.target.value); setFilterDiameter(''); setFilterLength(''); }}
+                <select value={pendingType} onChange={e => { setPendingType(e.target.value); setPendingDiameter(''); setPendingLength(''); }}
                   className="filter-select">
                   <option value="">전체</option>
                   {filterOptions.types.map(t => <option key={t} value={t}>{t === 'M' ? 'M/C (머신)' : t === 'T' ? 'T/C (태핑)' : t}</option>)}
@@ -387,7 +399,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             )}
             <div>
               <label className="filter-label">직경</label>
-              <select value={filterDiameter} onChange={e => { setFilterDiameter(e.target.value); setFilterLength(''); }}
+              <select value={pendingDiameter} onChange={e => { setPendingDiameter(e.target.value); setPendingLength(''); }}
                 className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.diameters.map(d => <option key={d} value={d}>M{d}</option>)}
@@ -395,7 +407,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             </div>
             <div>
               <label className="filter-label">길이</label>
-              <select value={filterLength} onChange={e => setFilterLength(e.target.value)}
+              <select value={pendingLength} onChange={e => setPendingLength(e.target.value)}
                 className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.lengths.map(l => <option key={l} value={l}>{l}mm</option>)}
@@ -403,12 +415,27 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             </div>
             <div>
               <label className="filter-label">색상</label>
-              <select value={filterColor} onChange={e => setFilterColor(e.target.value)}
+              <select value={pendingColor} onChange={e => setPendingColor(e.target.value)}
                 className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.colors.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* 검색 버튼 영역 */}
+          <div className="search-actions">
+            <button
+              onClick={handleSearch}
+              className={`search-btn ${hasUnappliedChanges ? 'search-btn-highlight' : ''}`}
+            >
+              검색
+            </button>
+            {appliedFilterCount > 0 && (
+              <button onClick={handleReset} className="reset-btn">
+                초기화
+              </button>
+            )}
           </div>
 
           {/* API 에러 안내 */}
@@ -418,20 +445,19 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             </div>
           )}
 
-          {/* 결과 수 + 카테고리명 + 필터 초기화 */}
+          {/* 결과 수 + 카테고리명 */}
           <div className="results-bar">
             <h3 style={{ color: '#333', fontSize: '0.95rem', margin: 0, fontWeight: 600 }}>
               {CATEGORY_TABS.find(t => t.key === activeCategory)?.label || activeCategory} - {filtered.length}개 제품
             </h3>
-            {(filterDiameter || filterLength || filterColor || filterType || search) && (
-              <button onClick={() => { setSearchInput(''); setFilterDiameter(''); setFilterLength(''); setFilterColor(''); setFilterType(''); }}
-                className="reset-btn">
-                필터 초기화
-              </button>
+            {appliedFilterCount > 0 && (
+              <span className="applied-filters-badge">
+                {appliedFilterCount}개 필터 적용됨
+              </span>
             )}
           </div>
 
-          {/* 로딩 오버레이 */}
+          {/* 로딩 오버레이 (카테고리 변경 시에만) */}
           {loading && (
             <div className="loading-overlay">
               <div className="loading-spinner" />
@@ -444,7 +470,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
               <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>&#x1F50D;</div>
               <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>검색 결과가 없습니다</p>
               <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>다른 검색어나 필터를 시도해보세요</p>
-              <button onClick={() => { setSearchInput(''); setFilterDiameter(''); setFilterLength(''); setFilterColor(''); setFilterType(''); }}
+              <button onClick={handleReset}
                 style={{ background: '#ff6b35', color: '#fff', border: 'none', padding: '0.7rem 1.5rem', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
                 필터 초기화
               </button>
@@ -571,7 +597,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
           gap: 0.75rem;
-          margin-bottom: 1.5rem;
+          margin-bottom: 1rem;
           padding: 1rem;
           background: #f8f9fa;
           border-radius: 8px;
@@ -600,6 +626,50 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           padding-right: 28px;
         }
 
+        /* ===== 검색 버튼 영역 ===== */
+        .search-actions {
+          display: flex;
+          gap: 0.5rem;
+          justify-content: center;
+          margin-bottom: 1.5rem;
+        }
+        .search-btn {
+          background: #ff6b35;
+          color: #fff;
+          border: none;
+          padding: 0.75rem 2.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 700;
+          transition: all 0.2s;
+          min-height: 44px;
+        }
+        .search-btn:hover {
+          background: #e55a2b;
+        }
+        .search-btn:active {
+          transform: scale(0.97);
+        }
+        .search-btn-highlight {
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.35);
+        }
+        .reset-btn {
+          background: #f0f0f0;
+          color: #666;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          font-weight: 600;
+          min-height: 44px;
+          transition: all 0.2s;
+        }
+        .reset-btn:hover {
+          background: #e0e0e0;
+        }
+
         /* ===== 결과 바 ===== */
         .results-bar {
           display: flex;
@@ -608,13 +678,11 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           gap: 0.75rem;
           margin-bottom: 1.5rem;
         }
-        .reset-btn {
-          background: #f0f0f0;
-          color: #666;
-          border: none;
-          padding: 0.35rem 0.8rem;
+        .applied-filters-badge {
+          background: #fff0eb;
+          color: #ff6b35;
+          padding: 0.25rem 0.6rem;
           border-radius: 6px;
-          cursor: pointer;
           font-size: 0.8rem;
           font-weight: 600;
         }
@@ -778,6 +846,15 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           }
           .filter-grid.filter-open {
             display: grid !important;
+          }
+
+          /* 검색 버튼 */
+          .search-actions {
+            margin-bottom: 1rem !important;
+          }
+          .search-btn {
+            padding: 0.7rem 1.5rem !important;
+            font-size: 0.9rem !important;
           }
 
           /* 결과 바 */
