@@ -7,6 +7,13 @@ import ProductDetailClient from './ProductDetailClient';
 
 const products = allProducts;
 
+/** 직경에 따른 재질 반환: 1mm대 → SWCH18A, 2mm+ → SWCH10A */
+function getMaterial(diameter: number | string) {
+  const d = typeof diameter === 'string' ? parseFloat(diameter) : diameter;
+  const grade = d < 2 ? 'SWCH18A' : 'SWCH10A';
+  return { grade, label: `${grade} 탄소강` };
+}
+
 // ---------------------------------------------------------------------------
 // ISR: 1시간(3600초)마다 정적 페이지 재생성
 // 제품 재고/가격 변동을 반영하면서도 빌드 부하를 최소화
@@ -47,7 +54,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${name} ${categoryLabel} - 미니볼트 마이크로나사 | 소량구매 100개 ${price100}원`;
 
   // 150자 내외의 풍부한 메타 디스크립션: 규격, 가격, 재질, 용도 포함
-  const description = `${name} ${typeLabel} - M${product.diameter}\u00d7${product.length}mm ${product.color} 스테인리스 스틸. 100개 \u20a9${price100}부터, 개당 ${price5000Per}원(5000개). 39년 제조사 성원특수금속 직접판매. 안경나사 노트북나사 SSD나사 카메라나사 소량 구매 가능.`;
+  const { label: materialLabel } = getMaterial(product.diameter);
+  const description = `${name} ${typeLabel} - M${product.diameter}\u00d7${product.length}mm ${product.color} ${materialLabel}. 100개 \u20a9${price100}부터, 개당 ${price5000Per}원(5000개). 39년 제조사 성원특수금속 직접판매. 안경나사 노트북나사 SSD나사 카메라나사 소량 구매 가능.`;
 
   // 제품별 동적 키워드 생성
   const keywords = [
@@ -76,7 +84,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     openGraph: {
       title: `${name} - 미니볼트 | 100개 \u20a9${price100}부터`,
-      description: `${name} ${typeLabel} M${product.diameter}\u00d7${product.length}mm ${product.color}. 39년 제조사 직접판매. 100개 \u20a9${price100}부터 소량 구매 가능. 안경나사 노트북나사 SSD나사.`,
+      description: `${name} ${typeLabel} M${product.diameter}\u00d7${product.length}mm ${product.color} ${materialLabel}. 39년 제조사 직접판매. 100개 \u20a9${price100}부터 소량 구매 가능. 안경나사 노트북나사 SSD나사.`,
       type: 'website',
       siteName: '미니볼트 - 마이크로 스크류 전문',
       url: productUrl,
@@ -93,7 +101,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: 'summary',
       title: `${name} - 미니볼트 | 100개 \u20a9${price100}~`,
-      description: `${typeLabel} M${product.diameter}\u00d7${product.length}mm ${product.color}. 39년 제조사 직접판매. 소량 구매 가능.`,
+      description: `${typeLabel} M${product.diameter}\u00d7${product.length}mm ${product.color} ${materialLabel}. 39년 제조사 직접판매. 소량 구매 가능.`,
       images: [{ url: imageUrl, alt: `${name} 마이크로 스크류` }],
     },
     robots: {
@@ -128,6 +136,9 @@ export default async function ProductDetailPage({ params }: Props) {
       ? product.sub_category || '마이크로스크류'
       : product.category || '기타';
 
+  // Material
+  const material = getMaterial(product.diameter);
+
   // Prices (VAT included)
   const price100Vat = Math.round((product.price_100_block ?? 3000) * 1.1);
   const price1000PerVat = Math.round(product.price_1000_per * 1.1);
@@ -144,7 +155,7 @@ export default async function ProductDetailPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name,
-    description: `${name} - M${product.diameter}\u00d7${product.length}mm ${product.color} 스테인리스 스틸 마이크로 스크류. 39년 제조사 성원특수금속 직접판매.`,
+    description: `${name} - M${product.diameter}\u00d7${product.length}mm ${product.color} ${material.label} 마이크로 스크류. 39년 제조사 성원특수금속 직접판매.`,
     image: imageUrl,
     url: productUrl,
     sku: product.id,
@@ -168,7 +179,7 @@ export default async function ProductDetailPage({ params }: Props) {
       url: productUrl,
     },
     category: categoryLabel,
-    material: '스테인리스 스틸',
+    material: material.label,
     color: product.color,
     additionalProperty: [
       { '@type': 'PropertyValue', name: '직경', value: `M${product.diameter}`, unitCode: 'MMT' },
@@ -228,7 +239,7 @@ export default async function ProductDetailPage({ params }: Props) {
               {/* ProductImage is client component, wrap in a div */}
               <Image
                 src={imgSrc}
-                alt={`${name} ${categoryLabel} ${product.color} 마이크로 스크류 - M${product.diameter}x${product.length}mm 스테인리스 스틸`}
+                alt={`${name} ${categoryLabel} ${product.color} 마이크로 스크류 - M${product.diameter}x${product.length}mm ${material.label}`}
                 width={280}
                 height={280}
                 priority
@@ -251,7 +262,7 @@ export default async function ProductDetailPage({ params }: Props) {
               {name} <span className="pdp-product-category-badge">{categoryLabel}</span>
             </h1>
             <p className="pdp-product-subtitle">
-              M{product.diameter}\u00d7{product.length}mm {product.color} 스테인리스 스틸 {product.type === 'M' ? '머신' : product.type === 'T' ? '태핑' : ''}스크류 | 소량 100개부터 구매 가능
+              M{product.diameter}\u00d7{product.length}mm {product.color} {material.label} {product.type === 'M' ? '머신' : product.type === 'T' ? '태핑' : ''}스크류 | 소량 100개부터 구매 가능
             </p>
             <p className="pdp-product-id">품목코드: {product.id}</p>
 
@@ -271,7 +282,7 @@ export default async function ProductDetailPage({ params }: Props) {
                     <tr><th>헤드 두께 (t)</th><td>{product.head_height}mm</td></tr>
                   )}
                   <tr><th>색상</th><td>{product.color}</td></tr>
-                  <tr><th>재질</th><td>스테인리스 스틸</td></tr>
+                  <tr><th>재질</th><td>{material.label} ({material.grade})</td></tr>
                   <tr>
                     <th>재고</th>
                     <td>
@@ -361,11 +372,29 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
         )}
 
+        {/* 유해물질 불함유 확인서 */}
+        <section className="pdp-certificate" aria-label="유해물질 불함유 확인서">
+          <h2 className="pdp-section-title">유해물질 불함유 확인서</h2>
+          <p className="pdp-certificate-desc">
+            성원특수금속의 모든 제품은 RoHS/REACH 규정을 준수하며, 유해물질이 포함되지 않은 안전한 탄소강 소재를 사용합니다.
+          </p>
+          <div className="pdp-certificate-img-wrap">
+            <Image
+              src="/images/certificate-rohs.png"
+              alt="성원특수금속 유해물질 불함유 확인서 - RoHS/REACH 준수"
+              width={856}
+              height={1200}
+              sizes="(max-width: 768px) 100vw, 600px"
+              style={{ width: '100%', maxWidth: 600, height: 'auto', borderRadius: 8, border: '1px solid #e0e0e0' }}
+            />
+          </div>
+        </section>
+
         {/* SEO: 제품 설명 섹션 - 검색엔진이 페이지 컨텍스트를 이해하도록 */}
         <section className="pdp-seo-description" aria-label="제품 상세 설명">
           <h2 className="pdp-section-title">{name} 상세 정보</h2>
           <p>
-            {name}은(는) M{product.diameter}\u00d7{product.length}mm 규격의 {product.color} 스테인리스 스틸 {categoryLabel} 제품입니다.
+            {name}은(는) M{product.diameter}\u00d7{product.length}mm 규격의 {product.color} {material.label} {categoryLabel} 제품입니다.
             {product.type === 'M' ? ' 머신스크류(M/C) 타입으로 탭 가공된 암나사에 체결됩니다.' : product.type === 'T' ? ' 태핑스크류(T/C) 타입으로 별도 탭 가공 없이 직접 체결 가능합니다.' : ''}
             {' '}미니볼트는 39년 전통 제조사 성원특수금속의 직접판매 브랜드로, M1.2~M3mm 마이크로 정밀나사를 소량 100개부터 구매하실 수 있습니다.
             안경, 노트북, SSD, 카메라, 드론, 라즈베리파이 등 다양한 용도에 적합합니다.
@@ -665,6 +694,25 @@ export default async function ProductDetailPage({ params }: Props) {
           color: #fff;
         }
 
+        /* Certificate */
+        .pdp-certificate {
+          background: #fff;
+          border-radius: 16px;
+          padding: 1.5rem;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+          margin-bottom: 1.5rem;
+        }
+        .pdp-certificate-desc {
+          font-size: 0.88rem;
+          color: #555;
+          line-height: 1.6;
+          margin: 0 0 1rem 0;
+        }
+        .pdp-certificate-img-wrap {
+          display: flex;
+          justify-content: center;
+        }
+
         /* SEO description */
         .pdp-seo-description {
           background: #fff;
@@ -734,6 +782,13 @@ export default async function ProductDetailPage({ params }: Props) {
           }
           .pdp-product-subtitle {
             font-size: 0.8rem;
+          }
+          .pdp-certificate {
+            padding: 1rem;
+            border-radius: 12px;
+          }
+          .pdp-certificate-desc {
+            font-size: 0.82rem;
           }
           .pdp-seo-description {
             padding: 1rem;
