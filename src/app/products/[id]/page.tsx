@@ -329,7 +329,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 </tbody>
               </table>
               <p className="pdp-discount-note">
-                5,000개 복수구매 할인: 2묶음 5% / 3묶음 8% / 4묶음+ 10%
+                5,000개 복수구매 할인: 2묶음 5% / 3묶음 10% / 4묶음 15% / 5묶음 20% / 6묶음+ 25%
               </p>
             </div>
 

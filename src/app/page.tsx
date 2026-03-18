@@ -105,7 +105,7 @@ const faqs = [
   },
   {
     question: '대량 구매 시 할인이 있나요?',
-    answer: '5,000개 묶음 기준으로 복수 구매 할인이 적용됩니다. 2묶음 5%, 3묶음 8%, 4묶음 이상 10% 할인됩니다. 30,000개 이상 대량 주문은 별도 견적을 문의해 주세요.',
+    answer: '5,000개 묶음 기준으로 복수 구매 할인이 적용됩니다. 2묶음 5%, 3묶음 10%, 4묶음 15%, 5묶음 20%, 6묶음 이상 최대 25% 할인됩니다. 대량 주문은 별도 견적을 문의해 주세요.',
   },
   {
     question: '맞춤 제작(특수 규격)도 가능한가요?',
@@ -415,7 +415,6 @@ export default function HomePage() {
             {[
               { title: '소량 구매', qty: '100개', price: '₩3,300~', desc: '기본 단위', popular: false },
               { title: '인기', qty: '1,000개', price: '₩6,600~', desc: '개당 7~20원', popular: true },
-              { title: '대량 구매', qty: '30,000개 이상', price: '견적 문의', desc: '특별 할인가 적용', popular: false },
             ].map(p => (
               <div key={p.title} style={{
                 background: '#fff',
@@ -580,7 +579,7 @@ export default function HomePage() {
           marginBottom: '1.25rem',
           fontSize: 'clamp(0.875rem, 2vw, 1rem)',
         }}>
-          30,000개 이상 대량 구매 또는 맞춤 제작 상담
+          대량 구매 또는 맞춤 제작 상담
         </p>
         <a
           href="tel:01090065846"

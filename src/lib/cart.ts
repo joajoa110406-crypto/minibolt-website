@@ -70,11 +70,13 @@ export function addToCart(product: Product, qty: number, blockSize: number = 100
   saveCart(cart);
 }
 
-// 5,000개 복수구매 할인율
+// 5,000개 복수구매 할인율 (5%씩 점진적 증가, 최대 25%)
 export function getBulkDiscount(blockSize: number, blockCount: number): number {
   if (blockSize !== 5000) return 0;
-  if (blockCount >= 4) return 10;
-  if (blockCount >= 3) return 8;
+  if (blockCount >= 6) return 25;
+  if (blockCount >= 5) return 20;
+  if (blockCount >= 4) return 15;
+  if (blockCount >= 3) return 10;
   if (blockCount >= 2) return 5;
   return 0;
 }

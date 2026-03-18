@@ -124,7 +124,14 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
           </span>
         </div>
         <div className="bulk-discount-info">
-          5K 2묶음 5% / 3묶음 8% / 4+ 10%
+          <span className="bulk-discount-title">5K 묶음할인</span>
+          <span className="bulk-discount-steps">
+            <span>2묶음 <b>5%</b></span>
+            <span>3묶음 <b>10%</b></span>
+            <span>4묶음 <b>15%</b></span>
+            <span>5묶음 <b>20%</b></span>
+            <span>6묶음 <b>25%</b></span>
+          </span>
         </div>
       </div>
 

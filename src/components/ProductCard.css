@@ -128,10 +128,34 @@
 .price-sub { color: #999; margin-left: 3px; font-size: 0.75rem; }
 .price-label-sm { font-size: 0.8rem; }
 .bulk-discount-info {
-  text-align: right;
-  font-size: 0.7rem;
-  color: #aaa;
-  margin-top: 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  background: linear-gradient(135deg, #fff5f0, #fff0e8);
+  border: 1px solid #ffe0d0;
+  border-radius: 6px;
+  font-size: 0.65rem;
+}
+.bulk-discount-title {
+  color: #ff6b35;
+  font-weight: 700;
+  white-space: nowrap;
+  font-size: 0.65rem;
+}
+.bulk-discount-steps {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  color: #666;
+}
+.bulk-discount-steps span {
+  white-space: nowrap;
+}
+.bulk-discount-steps b {
+  color: #e74c3c;
+  font-weight: 700;
 }
 
 /* 카드 액션 영역 */

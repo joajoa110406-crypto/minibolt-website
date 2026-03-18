@@ -98,22 +98,34 @@ describe('calculateItemPrice', () => {
     expect(calculateItemPrice(item)).toBe(52250);
   });
 
-  it('5000개 블록 3개 (8% 할인)', () => {
+  it('5000개 블록 3개 (10% 할인)', () => {
     const item = makeCartItem({ blockSize: 5000, blockCount: 3, qty: 15000 });
-    // 25000*3=75000, 75000*0.92=69000, 69000*1.1=75900
-    expect(calculateItemPrice(item)).toBe(75900);
+    // 25000*3=75000, 75000*0.90=67500, 67500*1.1=74250
+    expect(calculateItemPrice(item)).toBe(74250);
   });
 
-  it('5000개 블록 4개 (10% 할인)', () => {
+  it('5000개 블록 4개 (15% 할인)', () => {
     const item = makeCartItem({ blockSize: 5000, blockCount: 4, qty: 20000 });
-    // 25000*4=100000, 100000*0.90=90000, 90000*1.1=99000
-    expect(calculateItemPrice(item)).toBe(99000);
+    // 25000*4=100000, 100000*0.85=85000, 85000*1.1=93500
+    expect(calculateItemPrice(item)).toBe(93500);
   });
 
-  it('5000개 블록 10개 (10% 할인 상한)', () => {
+  it('5000개 블록 5개 (20% 할인)', () => {
+    const item = makeCartItem({ blockSize: 5000, blockCount: 5, qty: 25000 });
+    // 25000*5=125000, 125000*0.80=100000, 100000*1.1=110000
+    expect(calculateItemPrice(item)).toBe(110000);
+  });
+
+  it('5000개 블록 6개 (25% 할인)', () => {
+    const item = makeCartItem({ blockSize: 5000, blockCount: 6, qty: 30000 });
+    // 25000*6=150000, 150000*0.75=112500, 112500*1.1=123750
+    expect(calculateItemPrice(item)).toBe(123750);
+  });
+
+  it('5000개 블록 10개 (25% 할인 상한)', () => {
     const item = makeCartItem({ blockSize: 5000, blockCount: 10, qty: 50000 });
-    // 25000*10=250000, 250000*0.90=225000, 225000*1.1=247500
-    expect(calculateItemPrice(item)).toBe(247500);
+    // 25000*10=250000, 250000*0.75=187500, 187500*1.1=206250
+    expect(calculateItemPrice(item)).toBe(206250);
   });
 
   it('blockCount=0 → 0 반환', () => {
