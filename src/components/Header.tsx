@@ -110,10 +110,14 @@ const MobileCartButton = memo(function MobileCartButton() {
 const DesktopUserSection = memo(function DesktopUserSection({ pathname }: { pathname: string }) {
   const { data: session } = useSession();
   const handleSignOut = useCallback(() => signOut({ callbackUrl: '/' }), []);
+  const isAdmin = !!(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
 
   if (session) {
     return (
       <div className="desktop-user-info">
+        {isAdmin && (
+          <NavLink href="/admin" label="관리" isActive={pathname.startsWith('/admin')} />
+        )}
         <span className="desktop-user-name">{session.user?.name}</span>
         <button onClick={handleSignOut} className="desktop-logout-btn">
           로그아웃
@@ -127,14 +131,17 @@ const DesktopUserSection = memo(function DesktopUserSection({ pathname }: { path
 /** Mobile auth section inside slide-in menu */
 const MobileAuthSection = memo(function MobileAuthSection({
   onClose,
+  pathname,
 }: {
   onClose: () => void;
+  pathname: string;
 }) {
   const { data: session } = useSession();
   const handleSignOut = useCallback(() => {
     onClose();
     signOut({ callbackUrl: '/' });
   }, [onClose]);
+  const isAdmin = !!(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
 
   if (session) {
     return (
@@ -145,6 +152,17 @@ const MobileAuthSection = memo(function MobileAuthSection({
           </div>
           <span className="mobile-user-name">{session.user?.name}</span>
         </div>
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={onClose}
+            className={`mobile-menu-item ${pathname.startsWith('/admin') ? 'mobile-menu-item-active' : ''}`}
+            style={{ borderRadius: 8, border: '1px solid #333', justifyContent: 'center', fontWeight: 600 }}
+          >
+            <span className="mobile-menu-icon">⚙️</span>
+            <span>관리자</span>
+          </Link>
+        )}
         <button onClick={handleSignOut} className="mobile-logout-btn">
           로그아웃
         </button>
@@ -351,7 +369,7 @@ export default function Header() {
 
           <div className="mobile-menu-divider" />
 
-          <MobileAuthSection onClose={closeMenu} />
+          <MobileAuthSection onClose={closeMenu} pathname={pathname} />
         </div>
       </div>
 
