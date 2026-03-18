@@ -10,12 +10,25 @@ const _allProducts: Product[] = productsData as Product[];
 /** 전체 제품 배열 (모듈 캐시, 읽기 전용) */
 export const allProducts: readonly Product[] = _allProducts;
 
-/** 제품 ID → Product 맵 (O(1) 조회, 모듈 캐시) */
+/** 제품 ID -> Product 맵 (O(1) 조회, 모듈 캐시) */
 const _productMap = new Map<string, Product>();
 for (const p of _allProducts) {
   _productMap.set(p.id, p);
 }
 export const productMap: ReadonlyMap<string, Product> = _productMap;
+
+/** 카테고리 -> Product[] 인덱스 (카테고리 필터 시 전체 순회 방지, 모듈 캐시) */
+const _productsByCategory = new Map<string, Product[]>();
+for (const p of _allProducts) {
+  const cat = p.category || '기타';
+  let list = _productsByCategory.get(cat);
+  if (!list) {
+    list = [];
+    _productsByCategory.set(cat, list);
+  }
+  list.push(p);
+}
+export const productsByCategory: ReadonlyMap<string, readonly Product[]> = _productsByCategory;
 
 /** 제품 ID → 이름 맵 (모듈 캐시) */
 const _productNameMap = new Map<string, string>();
@@ -79,7 +92,8 @@ export function getCategoryImage(product: Product): string {
     return '/image-1.png';
   }
 
-  return `/images/products/${prefix}-${type}_${color}.jpeg`;
+  const ext = (prefix === '평' && type === 'M' && color === 'BK') ? 'png' : 'jpeg';
+  return `/images/products/${prefix}-${type}_${color}.${ext}`;
 }
 
 // 재고 상태

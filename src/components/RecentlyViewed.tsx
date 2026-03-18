@@ -58,6 +58,7 @@ export default function RecentlyViewed() {
             <Link
               key={item.id}
               href={`/products/${encodeURIComponent(item.id)}`}
+              prefetch={false}
               style={{
                 textDecoration: 'none',
                 color: 'inherit',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 import type { Product } from '@/types/product';
 import { addToCart, getBulkDiscount, getTotalPrice } from '@/lib/cart';
@@ -18,38 +18,38 @@ async function loadFallbackProducts(): Promise<Product[]> {
   return _fallbackCache;
 }
 
-interface FilterOptions {
-  diameters: string[];
-  lengths: string[];
-  colors: string[];
-  types: string[];
+interface FilterState {
+  type: string;
+  diameter: string;
+  length: string;
+  color: string;
+  search: string;
 }
+
+const EMPTY_FILTERS: FilterState = { type: '', diameter: '', length: '', color: '', search: '' };
 
 interface ProductsClientProps {
   initialCategory: string;
   initialProducts: Product[];
-  initialFilterOptions: FilterOptions;
+  initialFilterOptions: {
+    diameters: string[];
+    lengths: string[];
+    colors: string[];
+    types: string[];
+  };
 }
 
 const PRODUCTS_PER_PAGE = 50;
 
 function ProductsContent({ initialCategory, initialProducts, initialFilterOptions }: ProductsClientProps) {
-  const [mounted, setMounted] = useState(false);
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchInput, setSearchInput] = useState('');
 
   // 대기 필터 (드롭다운 표시값, 아직 적용 안 됨)
-  const [pendingType, setPendingType] = useState('');
-  const [pendingDiameter, setPendingDiameter] = useState('');
-  const [pendingLength, setPendingLength] = useState('');
-  const [pendingColor, setPendingColor] = useState('');
+  const [pendingFilters, setPendingFilters] = useState<FilterState>(EMPTY_FILTERS);
 
   // 적용된 필터 (실제 제품 목록 필터링에 사용)
-  const [appliedType, setAppliedType] = useState('');
-  const [appliedDiameter, setAppliedDiameter] = useState('');
-  const [appliedLength, setAppliedLength] = useState('');
-  const [appliedColor, setAppliedColor] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [toast, setToast] = useState('');
@@ -67,13 +67,11 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
   // JSON 폴백 데이터 (lazy-loaded)
   const [fallbackProducts, setFallbackProducts] = useState<Product[]>([]);
 
-  // Infinite scroll sentinel
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  // useTransition for non-blocking filter application
+  const [isFilterPending, startFilterTransition] = useTransition();
 
   // 카테고리 변경 시에만 API 호출 (필터 없이 전체 제품 로드)
   useEffect(() => {
-    if (!mounted) return;
-
     if (skipInitialFetch.current) {
       skipInitialFetch.current = false;
       if (activeCategory === initialCategory) return;
@@ -121,39 +119,34 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
       .finally(() => clearTimeout(timeoutId));
 
     return () => controller.abort();
-  }, [mounted, activeCategory]);
-
-  // 클라이언트 마운트
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  }, [activeCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 클라이언트 사이드 필터링 (적용된 필터 기준)
   const filtered = useMemo(() => {
     let P = categoryProducts;
 
-    if (appliedSearch) {
-      const q = appliedSearch.toLowerCase();
+    if (appliedFilters.search) {
+      const q = appliedFilters.search.toLowerCase();
       P = P.filter(p =>
         [p.id, p.name, p.diameter, p.length, p.color, `m${p.diameter}`, `${p.length}mm`, p.sub_category]
           .filter(Boolean).join(' ').toLowerCase().includes(q)
       );
     }
-    if (appliedType) {
-      if (appliedType.startsWith('평-')) {
-        const t = appliedType.slice(2); // 'M' or 'T'
+    if (appliedFilters.type) {
+      if (appliedFilters.type.startsWith('평-')) {
+        const t = appliedFilters.type.slice(2); // 'M' or 'T'
         P = P.filter(p => p.sub_category === '평머리' && p.type === t);
       } else {
         // M or T (마이크로스크류 only)
-        P = P.filter(p => p.sub_category !== '평머리' && p.type === appliedType);
+        P = P.filter(p => p.sub_category !== '평머리' && p.type === appliedFilters.type);
       }
     }
-    if (appliedDiameter) P = P.filter(p => p.diameter === appliedDiameter);
-    if (appliedLength) P = P.filter(p => p.length === appliedLength);
-    if (appliedColor) P = P.filter(p => p.color === appliedColor);
+    if (appliedFilters.diameter) P = P.filter(p => p.diameter === appliedFilters.diameter);
+    if (appliedFilters.length) P = P.filter(p => p.length === appliedFilters.length);
+    if (appliedFilters.color) P = P.filter(p => p.color === appliedFilters.color);
 
     return P;
-  }, [categoryProducts, appliedSearch, appliedType, appliedDiameter, appliedLength, appliedColor]);
+  }, [categoryProducts, appliedFilters]);
 
   // 필터 옵션 — 대기 필터 기반 캐스케이딩 (드롭다운 UX)
   const filterOptions = useMemo(() => {
@@ -172,49 +165,49 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
       const order = ['M', 'T', '평-M', '평-T'];
       return order.indexOf(a) - order.indexOf(b);
     });
-    if (pendingType) {
-      if (pendingType.startsWith('평-')) {
-        const t = pendingType.slice(2);
+    if (pendingFilters.type) {
+      if (pendingFilters.type.startsWith('평-')) {
+        const t = pendingFilters.type.slice(2);
         base = base.filter(p => p.sub_category === '평머리' && p.type === t);
       } else {
-        base = base.filter(p => p.sub_category !== '평머리' && p.type === pendingType);
+        base = base.filter(p => p.sub_category !== '평머리' && p.type === pendingFilters.type);
       }
     }
     const diameters = [...new Set(base.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
-    if (pendingDiameter) base = base.filter(p => p.diameter === pendingDiameter);
+    if (pendingFilters.diameter) base = base.filter(p => p.diameter === pendingFilters.diameter);
     const lengths = [...new Set(base.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
     const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
     return { diameters, lengths, colors, types };
-  }, [categoryProducts, pendingType, pendingDiameter]);
+  }, [categoryProducts, pendingFilters.type, pendingFilters.diameter]);
 
   // 카테고리 변경 시 필터 초기화
   useEffect(() => {
-    setPendingType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
-    setAppliedType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
-    setSearchInput(''); setAppliedSearch('');
+    setPendingFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
+    setSearchInput('');
     setVisibleCount(PRODUCTS_PER_PAGE);
   }, [activeCategory]);
 
   // 적용된 필터 변경 시 visibleCount 리셋
   useEffect(() => {
     setVisibleCount(PRODUCTS_PER_PAGE);
-  }, [appliedSearch, appliedType, appliedDiameter, appliedLength, appliedColor]);
+  }, [appliedFilters]);
 
-  // 검색 버튼 핸들러: 대기 필터 → 적용
+  // 검색 버튼 핸들러: 대기 필터 → 적용 (useTransition으로 non-blocking)
   const handleSearch = useCallback(() => {
-    setAppliedType(pendingType);
-    setAppliedDiameter(pendingDiameter);
-    setAppliedLength(pendingLength);
-    setAppliedColor(pendingColor);
-    setAppliedSearch(searchInput);
+    startFilterTransition(() => {
+      setAppliedFilters({ ...pendingFilters, search: searchInput });
+    });
     setFilterOpen(false);
-  }, [pendingType, pendingDiameter, pendingLength, pendingColor, searchInput]);
+  }, [pendingFilters, searchInput]);
 
   // 초기화 핸들러
   const handleReset = useCallback(() => {
-    setPendingType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
-    setAppliedType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
-    setSearchInput(''); setAppliedSearch('');
+    setPendingFilters(EMPTY_FILTERS);
+    startFilterTransition(() => {
+      setAppliedFilters(EMPTY_FILTERS);
+    });
+    setSearchInput('');
   }, []);
 
   // Enter 키로 검색
@@ -224,12 +217,12 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
 
   // 대기 필터와 적용 필터가 다른지 체크 (검색 버튼 강조용)
   const hasUnappliedChanges = useMemo(() => {
-    return pendingType !== appliedType ||
-           pendingDiameter !== appliedDiameter ||
-           pendingLength !== appliedLength ||
-           pendingColor !== appliedColor ||
-           searchInput !== appliedSearch;
-  }, [pendingType, appliedType, pendingDiameter, appliedDiameter, pendingLength, appliedLength, pendingColor, appliedColor, searchInput, appliedSearch]);
+    return pendingFilters.type !== appliedFilters.type ||
+           pendingFilters.diameter !== appliedFilters.diameter ||
+           pendingFilters.length !== appliedFilters.length ||
+           pendingFilters.color !== appliedFilters.color ||
+           searchInput !== appliedFilters.search;
+  }, [pendingFilters, appliedFilters, searchInput]);
 
   // 현재 화면에 보여줄 제품 (점진적 로딩)
   const visibleProducts = useMemo(() => {
@@ -242,12 +235,18 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     setVisibleCount(prev => prev + PRODUCTS_PER_PAGE);
   }, []);
 
-  // IntersectionObserver 무한스크롤
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
+  // IntersectionObserver 무한스크롤 — callback ref 패턴으로 최적화
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    // 기존 observer 정리
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
 
-    const observer = new IntersectionObserver(
+    if (!node || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           loadMore();
@@ -256,9 +255,13 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
       { rootMargin: '400px' }
     );
 
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    observerRef.current.observe(node);
   }, [hasMore, loadMore]);
+
+  // 언마운트 시 observer 정리
+  useEffect(() => {
+    return () => { observerRef.current?.disconnect(); };
+  }, []);
 
   const getBlock = useCallback((id: string) => quantities[id] ?? 100, [quantities]);
   const getBlockCount = useCallback((id: string) => (quantities[`${id}_count`] ?? 1), [quantities]);
@@ -288,60 +291,25 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     toastTimer.current = setTimeout(() => setToast(''), 3500);
   }, [quantities]);
 
-  // 모든 Hooks 선언 완료 후 조기 반환
-  if (!mounted) return (
-    <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
-      <div className="products-hero" style={{ background: 'linear-gradient(135deg, #2c3e50, #34495e)', color: '#fff', padding: '60px 20px 40px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>마이크로나사 전체 상품 762종</h1>
-        <p style={{ fontSize: '0.95rem', color: '#ccc', marginTop: '0.5rem', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
-          39년 제조사 성원특수금속 직접판매 | M1.2~M3 정밀나사 소량 100개부터 구매 가능
-        </p>
-      </div>
-      <div className="products-container" style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem 20px' }}>
-        <div className="skeleton-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
-          {CATEGORY_TABS.map((tab, i) => (
-            <div key={tab.key} style={{ width: 120, height: 44, background: i === 0 ? '#ff6b35' : '#e9ecef', borderRadius: 10, animation: 'pulse 1.5s ease-in-out infinite', opacity: i === 0 ? 0.7 : 1 }} />
-          ))}
-        </div>
-        <div style={{ background: '#fff', borderRadius: 15, padding: '2rem' }}>
-          <div style={{ maxWidth: 500, margin: '0 auto 1.5rem', height: 48, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
-          <div className="skeleton-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="skeleton-card" style={{ border: '2px solid #e9ecef', borderRadius: 10, padding: '1rem', height: 220 }}>
-                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div style={{ width: 56, height: 56, background: '#e9ecef', borderRadius: 8, flexShrink: 0, animation: 'pulse 1.5s ease-in-out infinite' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ width: '80%', height: 16, background: '#e9ecef', borderRadius: 4, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <div style={{ width: 36, height: 18, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} />
-                      <div style={{ width: 40, height: 18, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} />
-                      <div style={{ width: 32, height: 18, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} />
-                    </div>
-                  </div>
-                </div>
-                <div style={{ width: '100%', height: 50, background: '#f8f9fa', borderRadius: 8, marginBottom: '0.5rem', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                <div style={{ width: '100%', height: 38, background: '#f0f0f0', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <style>{`
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @media (max-width: 768px) {
-          .skeleton-tabs { flex-wrap: nowrap !important; overflow-x: auto; justify-content: flex-start !important; padding-bottom: 8px; scrollbar-width: none; }
-          .skeleton-tabs::-webkit-scrollbar { display: none; }
-          .skeleton-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
-          .skeleton-card { height: 180px !important; padding: 0.75rem !important; }
-          .products-container { padding: 1rem 12px !important; }
-          .products-hero { padding: 48px 16px 32px !important; }
-        }
-      `}</style>
-    </div>
-  );
+  // pending/applied 필터 helper for pending filter updates
+  const updatePendingFilter = useCallback((key: keyof FilterState, value: string) => {
+    setPendingFilters(prev => {
+      const next = { ...prev, [key]: value };
+      // 타입 변경 시 직경/길이 리셋
+      if (key === 'type') {
+        next.diameter = '';
+        next.length = '';
+      }
+      // 직경 변경 시 길이 리셋
+      if (key === 'diameter') {
+        next.length = '';
+      }
+      return next;
+    });
+  }, []);
 
-  const pendingFilterCount = [pendingDiameter, pendingLength, pendingColor, pendingType, searchInput].filter(Boolean).length;
-  const appliedFilterCount = [appliedDiameter, appliedLength, appliedColor, appliedType, appliedSearch].filter(Boolean).length;
+  const pendingFilterCount = [pendingFilters.diameter, pendingFilters.length, pendingFilters.color, pendingFilters.type, searchInput].filter(Boolean).length;
+  const appliedFilterCount = [appliedFilters.diameter, appliedFilters.length, appliedFilters.color, appliedFilters.type, appliedFilters.search].filter(Boolean).length;
 
   return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
@@ -418,7 +386,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             {activeCategory === '마이크로스크류/평머리' && filterOptions.types.length > 0 && (
               <div>
                 <label className="filter-label">타입</label>
-                <select value={pendingType} onChange={e => { setPendingType(e.target.value); setPendingDiameter(''); setPendingLength(''); }}
+                <select value={pendingFilters.type} onChange={e => updatePendingFilter('type', e.target.value)}
                   className="filter-select">
                   <option value="">전체</option>
                   {filterOptions.types.map(t => (
@@ -431,7 +399,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             )}
             <div>
               <label className="filter-label">직경</label>
-              <select value={pendingDiameter} onChange={e => { setPendingDiameter(e.target.value); setPendingLength(''); }}
+              <select value={pendingFilters.diameter} onChange={e => updatePendingFilter('diameter', e.target.value)}
                 className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.diameters.map(d => <option key={d} value={d}>M{d}</option>)}
@@ -439,7 +407,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             </div>
             <div>
               <label className="filter-label">길이</label>
-              <select value={pendingLength} onChange={e => setPendingLength(e.target.value)}
+              <select value={pendingFilters.length} onChange={e => updatePendingFilter('length', e.target.value)}
                 className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.lengths.map(l => <option key={l} value={l}>{l}mm</option>)}
@@ -447,7 +415,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             </div>
             <div>
               <label className="filter-label">색상</label>
-              <select value={pendingColor} onChange={e => setPendingColor(e.target.value)}
+              <select value={pendingFilters.color} onChange={e => updatePendingFilter('color', e.target.value)}
                 className="filter-select">
                 <option value="">전체</option>
                 {filterOptions.colors.map(c => <option key={c} value={c}>{c}</option>)}
@@ -489,8 +457,8 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             )}
           </div>
 
-          {/* 로딩 오버레이 (카테고리 변경 시에만) */}
-          {loading && (
+          {/* 로딩 오버레이 (카테고리 변경 또는 필터 전환 시) */}
+          {(loading || isFilterPending) && (
             <div className="loading-overlay">
               <div className="loading-spinner" />
             </div>
@@ -571,7 +539,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           cursor: pointer;
           font-size: 1rem;
           font-weight: 600;
-          transition: all 0.2s;
+          transition: background-color 0.2s, color 0.2s, border-color 0.2s;
           white-space: nowrap;
           flex-shrink: 0;
         }
@@ -674,7 +642,8 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           cursor: pointer;
           font-size: 1rem;
           font-weight: 700;
-          transition: all 0.2s;
+          transition: background-color 0.2s, transform 0.2s;
+          will-change: transform;
           min-height: 44px;
         }
         .search-btn:hover {
@@ -696,7 +665,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           font-size: 0.9rem;
           font-weight: 600;
           min-height: 44px;
-          transition: all 0.2s;
+          transition: background-color 0.2s;
         }
         .reset-btn:hover {
           background: #e0e0e0;
@@ -770,6 +739,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           gap: 1.5rem;
+          contain: layout style;
         }
 
         /* ===== 토스트 ===== */
@@ -810,6 +780,7 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            will-change: scroll-position;
             padding: 0 4px 8px;
             margin-bottom: 1rem !important;
             gap: 0.5rem !important;

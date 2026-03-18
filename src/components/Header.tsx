@@ -2,16 +2,193 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { getCartCount } from '@/lib/cart';
 import { CartIcon } from '@/components/icons';
 
+// ---------------------------------------------------------------------------
+// Cart count external store – isolates re-renders to badge-only components
+// ---------------------------------------------------------------------------
+const cartListeners = new Set<() => void>();
+let cartCountSnapshot = 0;
+
+function initCartStore() {
+  if (typeof window === 'undefined') return;
+  cartCountSnapshot = getCartCount();
+
+  const onCartChange = () => {
+    const next = getCartCount();
+    if (next !== cartCountSnapshot) {
+      cartCountSnapshot = next;
+      cartListeners.forEach((l) => l());
+    }
+  };
+  window.addEventListener('storage', onCartChange);
+  window.addEventListener('cart-updated', onCartChange);
+}
+
+// Initialise once on module load (client only)
+if (typeof window !== 'undefined') {
+  initCartStore();
+}
+
+function subscribeCart(cb: () => void) {
+  cartListeners.add(cb);
+  return () => { cartListeners.delete(cb); };
+}
+function getCartSnapshot() { return cartCountSnapshot; }
+function getCartServerSnapshot() { return 0; }
+
+function useCartCount() {
+  return useSyncExternalStore(subscribeCart, getCartSnapshot, getCartServerSnapshot);
+}
+
+// ---------------------------------------------------------------------------
+// Memoised leaf components
+// ---------------------------------------------------------------------------
+
+/** Desktop / mobile nav link – only re-renders when its own active state changes */
+const NavLink = memo(function NavLink({
+  href,
+  label,
+  isActive,
+}: {
+  href: string;
+  label: string;
+  isActive: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        color: isActive ? '#ff6b35' : '#fff',
+        textDecoration: 'none',
+        fontWeight: isActive ? 700 : 400,
+      }}
+    >
+      {label}
+    </Link>
+  );
+});
+
+/** Desktop cart link – subscribes to cart count independently */
+const DesktopCartLink = memo(function DesktopCartLink({ isActive }: { isActive: boolean }) {
+  const cartCount = useCartCount();
+  return (
+    <Link
+      href="/cart"
+      aria-label={`장바구니${cartCount > 0 ? ` (${cartCount}개)` : ''}`}
+      className="desktop-nav-link"
+      style={{
+        color: isActive ? '#ff6b35' : '#fff',
+        fontWeight: isActive ? 700 : 400,
+      }}
+    >
+      🛒 장바구니
+      {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+    </Link>
+  );
+});
+
+/** Mobile cart button in header bar */
+const MobileCartButton = memo(function MobileCartButton() {
+  const cartCount = useCartCount();
+  return (
+    <Link
+      href="/cart"
+      className="mobile-cart-btn"
+      aria-label={`장바구니${cartCount > 0 ? ` (${cartCount}개)` : ''}`}
+    >
+      <CartIcon size={22} />
+      {cartCount > 0 && <span className="mobile-cart-badge">{cartCount}</span>}
+    </Link>
+  );
+});
+
+/** Desktop user/login section – only re-renders when session changes */
+const DesktopUserSection = memo(function DesktopUserSection({ pathname }: { pathname: string }) {
+  const { data: session } = useSession();
+  const handleSignOut = useCallback(() => signOut({ callbackUrl: '/' }), []);
+
+  if (session) {
+    return (
+      <div className="desktop-user-info">
+        <span className="desktop-user-name">{session.user?.name}</span>
+        <button onClick={handleSignOut} className="desktop-logout-btn">
+          로그아웃
+        </button>
+      </div>
+    );
+  }
+  return <NavLink href="/login" label="로그인" isActive={pathname === '/login'} />;
+});
+
+/** Mobile auth section inside slide-in menu */
+const MobileAuthSection = memo(function MobileAuthSection({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  const { data: session } = useSession();
+  const handleSignOut = useCallback(() => {
+    onClose();
+    signOut({ callbackUrl: '/' });
+  }, [onClose]);
+
+  if (session) {
+    return (
+      <div className="mobile-auth-section">
+        <div className="mobile-user-info">
+          <div className="mobile-user-avatar">
+            {session.user?.name?.[0] || '?'}
+          </div>
+          <span className="mobile-user-name">{session.user?.name}</span>
+        </div>
+        <button onClick={handleSignOut} className="mobile-logout-btn">
+          로그아웃
+        </button>
+      </div>
+    );
+  }
+  return (
+    <Link href="/login" onClick={onClose} className="mobile-login-btn">
+      로그인
+    </Link>
+  );
+});
+
+/** Mobile menu cart badge – subscribes to cart count independently */
+const MobileMenuBadge = memo(function MobileMenuBadge() {
+  const cartCount = useCartCount();
+  if (cartCount <= 0) return null;
+  return <span className="mobile-menu-badge">{cartCount}</span>;
+});
+
+// ---------------------------------------------------------------------------
+// Nav items (static, no cart count embedded)
+// ---------------------------------------------------------------------------
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string | null;
+  hasCartBadge?: boolean;
+}
+
+const BASE_NAV_ITEMS: NavItem[] = [
+  { href: '/', label: '홈', icon: null },
+  { href: '/products', label: '제품', icon: null },
+  { href: '/cart', label: '장바구니', icon: '🛒', hasCartBadge: true },
+  { href: '/orders', label: '주문내역', icon: '📋' },
+  { href: '/contact', label: '문의하기', icon: '📩' },
+];
+
+// ---------------------------------------------------------------------------
+// Main Header component
+// ---------------------------------------------------------------------------
 export default function Header() {
   const pathname = usePathname();
-  const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { data: session } = useSession();
   const menuRef = useRef<HTMLDivElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -20,54 +197,35 @@ export default function Header() {
   const [headerVisible, setHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
+  const menuOpenRef = useRef(menuOpen);
+  menuOpenRef.current = menuOpen;
 
   const handleScroll = useCallback(() => {
     if (ticking.current) return;
     ticking.current = true;
     requestAnimationFrame(() => {
       const currentY = window.scrollY;
-      // Always show header when near top of page or when menu is open
-      if (currentY < 60 || menuOpen) {
+      if (currentY < 60 || menuOpenRef.current) {
         setHeaderVisible(true);
       } else if (currentY > lastScrollY.current + 5) {
-        // Scrolling down - hide
         setHeaderVisible(false);
       } else if (currentY < lastScrollY.current - 5) {
-        // Scrolling up - show
         setHeaderVisible(true);
       }
       lastScrollY.current = currentY;
       ticking.current = false;
     });
-  }, [menuOpen]);
+  }, []); // stable ref – no dependency on menuOpen
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  // --- Cart count ---
-  useEffect(() => {
-    const update = () => setCartCount(getCartCount());
-    update();
-    window.addEventListener('storage', update);
-    window.addEventListener('cart-updated', update);
-    return () => {
-      window.removeEventListener('storage', update);
-      window.removeEventListener('cart-updated', update);
-    };
-  }, []);
-
   // --- Lock body scroll when menu is open ---
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
   // --- Focus trap + ESC close ---
@@ -108,16 +266,9 @@ export default function Header() {
     setMenuOpen(false);
   }, [pathname]);
 
-  const isAdmin = !!(session?.user && (session.user as { isAdmin?: boolean }).isAdmin);
-
-  const navItems = [
-    { href: '/', label: '홈', icon: null },
-    { href: '/products', label: '제품', icon: null },
-    { href: '/cart', label: '장바구니', icon: '🛒', badge: cartCount },
-    { href: '/orders', label: '주문내역', icon: '📋' },
-    { href: '/contact', label: '문의하기', icon: '📩' },
-    ...(isAdmin ? [{ href: '/admin', label: '관리', icon: '⚙️' }] : []),
-  ];
+  // --- Stable callbacks ---
+  const toggleMenu = useCallback(() => setMenuOpen((prev) => !prev), []);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   return (
     <>
@@ -127,68 +278,34 @@ export default function Header() {
       >
         <div className="header-inner">
           {/* Logo */}
-          <Link href="/" className="header-logo">
+          <Link href="/" prefetch={true} className="header-logo">
             <span className="header-logo-icon">⚡</span>
             <span className="header-logo-text">Mini Bolt</span>
           </Link>
 
           {/* Desktop nav */}
           <ul className="desktop-nav">
-            {navItems.map(({ href, label, badge }) => (
+            {BASE_NAV_ITEMS.map(({ href, label }) => (
               <li key={href}>
                 {href === '/cart' ? (
-                  <Link
-                    href="/cart"
-                    aria-label={`장바구니${cartCount > 0 ? ` (${cartCount}개)` : ''}`}
-                    className="desktop-nav-link"
-                    style={{
-                      color: pathname === '/cart' ? '#ff6b35' : '#fff',
-                      fontWeight: pathname === '/cart' ? 700 : 400,
-                    }}
-                  >
-                    🛒 장바구니
-                    {cartCount > 0 && (
-                      <span className="cart-badge">{cartCount}</span>
-                    )}
-                  </Link>
+                  <DesktopCartLink isActive={pathname === '/cart'} />
                 ) : (
-                  <NavLink href={href} label={label} current={pathname} />
+                  <NavLink href={href} label={label} isActive={pathname === href} />
                 )}
               </li>
             ))}
             <li>
-              {session ? (
-                <div className="desktop-user-info">
-                  <span className="desktop-user-name">{session.user?.name}</span>
-                  <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
-                    className="desktop-logout-btn"
-                  >
-                    로그아웃
-                  </button>
-                </div>
-              ) : (
-                <NavLink href="/login" label="로그인" current={pathname} />
-              )}
+              <DesktopUserSection pathname={pathname} />
             </li>
           </ul>
 
           {/* Mobile: cart icon + hamburger */}
           <div className="mobile-header-actions">
-            <Link
-              href="/cart"
-              className="mobile-cart-btn"
-              aria-label={`장바구니${cartCount > 0 ? ` (${cartCount}개)` : ''}`}
-            >
-              <CartIcon size={22} />
-              {cartCount > 0 && (
-                <span className="mobile-cart-badge">{cartCount}</span>
-              )}
-            </Link>
+            <MobileCartButton />
 
             <button
               ref={hamburgerRef}
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={toggleMenu}
               className="hamburger-btn"
               aria-label={menuOpen ? '메뉴 닫기' : '메뉴 열기'}
               aria-expanded={menuOpen}
@@ -200,13 +317,12 @@ export default function Header() {
             </button>
           </div>
         </div>
-
       </nav>
 
-      {/* Mobile overlay - nav 바깥에 위치 (will-change: transform containing block 회피) */}
+      {/* Mobile overlay */}
       <div
         className={`mobile-overlay ${menuOpen ? 'mobile-overlay-active' : ''}`}
-        onClick={() => setMenuOpen(false)}
+        onClick={closeMenu}
         aria-hidden="true"
       />
 
@@ -219,53 +335,23 @@ export default function Header() {
         className={`mobile-menu ${menuOpen ? 'mobile-menu-open' : ''}`}
       >
         <div className="mobile-menu-content">
-          {navItems.map(({ href, label, icon, badge }) => (
+          {BASE_NAV_ITEMS.map(({ href, label, icon, hasCartBadge }) => (
             <Link
               key={href}
               href={href}
-              onClick={() => setMenuOpen(false)}
+              onClick={closeMenu}
               className={`mobile-menu-item ${pathname === href ? 'mobile-menu-item-active' : ''}`}
             >
               {icon && <span className="mobile-menu-icon">{icon}</span>}
               <span className="mobile-menu-label">{label}</span>
-              {typeof badge === 'number' && badge > 0 && (
-                <span className="mobile-menu-badge">{badge}</span>
-              )}
+              {hasCartBadge && <MobileMenuBadge />}
               {pathname === href && <span className="mobile-active-indicator" />}
             </Link>
           ))}
 
-          {/* Divider */}
           <div className="mobile-menu-divider" />
 
-          {/* Auth section */}
-          {session ? (
-            <div className="mobile-auth-section">
-              <div className="mobile-user-info">
-                <div className="mobile-user-avatar">
-                  {session.user?.name?.[0] || '?'}
-                </div>
-                <span className="mobile-user-name">{session.user?.name}</span>
-              </div>
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  signOut({ callbackUrl: '/' });
-                }}
-                className="mobile-logout-btn"
-              >
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <Link
-              href="/login"
-              onClick={() => setMenuOpen(false)}
-              className="mobile-login-btn"
-            >
-              로그인
-            </Link>
-          )}
+          <MobileAuthSection onClose={closeMenu} />
         </div>
       </div>
 
@@ -476,6 +562,7 @@ export default function Header() {
           z-index: 1000;
           transform: translateX(100%);
           transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: transform;
           overflow-y: auto;
           -webkit-overflow-scrolling: touch;
           overscroll-behavior: contain;
@@ -653,21 +740,5 @@ export default function Header() {
         }
       `}</style>
     </>
-  );
-}
-
-function NavLink({ href, label, current }: { href: string; label: string; current: string }) {
-  const isActive = current === href;
-  return (
-    <Link
-      href={href}
-      style={{
-        color: isActive ? '#ff6b35' : '#fff',
-        textDecoration: 'none',
-        fontWeight: isActive ? 700 : 400,
-      }}
-    >
-      {label}
-    </Link>
   );
 }

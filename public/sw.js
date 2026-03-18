@@ -3,8 +3,14 @@
  * MiniBolt Service Worker
  * - 오프라인 캐싱 (관리자 페이지)
  * - 푸시 알림 핸들링
+ *
+ * Cache versioning: bump CACHE_VERSION when static assets change.
+ * Old caches are automatically deleted on activation.
  */
-const CACHE_NAME = 'minibolt-admin-v1';
+const CACHE_VERSION = 2;
+const CACHE_PREFIX = 'minibolt-v';
+const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
+
 const STATIC_ASSETS = [
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -18,42 +24,45 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// ──── Activate: clean old caches ────
+// ──── Activate: clean ALL old caches ────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        keys
+          .filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME)
+          .map((k) => caches.delete(k))
       )
     )
   );
   self.clients.claim();
 });
 
-// ──── Fetch: network-first for admin, cache-first for static ────
+// ──── Fetch handler ────
+// IMPORTANT: Do NOT intercept navigation requests (mode === 'navigate')
+// to avoid slowing down page transitions in a Next.js SPA.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+
+  // Only handle GET requests
   if (request.method !== 'GET') return;
+
+  // Never intercept navigation requests — let the browser/Next.js handle them directly
+  if (request.mode === 'navigate') return;
 
   const url = new URL(request.url);
 
-  // API: network-first with cache fallback
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
+  // Skip cross-origin requests
+  if (url.origin !== self.location.origin) return;
 
-  // Admin pages: network-first with cache fallback
+  // Skip Toss Payments and other payment-related URLs
+  if (url.pathname.startsWith('/api/payment')) return;
+
+  // API: network-only (no caching) — API responses change frequently
+  // and caching them can cause stale data issues
+  if (url.pathname.startsWith('/api/')) return;
+
+  // Admin pages: network-first with cache fallback (offline support)
   if (url.pathname.startsWith('/admin')) {
     event.respondWith(
       fetch(request)
@@ -69,13 +78,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets (icons, Next.js static bundles): cache-first
   if (url.pathname.startsWith('/icons/') || url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request))
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
     );
     return;
   }
+
+  // All other requests: pass through to network (no interception)
 });
 
 // ──── Push Notification Handler ────
@@ -112,7 +132,6 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // 이미 열린 창이 있으면 포커스 (pathname 기준 비교)
       for (const client of clientList) {
         try {
           const clientUrl = new URL(client.url);
@@ -124,7 +143,6 @@ self.addEventListener('notificationclick', (event) => {
           // URL 파싱 실패 시 무시
         }
       }
-      // 없으면 새 창 열기
       return self.clients.openWindow(targetUrl);
     })
   );

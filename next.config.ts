@@ -19,12 +19,15 @@ const nextConfig: NextConfig = {
   // Image optimization
   // ---------------------------------------------------------------------------
   images: {
-    formats: ['image/webp', 'image/avif'],
+    formats: ['image/avif', 'image/webp'],
     // 제품 이미지 사이즈 최적화 - 실제 사용 크기에 맞춘 device sizes
     deviceSizes: [640, 768, 1024, 1280],
     imageSizes: [48, 64, 128, 200, 280],
-    // 이미지 캐시 최적화 (기본 60초 → 1시간)
-    minimumCacheTTL: 3600,
+    // 이미지 캐시 최적화: 제품 이미지는 거의 변경되지 않으므로 7일 캐시
+    minimumCacheTTL: 604800,
+    // SVG 지원 (ScrewSVG 등 제품 도면)
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'inline',
   },
 
   // ---------------------------------------------------------------------------

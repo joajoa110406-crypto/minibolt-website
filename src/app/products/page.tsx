@@ -1,6 +1,5 @@
-import Link from 'next/link';
-import { allProducts } from '@/lib/products';
-import { generateProductName, CATEGORY_TABS } from '@/lib/products-utils';
+import { allProducts, productsByCategory as productsByCategoryMap } from '@/lib/products';
+import { CATEGORY_TABS } from '@/lib/products-utils';
 import ProductsClient from './ProductsClient';
 import type { Product } from '@/types/product';
 
@@ -14,7 +13,7 @@ const breadcrumbJsonLd = {
   ],
 };
 
-// CollectionPage JSON-LD
+// CollectionPage JSON-LD (카테고리 목록만 포함, 개별 제품은 제외)
 const collectionJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'CollectionPage',
@@ -38,21 +37,6 @@ const collectionJsonLd = {
   },
 };
 
-// 카테고리별 제품 그룹화 (서버에서 한 번만 실행)
-function getProductsByCategory() {
-  const groups: Record<string, (typeof allProducts)[number][]> = {};
-  for (const tab of CATEGORY_TABS) {
-    groups[tab.key] = [];
-  }
-  for (const product of allProducts) {
-    const cat = product.category || '기타';
-    if (groups[cat]) {
-      groups[cat].push(product);
-    }
-  }
-  return groups;
-}
-
 // 초기 필터 옵션 계산 (서버에서 한 번)
 function computeFilterOptions(products: readonly Product[]) {
   return {
@@ -69,11 +53,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     ? params.category
     : CATEGORY_TABS[0].key;
 
-  // 서버에서 초기 카테고리 제품 + 필터 옵션 미리 계산 (API 호출 불필요)
-  const initialProducts = allProducts.filter(p => p.category === initialCategory);
+  // 카테고리 인덱스를 활용해 전체 순회 방지
+  const initialProducts = (productsByCategoryMap.get(initialCategory) ?? []) as Product[];
   const initialFilterOptions = computeFilterOptions(initialProducts);
-
-  const productsByCategory = getProductsByCategory();
 
   return (
     <>
@@ -85,33 +67,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
       />
-
-      {/* 크롤러용 서버 렌더링 제품 목록 (사용자에게는 숨김) */}
-      <section className="sr-only" aria-label="전체 제품 목록">
-        <h2>마이크로나사 전체 상품 {allProducts.length}종 - MiniBolt 미니볼트</h2>
-        <p>39년 제조사 성원특수금속 직접판매 | M1.2~M3 정밀나사 소량 100개부터 구매 가능</p>
-        {CATEGORY_TABS.map(tab => {
-          const products = productsByCategory[tab.key] || [];
-          if (products.length === 0) return null;
-          return (
-            <div key={tab.key}>
-              <h3>{tab.label} ({products.length}종)</h3>
-              <ul>
-                {products.map(product => {
-                  const name = generateProductName(product);
-                  return (
-                    <li key={product.id}>
-                      <Link href={`/products/${product.id}`}>
-                        {name} M{product.diameter}x{product.length}mm {product.color === '니켈' ? '니켈' : '블랙'} 마이크로나사
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          );
-        })}
-      </section>
 
       {/* 인터랙티브 클라이언트 컴포넌트 (서버 초기 데이터 포함) */}
       <ProductsClient

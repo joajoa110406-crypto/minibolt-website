@@ -4,9 +4,11 @@ import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import NextAuthSessionProvider from '@/components/SessionProvider';
-import FloatingCartButton from '@/components/FloatingCartButton';
-import CartRecoveryBanner from '@/components/CartRecoveryBanner';
-import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import {
+  FloatingCartButton,
+  CartRecoveryBanner,
+  ServiceWorkerRegistration,
+} from '@/components/ClientDynamicComponents';
 
 export const viewport: Viewport = {
   width: 'device-width',

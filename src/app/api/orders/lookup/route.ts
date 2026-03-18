@@ -183,9 +183,17 @@ export async function POST(req: NextRequest) {
     if (formattedPhone !== normalizedPhone) {
       phoneVariants.push(formattedPhone);
     }
+    // 필요한 컬럼만 선택하여 응답 크기 및 DB 처리 시간 절감
     const { data: order, error } = await supabaseAdminClient
       .from('orders')
-      .select(`*, order_items (*)`)
+      .select(`
+        order_number, customer_name, customer_phone, customer_email,
+        shipping_address, shipping_memo,
+        product_amount, shipping_fee, total_amount,
+        payment_method, order_status, tracking_number,
+        need_tax_invoice, need_cash_receipt, created_at,
+        order_items (product_id, product_name, quantity, unit_price, total_price, block_size)
+      `)
       .eq('order_number', orderNumber.trim().toUpperCase())
       .in('customer_phone', phoneVariants)
       .single();

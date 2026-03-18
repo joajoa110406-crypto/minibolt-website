@@ -82,6 +82,7 @@ export default function FloatingCartButton() {
             z-index: 998;
             box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15);
             transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+            will-change: transform, opacity;
             animation: floatingCartFadeIn 0.3s ease forwards;
             -webkit-tap-highlight-color: transparent;
           }

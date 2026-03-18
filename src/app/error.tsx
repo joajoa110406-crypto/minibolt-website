@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -25,9 +26,9 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           <button onClick={reset} style={{ background: '#ff6b35', color: '#fff', padding: '0.75rem 2rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '1rem' }}>
             다시 시도
           </button>
-          <a href="/" style={{ background: '#2c3e50', color: '#fff', padding: '0.75rem 2rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: '1rem', display: 'inline-flex', alignItems: 'center' }}>
+          <Link href="/" prefetch={true} style={{ background: '#2c3e50', color: '#fff', padding: '0.75rem 2rem', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: '1rem', display: 'inline-flex', alignItems: 'center' }}>
             홈으로 가기
-          </a>
+          </Link>
         </div>
       </div>
     </div>

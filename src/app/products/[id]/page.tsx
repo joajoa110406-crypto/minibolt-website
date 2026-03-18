@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { BLUR_DATA_URL } from '@/lib/image-constants';
 import { generateProductName, getCategoryImage, getStockStatus, allProducts } from '@/lib/products';
 import ScrewSVG from '@/components/ScrewSVG';
 import ProductDetailClient from './ProductDetailClient';
@@ -244,6 +245,8 @@ export default async function ProductDetailPage({ params }: Props) {
                 width={280}
                 height={280}
                 priority
+                placeholder="blur"
+                blurDataURL={BLUR_DATA_URL}
                 sizes="(max-width: 768px) 200px, 280px"
                 style={{ borderRadius: 12, border: '1px solid #e0e0e0', objectFit: 'cover', maxWidth: '100%', height: 'auto' }}
               />
@@ -345,12 +348,15 @@ export default async function ProductDetailPage({ params }: Props) {
                 const rpImg = getCategoryImage(rp);
                 const rpPrice = Math.round((rp.price_100_block ?? 3000) * 1.1);
                 return (
-                  <Link key={rp.id} href={`/products/${rp.id}`} className="pdp-related-card">
+                  <Link key={rp.id} href={`/products/${rp.id}`} prefetch={false} className="pdp-related-card">
                     <Image
                       src={rpImg}
                       alt={`${rpName} 마이크로나사 - MiniBolt`}
                       width={64}
                       height={64}
+                      loading="lazy"
+                      placeholder="blur"
+                      blurDataURL={BLUR_DATA_URL}
                       sizes="(max-width: 768px) 48px, 64px"
                       style={{ borderRadius: 8, border: '1px solid #e0e0e0', objectFit: 'cover' }}
                     />
@@ -385,6 +391,9 @@ export default async function ProductDetailPage({ params }: Props) {
               alt="성원특수금속 유해물질 불함유 확인서 - RoHS/REACH 준수"
               width={856}
               height={1200}
+              loading="lazy"
+              placeholder="blur"
+              blurDataURL={BLUR_DATA_URL}
               sizes="(max-width: 768px) 100vw, 600px"
               style={{ width: '100%', maxWidth: 600, height: 'auto', borderRadius: 8, border: '1px solid #e0e0e0' }}
             />

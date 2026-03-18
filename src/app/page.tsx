@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import RecentlyViewed from '@/components/RecentlyViewed';
+import { BLUR_DATA_URL } from '@/lib/image-constants';
+import { RecentlyViewed } from '@/components/ClientDynamicComponents';
 
 export const metadata: Metadata = {
   title: '미니볼트 - 마이크로 스크류 전문 | 소형 정밀 나사 제조사 직접판매',
@@ -169,6 +170,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/products"
+          prefetch={true}
           style={{
             background: '#ff6b35',
             color: '#fff',
@@ -218,6 +220,7 @@ export default function HomePage() {
               <Link
                 key={cat.title}
                 href={`/products?category=${encodeURIComponent(cat.query)}`}
+                prefetch={true}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <div style={{
@@ -251,6 +254,9 @@ export default function HomePage() {
                       width={400}
                       height={300}
                       priority={cat.featured}
+                      loading={cat.featured ? undefined : 'lazy'}
+                      placeholder="blur"
+                      blurDataURL={BLUR_DATA_URL}
                       sizes="(max-width: 640px) 45vw, (max-width: 1024px) 50vw, 280px"
                       style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 'clamp(6px, 2vw, 12px)' }}
                     />

@@ -68,6 +68,7 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
           <ProductImage src={getCategoryImage(product)} alt={`${displayName} ${product.category || '기타'} 마이크로나사 - MiniBolt`} size={80} />
           <Link
             href={`/products/${product.id}`}
+            prefetch={false}
             title="상세 보기"
             aria-label={`${displayName} 상세 보기`}
             className="detail-btn"
