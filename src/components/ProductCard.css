@@ -253,14 +253,37 @@
   color: #666;
 }
 .qty-price {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
   font-size: 0.85rem;
   font-weight: 700;
   color: #ff6b35;
 }
-.discount-tag {
+.price-original {
+  text-decoration: line-through;
+  color: #aaa;
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+.price-arrow {
+  color: #999;
+  font-size: 0.7rem;
+  margin: 0 2px;
+}
+.price-discounted {
   color: #e74c3c;
-  margin-left: 3px;
+  font-weight: 800;
+}
+.discount-tag {
+  color: #fff;
+  background: #e74c3c;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-left: 4px;
   font-weight: 700;
+  font-size: 0.65rem;
 }
 
 /* 장바구니 버튼 */
@@ -395,9 +418,33 @@
     margin-top: 0.25rem;
   }
 
-  /* 수량 컨트롤 숨김 (모바일에서는 1묶음 기본, 장바구니에서 조절) */
+  /* 수량 컨트롤: 모바일에서 컴팩트하게 표시 */
   .qty-row {
-    display: none;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .qty-controls {
+    gap: 0.15rem;
+  }
+  .qty-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+  .qty-input {
+    width: 40px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+  .qty-summary {
+    margin-left: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+  }
+  .qty-price {
+    font-size: 0.7rem;
+    justify-content: center;
   }
 
   /* 블록 버튼 + 장바구니 버튼을 한 줄에 */

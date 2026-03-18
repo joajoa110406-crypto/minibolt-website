@@ -4,7 +4,7 @@ import React, { useCallback } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/types/product';
 import { generateProductName, getCategoryImage, getStockStatus } from '@/lib/products-utils';
-import { getBulkDiscount, getTotalPrice } from '@/lib/cart';
+import { getBulkDiscount, getBlockPrice, getTotalPrice } from '@/lib/cart';
 import ProductImage from '@/components/ProductImage';
 import { addRecentlyViewed } from '@/lib/recently-viewed';
 import './ProductCard.css';
@@ -172,9 +172,15 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
           <div className="qty-summary">
             <span className="qty-total">= {(blockSize * blockCount).toLocaleString()}개</span>
             <span className="qty-price">
-              ₩{getTotalPrice(product, blockSize, blockCount).toLocaleString()}
-              {discount > 0 && (
-                <small className="discount-tag">-{discount}%</small>
+              {discount > 0 ? (
+                <>
+                  <span className="price-original">₩{Math.round(getBlockPrice(product, blockSize) * blockCount * (1 + 0.1)).toLocaleString()}</span>
+                  <span className="price-arrow">→</span>
+                  <span className="price-discounted">₩{getTotalPrice(product, blockSize, blockCount).toLocaleString()}</span>
+                  <small className="discount-tag">-{discount}%</small>
+                </>
+              ) : (
+                <>₩{getTotalPrice(product, blockSize, blockCount).toLocaleString()}</>
               )}
             </span>
           </div>
