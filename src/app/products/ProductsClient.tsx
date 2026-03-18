@@ -148,7 +148,8 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     return P;
   }, [categoryProducts, appliedFilters]);
 
-  // 필터 옵션 — 대기 필터 기반 캐스케이딩 (드롭다운 UX)
+  // 필터 옵션 — 완전 캐스케이딩: 타입 → 직경 → 길이 → 색상
+  // 각 필터는 상위 필터가 적용된 결과에서만 옵션을 추출
   const filterOptions = useMemo(() => {
     let base = categoryProducts;
     // 복합 타입 옵션 생성: M/C, T/C, 평-M, 평-T
@@ -176,9 +177,10 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     const diameters = [...new Set(base.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
     if (pendingFilters.diameter) base = base.filter(p => p.diameter === pendingFilters.diameter);
     const lengths = [...new Set(base.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
+    if (pendingFilters.length) base = base.filter(p => p.length === pendingFilters.length);
     const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
     return { diameters, lengths, colors, types };
-  }, [categoryProducts, pendingFilters.type, pendingFilters.diameter]);
+  }, [categoryProducts, pendingFilters.type, pendingFilters.diameter, pendingFilters.length]);
 
   // 카테고리 변경 시 필터 초기화
   useEffect(() => {
@@ -295,14 +297,18 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
   const updatePendingFilter = useCallback((key: keyof FilterState, value: string) => {
     setPendingFilters(prev => {
       const next = { ...prev, [key]: value };
-      // 타입 변경 시 직경/길이 리셋
+      // 캐스케이딩 리셋: 상위 필터 변경 시 하위 필터 초기화
       if (key === 'type') {
         next.diameter = '';
         next.length = '';
+        next.color = '';
       }
-      // 직경 변경 시 길이 리셋
       if (key === 'diameter') {
         next.length = '';
+        next.color = '';
+      }
+      if (key === 'length') {
+        next.color = '';
       }
       return next;
     });
