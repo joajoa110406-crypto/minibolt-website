@@ -79,9 +79,16 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
         <div className="card-header-info">
           <h3 className="card-title">{displayName}</h3>
           <div className="card-specs">
-            <span className="spec-tag">M{product.diameter}</span>
-            <span className="spec-tag">{product.length}mm</span>
-            <span className="spec-tag">{product.color}</span>
+            {product.type && (
+              <span className="spec-tag spec-tag-type">
+                {product.type === 'M' ? '머신' : product.type === 'T' ? '태핑' : product.type}
+              </span>
+            )}
+            {product.head_width && (
+              <span className="spec-tag spec-tag-head">
+                Φ{product.head_width}
+              </span>
+            )}
           </div>
         </div>
       </div>

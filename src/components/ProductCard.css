@@ -61,6 +61,14 @@
   font-size: 0.7rem;
   font-weight: 600;
 }
+.spec-tag-type {
+  background: #e8f4fd;
+  color: #1a73e8;
+}
+.spec-tag-head {
+  background: #fff3e0;
+  color: #e65100;
+}
 .card-image-area {
   display: flex;
   flex-direction: column;
