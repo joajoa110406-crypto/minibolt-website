@@ -113,19 +113,11 @@ export async function GET(req: NextRequest) {
       : jsonProducts
     ).map(p => p.type).filter(Boolean)
   )].sort();
-  const headTypes = [...new Set(
-    (category
-      ? (source === 'db'
-        ? filtered
-        : jsonProducts.filter(p => p.category === category))
-      : jsonProducts
-    ).map(p => p.sub_category).filter(Boolean)
-  )].sort();
 
   return NextResponse.json(
     {
       products: filtered,
-      filterOptions: { diameters, lengths, colors, types, headTypes },
+      filterOptions: { diameters, lengths, colors, types },
       total: filtered.length,
       source,
     },

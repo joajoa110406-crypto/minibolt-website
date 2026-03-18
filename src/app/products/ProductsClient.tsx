@@ -23,7 +23,6 @@ interface FilterOptions {
   lengths: string[];
   colors: string[];
   types: string[];
-  headTypes: string[];
 }
 
 interface ProductsClientProps {
@@ -41,14 +40,12 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
 
   // 대기 필터 (드롭다운 표시값, 아직 적용 안 됨)
   const [pendingType, setPendingType] = useState('');
-  const [pendingHeadType, setPendingHeadType] = useState('');
   const [pendingDiameter, setPendingDiameter] = useState('');
   const [pendingLength, setPendingLength] = useState('');
   const [pendingColor, setPendingColor] = useState('');
 
   // 적용된 필터 (실제 제품 목록 필터링에 사용)
   const [appliedType, setAppliedType] = useState('');
-  const [appliedHeadType, setAppliedHeadType] = useState('');
   const [appliedDiameter, setAppliedDiameter] = useState('');
   const [appliedLength, setAppliedLength] = useState('');
   const [appliedColor, setAppliedColor] = useState('');
@@ -142,33 +139,58 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
           .filter(Boolean).join(' ').toLowerCase().includes(q)
       );
     }
-    if (appliedType) P = P.filter(p => p.type === appliedType);
-    if (appliedHeadType) P = P.filter(p => (p.sub_category || '') === appliedHeadType);
+    if (appliedType) {
+      if (appliedType.startsWith('평-')) {
+        const t = appliedType.slice(2); // 'M' or 'T'
+        P = P.filter(p => p.sub_category === '평머리' && p.type === t);
+      } else {
+        // M or T (마이크로스크류 only)
+        P = P.filter(p => p.sub_category !== '평머리' && p.type === appliedType);
+      }
+    }
     if (appliedDiameter) P = P.filter(p => p.diameter === appliedDiameter);
     if (appliedLength) P = P.filter(p => p.length === appliedLength);
     if (appliedColor) P = P.filter(p => p.color === appliedColor);
 
     return P;
-  }, [categoryProducts, appliedSearch, appliedType, appliedHeadType, appliedDiameter, appliedLength, appliedColor]);
+  }, [categoryProducts, appliedSearch, appliedType, appliedDiameter, appliedLength, appliedColor]);
 
   // 필터 옵션 — 대기 필터 기반 캐스케이딩 (드롭다운 UX)
   const filterOptions = useMemo(() => {
     let base = categoryProducts;
-    const types = [...new Set(categoryProducts.map(p => p.type).filter(Boolean))].sort();
-    const headTypes = [...new Set(categoryProducts.map(p => p.sub_category).filter(Boolean))].sort();
-    if (pendingType) base = base.filter(p => p.type === pendingType);
-    if (pendingHeadType) base = base.filter(p => (p.sub_category || '') === pendingHeadType);
+    // 복합 타입 옵션 생성: M/C, T/C, 평-M, 평-T
+    const typeSet = new Set<string>();
+    for (const p of categoryProducts) {
+      if (!p.type) continue;
+      if (p.sub_category === '평머리') {
+        typeSet.add(`평-${p.type}`);
+      } else {
+        typeSet.add(p.type);
+      }
+    }
+    const types = [...typeSet].sort((a, b) => {
+      const order = ['M', 'T', '평-M', '평-T'];
+      return order.indexOf(a) - order.indexOf(b);
+    });
+    if (pendingType) {
+      if (pendingType.startsWith('평-')) {
+        const t = pendingType.slice(2);
+        base = base.filter(p => p.sub_category === '평머리' && p.type === t);
+      } else {
+        base = base.filter(p => p.sub_category !== '평머리' && p.type === pendingType);
+      }
+    }
     const diameters = [...new Set(base.map(p => p.diameter).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
     if (pendingDiameter) base = base.filter(p => p.diameter === pendingDiameter);
     const lengths = [...new Set(base.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b));
     const colors = [...new Set(base.map(p => p.color).filter(Boolean))].sort();
-    return { diameters, lengths, colors, types, headTypes };
-  }, [categoryProducts, pendingType, pendingHeadType, pendingDiameter]);
+    return { diameters, lengths, colors, types };
+  }, [categoryProducts, pendingType, pendingDiameter]);
 
   // 카테고리 변경 시 필터 초기화
   useEffect(() => {
-    setPendingType(''); setPendingHeadType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
-    setAppliedType(''); setAppliedHeadType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
+    setPendingType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
+    setAppliedType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
     setSearchInput(''); setAppliedSearch('');
     setVisibleCount(PRODUCTS_PER_PAGE);
   }, [activeCategory]);
@@ -176,23 +198,22 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
   // 적용된 필터 변경 시 visibleCount 리셋
   useEffect(() => {
     setVisibleCount(PRODUCTS_PER_PAGE);
-  }, [appliedSearch, appliedType, appliedHeadType, appliedDiameter, appliedLength, appliedColor]);
+  }, [appliedSearch, appliedType, appliedDiameter, appliedLength, appliedColor]);
 
   // 검색 버튼 핸들러: 대기 필터 → 적용
   const handleSearch = useCallback(() => {
     setAppliedType(pendingType);
-    setAppliedHeadType(pendingHeadType);
     setAppliedDiameter(pendingDiameter);
     setAppliedLength(pendingLength);
     setAppliedColor(pendingColor);
     setAppliedSearch(searchInput);
     setFilterOpen(false);
-  }, [pendingType, pendingHeadType, pendingDiameter, pendingLength, pendingColor, searchInput]);
+  }, [pendingType, pendingDiameter, pendingLength, pendingColor, searchInput]);
 
   // 초기화 핸들러
   const handleReset = useCallback(() => {
-    setPendingType(''); setPendingHeadType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
-    setAppliedType(''); setAppliedHeadType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
+    setPendingType(''); setPendingDiameter(''); setPendingLength(''); setPendingColor('');
+    setAppliedType(''); setAppliedDiameter(''); setAppliedLength(''); setAppliedColor('');
     setSearchInput(''); setAppliedSearch('');
   }, []);
 
@@ -204,12 +225,11 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
   // 대기 필터와 적용 필터가 다른지 체크 (검색 버튼 강조용)
   const hasUnappliedChanges = useMemo(() => {
     return pendingType !== appliedType ||
-           pendingHeadType !== appliedHeadType ||
            pendingDiameter !== appliedDiameter ||
            pendingLength !== appliedLength ||
            pendingColor !== appliedColor ||
            searchInput !== appliedSearch;
-  }, [pendingType, appliedType, pendingHeadType, appliedHeadType, pendingDiameter, appliedDiameter, pendingLength, appliedLength, pendingColor, appliedColor, searchInput, appliedSearch]);
+  }, [pendingType, appliedType, pendingDiameter, appliedDiameter, pendingLength, appliedLength, pendingColor, appliedColor, searchInput, appliedSearch]);
 
   // 현재 화면에 보여줄 제품 (점진적 로딩)
   const visibleProducts = useMemo(() => {
@@ -320,8 +340,8 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
     </div>
   );
 
-  const pendingFilterCount = [pendingDiameter, pendingLength, pendingColor, pendingType, pendingHeadType, searchInput].filter(Boolean).length;
-  const appliedFilterCount = [appliedDiameter, appliedLength, appliedColor, appliedType, appliedHeadType, appliedSearch].filter(Boolean).length;
+  const pendingFilterCount = [pendingDiameter, pendingLength, pendingColor, pendingType, searchInput].filter(Boolean).length;
+  const appliedFilterCount = [appliedDiameter, appliedLength, appliedColor, appliedType, appliedSearch].filter(Boolean).length;
 
   return (
     <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
@@ -401,18 +421,11 @@ function ProductsContent({ initialCategory, initialProducts, initialFilterOption
                 <select value={pendingType} onChange={e => { setPendingType(e.target.value); setPendingDiameter(''); setPendingLength(''); }}
                   className="filter-select">
                   <option value="">전체</option>
-                  {filterOptions.types.map(t => <option key={t} value={t}>{t === 'M' ? 'M/C (머신)' : t === 'T' ? 'T/C (태핑)' : t}</option>)}
-                </select>
-              </div>
-            )}
-            {/* 헤드형태 필터 (마이크로스크류/평머리만) */}
-            {activeCategory === '마이크로스크류/평머리' && filterOptions.headTypes.length > 0 && (
-              <div>
-                <label className="filter-label">헤드형태</label>
-                <select value={pendingHeadType} onChange={e => { setPendingHeadType(e.target.value); setPendingDiameter(''); setPendingLength(''); }}
-                  className="filter-select">
-                  <option value="">전체</option>
-                  {filterOptions.headTypes.map(h => <option key={h} value={h}>{h}</option>)}
+                  {filterOptions.types.map(t => (
+                    <option key={t} value={t}>
+                      {t === 'M' ? 'M/C (머신)' : t === 'T' ? 'T/C (태핑)' : t === '평-M' ? '평-M (머신)' : t === '평-T' ? '평-T (태핑)' : t}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}

@@ -60,7 +60,6 @@ function computeFilterOptions(products: readonly Product[]) {
     lengths: [...new Set(products.map(p => p.length).filter(Boolean))].sort((a, b) => parseFloat(a) - parseFloat(b)),
     colors: [...new Set(products.map(p => p.color).filter(Boolean))].sort(),
     types: [...new Set(products.map(p => p.type).filter(Boolean))].sort(),
-    headTypes: [...new Set(products.map(p => p.sub_category).filter(Boolean))].sort(),
   };
 }
 
