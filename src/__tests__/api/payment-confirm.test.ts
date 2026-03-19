@@ -68,7 +68,7 @@ vi.stubGlobal('fetch', mockFetch);
 
 function makeOrderInfo(overrides: Record<string, unknown> = {}) {
   return {
-    orderId: 'MB1234567890',
+    orderId: 'MB20260308-001',
     buyerName: '홍길동',
     buyerEmail: 'test@example.com',
     buyerPhone: '01012345678',
@@ -118,7 +118,7 @@ describe('POST /api/payment/confirm', () => {
     // 기본 Toss API 성공 응답 (totalAmount, orderId 포함 - 서버 검증용)
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ method: 'CARD', status: 'DONE', totalAmount: 6300, orderId: 'MB1234567890' }),
+      json: async () => ({ method: 'CARD', status: 'DONE', totalAmount: 6300, orderId: 'MB20260308-001' }),
     });
   });
 
@@ -126,7 +126,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -141,7 +141,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 9999, // 서버 계산값 6300과 불일치
       orderInfo,
     }));
@@ -155,7 +155,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo({ totalAmount: 9999 });
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300, // 서버 계산값과 같지만 orderInfo.totalAmount과 불일치
       orderInfo,
     }));
@@ -168,7 +168,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -187,7 +187,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -205,7 +205,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -218,7 +218,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -239,7 +239,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -258,7 +258,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     const res = await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
@@ -275,7 +275,7 @@ describe('POST /api/payment/confirm', () => {
     const orderInfo = makeOrderInfo();
     await POST(makeRequest({
       paymentKey: 'pk_test_1234567890abcdef',
-      orderId: 'MB1234567890',
+      orderId: 'MB20260308-001',
       amount: 6300,
       orderInfo,
     }));
