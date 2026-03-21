@@ -28,6 +28,7 @@ export default function Footer() {
             <h4 style={{ marginBottom: '1rem' }}>고객지원</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <Link href="/orders" style={linkStyle}>주문내역 조회</Link>
+              <Link href="/inquiry" style={linkStyle}>견적 문의</Link>
               <Link href="/contact" style={linkStyle}>문의하기</Link>
               <Link href="/returns/request" style={linkStyle}>교환/반품 신청</Link>
               <Link href="/payment-terms" style={linkStyle}>결제 안내</Link>

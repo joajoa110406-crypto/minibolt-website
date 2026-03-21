@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import type { Product } from '@/types/product';
 import { addToCart, getBulkDiscount, getTotalPrice } from '@/lib/cart';
 import { generateProductName } from '@/lib/products-utils';
+import { isNylocEligible, NYLOC_MIN_QTY, NYLOC_SURCHARGE_PER_UNIT } from '@/lib/nyloc';
 
 const BLOCKS = [
   { size: 100, label: '100개' },
@@ -18,10 +19,13 @@ interface Props {
 export default function ProductDetailClient({ product }: Props) {
   const [blockSize, setBlockSize] = useState(100);
   const [blockCount, setBlockCount] = useState(1);
+  const [nyloc, setNyloc] = useState(false);
   const [toast, setToast] = useState('');
 
+  const nylocAvailable = isNylocEligible(product);
   const totalQty = blockSize * blockCount;
-  const totalPrice = getTotalPrice(product, blockSize, blockCount);
+  const nylocValid = !nyloc || totalQty >= NYLOC_MIN_QTY;
+  const totalPrice = getTotalPrice(product, blockSize, blockCount, nyloc && nylocValid);
   const discount = getBulkDiscount(blockSize, blockCount);
 
   const handleBlockChange = useCallback((size: number) => {
@@ -29,15 +33,22 @@ export default function ProductDetailClient({ product }: Props) {
     setBlockCount(1);
   }, []);
 
+  const handleNylocToggle = useCallback(() => {
+    setNyloc(prev => !prev);
+  }, []);
+
   const handleAddToCart = useCallback(() => {
     if (product.stock === 0) return;
-    addToCart(product, totalQty, blockSize, blockCount);
+    if (nyloc && !nylocValid) return;
+    const useNyloc = nyloc && nylocValid;
+    addToCart(product, totalQty, blockSize, blockCount, useNyloc);
     window.dispatchEvent(new Event('cart-updated'));
     const name = generateProductName(product);
+    const nylocText = useNyloc ? ' [나일록]' : '';
     const discountText = discount > 0 ? ` (${discount}% 할인)` : '';
-    setToast(`${name} ${totalQty.toLocaleString()}개 \u20a9${totalPrice.toLocaleString()}${discountText}`);
+    setToast(`${name}${nylocText} ${totalQty.toLocaleString()}개 \u20a9${totalPrice.toLocaleString()}${discountText}`);
     setTimeout(() => setToast(''), 3500);
-  }, [product, totalQty, blockSize, blockCount, discount, totalPrice]);
+  }, [product, totalQty, blockSize, blockCount, discount, totalPrice, nyloc, nylocValid]);
 
   return (
     <div className="pdpc-wrap">
@@ -89,6 +100,31 @@ export default function ProductDetailClient({ product }: Props) {
         </div>
       </div>
 
+      {/* Nyloc option */}
+      {nylocAvailable && (
+        <div className="pdpc-nyloc-section">
+          <div className="pdpc-nyloc-row" onClick={handleNylocToggle} role="button" tabIndex={0}>
+            <span className="pdpc-nyloc-label">
+              <span className={`pdpc-nyloc-toggle ${nyloc ? 'pdpc-nyloc-active' : ''}`}>
+                <span className="pdpc-nyloc-toggle-dot" />
+              </span>
+              <span>나일록 처리</span>
+              <span className="pdpc-nyloc-price">+{NYLOC_SURCHARGE_PER_UNIT}원/개</span>
+            </span>
+          </div>
+          {nyloc && !nylocValid && (
+            <p className="pdpc-nyloc-warning">
+              나일록 처리는 {NYLOC_MIN_QTY.toLocaleString()}개 이상부터 주문 가능합니다
+            </p>
+          )}
+          {nyloc && nylocValid && (
+            <p className="pdpc-nyloc-lead-time">
+              📅 나일록 처리 시 영업일 기준 +7일 소요됩니다
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="pdpc-summary">
         <div className="pdpc-summary-row">
@@ -114,10 +150,10 @@ export default function ProductDetailClient({ product }: Props) {
       {/* Add to cart button */}
       <button
         onClick={handleAddToCart}
-        disabled={product.stock === 0}
-        className={`pdpc-cart-btn ${product.stock === 0 ? 'disabled' : ''}`}
+        disabled={product.stock === 0 || (nyloc && !nylocValid)}
+        className={`pdpc-cart-btn ${product.stock === 0 || (nyloc && !nylocValid) ? 'disabled' : ''}`}
       >
-        {product.stock === 0 ? '품절' : '장바구니 담기'}
+        {product.stock === 0 ? '품절' : (nyloc && !nylocValid) ? `${NYLOC_MIN_QTY.toLocaleString()}개 이상 선택 필요` : '장바구니 담기'}
       </button>
 
       {/* Toast notification */}
@@ -280,6 +316,76 @@ export default function ProductDetailClient({ product }: Props) {
           font-size: 0.75rem;
           color: #e74c3c;
           text-align: center;
+          font-weight: 600;
+        }
+
+        /* Nyloc */
+        .pdpc-nyloc-section {
+          margin-bottom: 1rem;
+          padding: 0.75rem 1rem;
+          background: #f0f7ff;
+          border: 2px solid #d0e3f7;
+          border-radius: 10px;
+        }
+        .pdpc-nyloc-row {
+          display: flex;
+          align-items: center;
+        }
+        .pdpc-nyloc-row {
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .pdpc-nyloc-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #333;
+          user-select: none;
+        }
+        .pdpc-nyloc-toggle {
+          width: 40px;
+          height: 22px;
+          background: #ccc;
+          border-radius: 11px;
+          position: relative;
+          transition: background 0.2s;
+          flex-shrink: 0;
+        }
+        .pdpc-nyloc-toggle.pdpc-nyloc-active {
+          background: #ff6b35;
+        }
+        .pdpc-nyloc-toggle-dot {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 18px;
+          height: 18px;
+          background: #fff;
+          border-radius: 50%;
+          transition: transform 0.2s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .pdpc-nyloc-active .pdpc-nyloc-toggle-dot {
+          transform: translateX(18px);
+        }
+        .pdpc-nyloc-price {
+          color: #ff6b35;
+          font-size: 0.8rem;
+          font-weight: 700;
+          margin-left: auto;
+        }
+        .pdpc-nyloc-warning {
+          margin: 0.5rem 0 0;
+          font-size: 0.8rem;
+          color: #e74c3c;
+          font-weight: 600;
+        }
+        .pdpc-nyloc-lead-time {
+          margin: 0.5rem 0 0;
+          font-size: 0.8rem;
+          color: #e67e22;
           font-weight: 600;
         }
 

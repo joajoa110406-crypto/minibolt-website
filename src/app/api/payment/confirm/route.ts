@@ -338,7 +338,7 @@ export async function POST(req: NextRequest) {
         const items = orderInfo.items.map((item: CartItem) => ({
           order_id: order.id,
           product_id: item.id,
-          product_name: item.name,
+          product_name: item.nyloc ? `${item.name} [나일록]` : item.name,
           category: item.category,
           diameter: item.diameter,
           length: item.length,

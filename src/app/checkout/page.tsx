@@ -410,9 +410,9 @@ export default function CheckoutPage() {
 
   // Memoize cart item rendering data
   const cartItemsDisplay = useMemo(() => cart.map(item => ({
-    key: `${item.id}-${item.blockSize}`,
+    key: `${item.id}-${item.blockSize}-${item.nyloc ? 'nyloc' : 'std'}`,
     name: generateProductName(item),
-    specs: `M${item.diameter}×${item.length}mm | ${item.color} | ${item.qty.toLocaleString()}개`,
+    specs: `M${item.diameter}×${item.length}mm | ${item.color}${item.nyloc ? ' | 나일록' : ''} | ${item.qty.toLocaleString()}개`,
     price: calculateItemPrice(item),
   })), [cart]);
 

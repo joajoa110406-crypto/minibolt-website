@@ -17,7 +17,7 @@ export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; blockSize: number } | 'all' | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; blockSize: number; nyloc?: boolean } | 'all' | null>(null);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
@@ -37,21 +37,23 @@ export default function CartPage() {
     if (msg) showToast(msg);
   };
 
-  const updateBlockCount = (id: string, blockSize: number, delta: number) => {
+  const matchItem = (item: CartItem, id: string, blockSize: number, nyloc?: boolean) =>
+    item.id === id && item.blockSize === blockSize && (!!item.nyloc) === (!!nyloc);
+
+  const updateBlockCount = (id: string, blockSize: number, delta: number, nyloc?: boolean) => {
     const next = cart.map(item =>
-      (item.id === id && item.blockSize === blockSize)
+      matchItem(item, id, blockSize, nyloc)
         ? { ...item, blockCount: Math.max(1, item.blockCount + delta), qty: item.blockSize * Math.max(1, item.blockCount + delta) }
         : item
     );
     refresh(next, '수량이 변경되었습니다');
   };
 
-  const setBlockCount = (id: string, blockSize: number, val: number) => {
-    // 유효하지 않은 값 방어: NaN, Infinity, 소수점, 음수, 과도하게 큰 값
+  const setBlockCount = (id: string, blockSize: number, val: number, nyloc?: boolean) => {
     const parsed = Number.isFinite(val) ? Math.floor(val) : 1;
     const count = Math.min(Math.max(1, parsed), 9999);
     const next = cart.map(item =>
-      (item.id === id && item.blockSize === blockSize)
+      matchItem(item, id, blockSize, nyloc)
         ? { ...item, blockCount: count, qty: item.blockSize * count }
         : item
     );
@@ -63,7 +65,7 @@ export default function CartPage() {
     if (pendingDelete === 'all') {
       refresh([], '장바구니를 비웠습니다');
     } else {
-      refresh(cart.filter(item => !(item.id === pendingDelete.id && item.blockSize === pendingDelete.blockSize)), '상품이 삭제되었습니다');
+      refresh(cart.filter(item => !matchItem(item, pendingDelete.id, pendingDelete.blockSize, pendingDelete.nyloc)), '상품이 삭제되었습니다');
     }
     setPendingDelete(null);
   };
@@ -147,7 +149,7 @@ export default function CartPage() {
             const discount = getItemDiscount(item);
             const blockLabel = BLOCK_LABELS[item.blockSize] || `${item.blockSize}개`;
             return (
-              <div key={`${item.id}-${item.blockSize}`} className="cart-item" style={{
+              <div key={`${item.id}-${item.blockSize}-${item.nyloc ? 'nyloc' : 'std'}`} className="cart-item" style={{
                 border: '2px solid #e9ecef', borderRadius: 10, padding: '1.5rem',
                 marginBottom: '1rem',
               }}>
@@ -160,16 +162,32 @@ export default function CartPage() {
                     <div style={{ fontSize: '0.85rem', color: '#666' }}>
                       M{item.diameter} × {item.length}mm | {item.color}
                     </div>
-                    <div style={{
-                      display: 'inline-block', marginTop: '0.4rem',
-                      background: '#fff5f0', color: '#ff6b35', border: '1px solid #ff6b35',
-                      padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
-                    }}>
-                      {blockLabel} 단위
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        background: '#fff5f0', color: '#ff6b35', border: '1px solid #ff6b35',
+                        padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
+                      }}>
+                        {blockLabel} 단위
+                      </span>
+                      {item.nyloc && (
+                        <span style={{
+                          display: 'inline-block',
+                          background: '#f0f7ff', color: '#2563eb', border: '1px solid #93bbfd',
+                          padding: '2px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
+                        }}>
+                          나일록
+                        </span>
+                      )}
                     </div>
+                    {item.nyloc && (
+                      <div style={{ fontSize: '0.75rem', color: '#e67e22', marginTop: '0.3rem', fontWeight: 600 }}>
+                        📅 나일록 처리: 영업일 기준 +7일 소요
+                      </div>
+                    )}
                   </div>
                   <button
-                    onClick={() => setPendingDelete({ id: item.id, blockSize: item.blockSize })}
+                    onClick={() => setPendingDelete({ id: item.id, blockSize: item.blockSize, nyloc: item.nyloc })}
                     aria-label={`${generateProductName(item)} 삭제`}
                     className="cart-delete-btn"
                     style={{ background: 'none', border: '2px solid transparent', color: '#999', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem', flexShrink: 0, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, transition: 'all 0.15s' }}
@@ -181,7 +199,7 @@ export default function CartPage() {
                 {/* 수량 + 가격 (한 줄) */}
                 <div className="cart-item-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button onClick={() => updateBlockCount(item.id, item.blockSize, -1)}
+                    <button onClick={() => updateBlockCount(item.id, item.blockSize, -1, item.nyloc)}
                       aria-label="수량 감소"
                       className="cart-qty-btn"
                       style={{ width: 44, height: 44, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
@@ -191,12 +209,12 @@ export default function CartPage() {
                       type="number"
                       value={item.blockCount}
                       min={1}
-                      onChange={e => setBlockCount(item.id, item.blockSize, parseInt(e.target.value) || 1)}
+                      onChange={e => setBlockCount(item.id, item.blockSize, parseInt(e.target.value) || 1, item.nyloc)}
                       aria-label="묶음 수량"
                       className="qty-input"
                       style={{ width: 52, padding: '0.4rem', border: '2px solid #e0e0e0', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: '0.95rem', height: 44 }}
                     />
-                    <button onClick={() => updateBlockCount(item.id, item.blockSize, 1)}
+                    <button onClick={() => updateBlockCount(item.id, item.blockSize, 1, item.nyloc)}
                       aria-label="수량 증가"
                       className="cart-qty-btn"
                       style={{ width: 44, height: 44, border: '2px solid #e0e0e0', background: '#f8f9fa', borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>

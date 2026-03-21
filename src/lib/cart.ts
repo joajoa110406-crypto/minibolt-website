@@ -1,10 +1,12 @@
 import type { Product } from '@/types/product';
 import { PRICING } from '@/lib/company-info';
+import { NYLOC_SURCHARGE_PER_UNIT } from '@/lib/nyloc';
 
 export interface CartItem extends Product {
   qty: number;          // 총 수량 (예: 10000)
   blockSize: number;    // 블록 단위 (100 / 1000 / 5000)
   blockCount: number;   // 블록 수량 (예: 2 → 5000 × 2 = 10000)
+  nyloc?: boolean;      // 나일록 처리 여부
 }
 
 // 메모리 캐시: localStorage 접근과 JSON 파싱 최소화
@@ -50,7 +52,7 @@ export function getCartCount(): number {
   return getCart().reduce((sum, item) => sum + item.qty, 0);
 }
 
-export function addToCart(product: Product, qty: number, blockSize: number = 100, blockCount: number = 1) {
+export function addToCart(product: Product, qty: number, blockSize: number = 100, blockCount: number = 1, nyloc: boolean = false) {
   // 방어적 검증: 유효 범위 보장
   if (!Number.isFinite(blockCount) || blockCount < 1) blockCount = 1;
   if (blockCount > 9999) blockCount = 9999;
@@ -59,13 +61,13 @@ export function addToCart(product: Product, qty: number, blockSize: number = 100
   blockSize = Math.floor(blockSize);
 
   const cart = getCart();
-  // 같은 제품 + 같은 블록사이즈면 수량 합산
-  const idx = cart.findIndex(x => x.id === product.id && x.blockSize === blockSize);
+  // 같은 제품 + 같은 블록사이즈 + 같은 나일록 옵션이면 수량 합산
+  const idx = cart.findIndex(x => x.id === product.id && x.blockSize === blockSize && (!!x.nyloc) === nyloc);
   if (idx >= 0) {
     cart[idx].blockCount += blockCount;
     cart[idx].qty = cart[idx].blockSize * cart[idx].blockCount;
   } else {
-    cart.push({ ...product, qty: blockSize * blockCount, blockSize, blockCount });
+    cart.push({ ...product, qty: blockSize * blockCount, blockSize, blockCount, nyloc: nyloc || undefined });
   }
   saveCart(cart);
 }
@@ -96,17 +98,18 @@ export function getBlockPrice(item: { price_100_block?: number; price_1000_block
 }
 
 // 총 가격 계산 (할인 포함, VAT 포함)
-export function getTotalPrice(item: { price_100_block?: number; price_1000_block?: number; price_5000_block?: number }, blockSize: number, blockCount: number): number {
+export function getTotalPrice(item: { price_100_block?: number; price_1000_block?: number; price_5000_block?: number }, blockSize: number, blockCount: number, nyloc: boolean = false): number {
   const basePrice = getBlockPrice(item, blockSize) * blockCount;
+  const nylocSurcharge = nyloc ? NYLOC_SURCHARGE_PER_UNIT * blockSize * blockCount : 0;
   const discount = getBulkDiscount(blockSize, blockCount);
-  const supplyPrice = Math.round(basePrice * (1 - discount / 100));
+  const supplyPrice = Math.round((basePrice + nylocSurcharge) * (1 - discount / 100));
   return Math.round(supplyPrice * (1 + PRICING.vatRate));
 }
 
 // 아이템 가격 (VAT 포함)
 export function calculateItemPrice(item: CartItem): number {
   if (item.blockCount < 1 || item.qty < 1) return 0;
-  return getTotalPrice(item, item.blockSize, item.blockCount);
+  return getTotalPrice(item, item.blockSize, item.blockCount, !!item.nyloc);
 }
 
 export function getItemDiscount(item: CartItem): number {

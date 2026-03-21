@@ -196,8 +196,9 @@ interface NavItem {
 const BASE_NAV_ITEMS: NavItem[] = [
   { href: '/', label: '홈', icon: null },
   { href: '/products', label: '제품', icon: null },
+  { href: '/inquiry', label: '견적 문의', icon: '📋' },
   { href: '/cart', label: '장바구니', icon: '🛒', hasCartBadge: true },
-  { href: '/orders', label: '주문내역', icon: '📋' },
+  { href: '/orders', label: '주문내역', icon: '📦' },
   { href: '/contact', label: '문의하기', icon: '📩' },
 ];
 
