@@ -98,12 +98,13 @@ export function getBlockPrice(item: { price_100_block?: number; price_1000_block
 }
 
 // 총 가격 계산 (할인 포함, VAT 포함)
+// 나일록 추가금은 고정 단가이므로 묶음 할인 대상에서 제외
 export function getTotalPrice(item: { price_100_block?: number; price_1000_block?: number; price_5000_block?: number }, blockSize: number, blockCount: number, nyloc: boolean = false): number {
   const basePrice = getBlockPrice(item, blockSize) * blockCount;
-  const nylocSurcharge = nyloc ? NYLOC_SURCHARGE_PER_UNIT * blockSize * blockCount : 0;
   const discount = getBulkDiscount(blockSize, blockCount);
-  const supplyPrice = Math.round((basePrice + nylocSurcharge) * (1 - discount / 100));
-  return Math.round(supplyPrice * (1 + PRICING.vatRate));
+  const discountedBase = Math.round(basePrice * (1 - discount / 100));
+  const nylocSurcharge = nyloc ? NYLOC_SURCHARGE_PER_UNIT * blockSize * blockCount : 0;
+  return Math.round((discountedBase + nylocSurcharge) * (1 + PRICING.vatRate));
 }
 
 // 아이템 가격 (VAT 포함)
