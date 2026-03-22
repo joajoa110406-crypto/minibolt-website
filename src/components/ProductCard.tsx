@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Product } from '@/types/product';
 import { generateProductName, getCategoryImage, getStockStatus } from '@/lib/products-utils';
 import { getBulkDiscount, getBlockPrice, getTotalPrice } from '@/lib/cart';
+import { isNylocEligible } from '@/lib/nyloc';
 import ProductImage from '@/components/ProductImage';
 import { addRecentlyViewed } from '@/lib/recently-viewed';
 import './ProductCard.css';
@@ -28,6 +29,7 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
   const { label: stockLabel, ok } = getStockStatus(product.stock);
   const displayName = generateProductName(product);
   const discount = getBulkDiscount(blockSize, blockCount);
+  const nylocAvailable = isNylocEligible(product);
 
   const recordView = useCallback(() => {
     addRecentlyViewed({
@@ -88,6 +90,11 @@ function ProductCard({ product, blockSize, blockCount, onBlockChange, onBlockCou
             {product.head_width && (
               <span className="spec-tag spec-tag-head">
                 Φ{product.head_width}
+              </span>
+            )}
+            {nylocAvailable && (
+              <span className="spec-tag spec-tag-nyloc">
+                나일록 가능
               </span>
             )}
           </div>
