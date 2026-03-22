@@ -49,7 +49,7 @@ export function _resetCartCache() {
 }
 
 export function getCartCount(): number {
-  return getCart().reduce((sum, item) => sum + item.qty, 0);
+  return getCart().length;
 }
 
 export function addToCart(product: Product, qty: number, blockSize: number = 100, blockCount: number = 1, nyloc: boolean = false) {
